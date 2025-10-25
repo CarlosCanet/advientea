@@ -6,7 +6,8 @@
      "args": [
        "-y",
        "@upstash/context7-mcp@latest"
-     ]
+     ],
+     "envFile": "${workspaceFolder}/.env"
    }
   }
 }

@@ -24,6 +24,7 @@ npm run dev    # Uses --turbopack flag for faster development
 npm run build  # Production build with --turbopack
 npm run start  # Production server
 npm run lint   # ESLint with Next.js config
+npm run test   # Run tests with Jest
 ```
 
 **Critical:** This project uses Turbopack by default - always include `--turbopack` flag in build commands.
@@ -88,6 +89,12 @@ src/app/
 - Implement proper loading and error states
 - Use optimistic updates where appropriate
 - Keep state as close to components that need it as possible
+
+### Testing
+- The project uses Jest for unit and integration testing.
+- Run tests using the `npm run test` command.
+- Write tests for new components and logic to ensure they are working as expected.
+- Use React Testing Library for testing components.
 
 ### Data Fetching & Performance
 - Direct database queries in Server Components
