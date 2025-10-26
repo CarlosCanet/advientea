@@ -43,3 +43,6 @@ next-env.d.ts
 # DB
 /src/generated/prisma
 dev.db
+
+# Planning & internal docs
+.docs/
