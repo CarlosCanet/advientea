@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
@@ -12,24 +9,120 @@ datasource db {
 }
 
 model Day {
-  id              String   @id @default(cuid())
-  dayNumber       Int      @unique
+  id        String @id @default(cuid())
+  dayNumber Int
+  year      Int    @default(2025)
+
+  tea        Tea?
+  story      StoryTea?
+  assignment DayAssignment?
+  // guesses     TeaGuess[]
+
+  @@unique([dayNumber, year])
+}
+
+model Tea {
+  id              String  @id @default(cuid())
+  dayId           String  @unique
   name            String
-  time            Int
+  infusionTime    Int
+  temperature     Int
   hasTheine       Boolean
   canReinfuse     Boolean
   reinfuseNumber  Int?
   moreIndications String
-  addMilk         Boolean   @default(false)
-  story           StoryTea?
+  addMilk         Boolean @default(false)
+  storeName       String?
+  url             String?
+
+  day Day @relation(fields: [dayId], references: [id], onDelete: Cascade)
+}
+
+model DayAssignment {
+  id     String @id @default(cuid())
+  userId String
+  dayId  String @unique
+  year   Int
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  day  Day  @relation(fields: [dayId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, year])
+  @@index([year])
+}
+
+model StoryImage {
+  id         String   @id @default(cuid())
+  storyTeaId String
+  url        String
+  publicId   String
+  order      Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  story StoryTea @relation(fields: [storyTeaId], references: [id], onDelete: Cascade)
+
+  @@index([storyTeaId, order])
 }
 
 model StoryTea {
-  id          String    @id @default(cuid())
-  dayId       Day       @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  storyPart1  String
-  storyPart2  String
-  storyPart3  String
-  youtubeURL  String?
-  onlyMusic   Boolean?
+  id         String   @id @default(cuid())
+  dayId      String   @unique
+  storyPart1 String
+  storyPart2 String
+  storyPart3 String
+  youtubeURL String?
+  onlyMusic  Boolean?
+
+  day    Day          @relation(fields: [dayId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  images StoryImage[]
 }
+
+model User {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  password  String
+  email     String   @unique
+  isAdmin   Boolean  @default(false)
+  image     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  daysAssigned DayAssignment[]
+  // guesses      TeaGuess[]
+  // badges       UserBadge[]
+}
+
+// model TeaGuess {
+//   id          String   @id @default(cuid())
+//   userId      String
+//   dayId       String
+//   guessedName String
+//   timestamp   DateTime @default(now())
+//   points      Int      @default(0)
+
+//   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+//   day  Day  @relation(fields: [dayId], references: [id], onDelete: Cascade)
+
+//   @@index([userId, dayId, timestamp])  // Query last guess efficiently
+// }
+
+// model Badge {
+//   id          String @id @default(cuid())
+//   name        String @unique
+//   description String
+//   icon        String
+
+//   users UserBadge[]
+// }
+
+// model UserBadge {
+//   id       String   @id @default(cuid())
+//   userId   String
+//   badgeId  String
+//   earnedAt DateTime @default(now())
+
+//   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+//   badge Badge @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+//   @@unique([userId, badgeId])
+// }

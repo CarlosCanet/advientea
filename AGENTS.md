@@ -157,49 +157,83 @@ public/
 
 ## Database Schema
 
-### User Model
+### Multi-Year Support
+The schema supports multiple calendar editions (2025, 2026, etc.) through the `year` field in Day and DayAssignment models.
+
+### MVP Models (Active)
+
+#### User Model
 - Authentication and profile information
 - Fields: username, email, password (hashed with bcryptjs), isAdmin, image (Cloudinary URL), createdAt, updatedAt
-- Each non-admin user is assigned to one specific Day (one-to-one relation)
-- Relations: assignedDay, guesses, badges
+- Relations: daysAssigned (DayAssignment[]), guesses (TeaGuess[] - BONUS P1), badges (UserBadge[] - Production)
+- Unique constraints: username, email
 
-### Day Model
+#### Day Model
 - Represents a single day in the tea advent calendar
-- Fields: dayNumber, name, infusionTime (minutes), hasTheine, canReinfuse, reinfuseNumber, moreIndications, addMilk
-- Relations: story (StoryTea), assignedUser, guesses (TeaGuess[])
+- Fields: dayNumber (1-25), year (default 2025)
+- Relations: tea (Tea, 1-to-1), story (StoryTea, 1-to-1), assignment (DayAssignment, 1-to-1), guesses (TeaGuess[] - BONUS P1)
+- Unique constraint: [dayNumber, year] - allows same day number across different years
 - Reveal time is constant at 21:00 UTC (defined in src/lib/constants.ts)
 
-### StoryTea Model
+#### Tea Model
+- Tea information (separated from Day for better normalization)
+- Fields: dayId, name, infusionTime (minutes), temperature (celsius), hasTheine, canReinfuse, reinfuseNumber, moreIndications, addMilk, storeName, url
+- Relations: day (Day, 1-to-1)
+- Unique constraint: dayId (one tea per day)
+- Cascade delete: if Day is deleted, Tea is deleted
+- Note: Intentional duplication allowed (users upload their own tea data without checking for existing teas)
+
+#### DayAssignment Model
+- Manages user-to-day assignments with multi-year support
+- Fields: userId, dayId, year
+- Relations: user (User), day (Day)
+- Unique constraints: dayId (one assignment per day), [userId, year] (one day per user per year)
+- Index: year (for efficient queries by calendar edition)
+- Cascade delete: if User or Day is deleted, assignment is deleted
+
+#### StoryTea Model
 - Contains narrative content for each tea day
-- Fields: storyPart1, storyPart2, storyPart3 (progressive reveal based on time)
-- Optional YouTube integration (youtubeURL, onlyMusic flag)
-- Relations: day (Day), images (DayImage[])
+- Fields: dayId, storyPart1, storyPart2, storyPart3, youtubeURL, onlyMusic
+- Relations: day (Day, 1-to-1), images (StoryImage[])
+- Unique constraint: dayId
 - Cascade delete/update with parent Day
 
-### TeaGuess Model
+#### StoryImage Model
+- Images for tea day stories (formerly DayImage)
+- Fields: storyTeaId, url (Cloudinary URL), publicId (for management), order (default 0), createdAt
+- Relations: story (StoryTea)
+- Index: [storyTeaId, order] for efficient ordered gallery queries
+- Cascade delete: if StoryTea is deleted, all images are deleted
+- Uploaded by assigned user or admin
+- Multiple images per StoryTea supported
+
+### BONUS P1 Models (Phase 2.2 - Commented in schema)
+
+#### TeaGuess Model
 - Stores user attempts to guess tea names
 - Fields: userId, dayId, guessedName, timestamp, points
+- Relations: user (User), day (Day)
 - Points are calculated immediately upon guess submission (using scoring algorithm)
 - Points are revealed to users at 21:00 UTC daily
-- Only the last guess per user/day is used for scoring
-- Index on [userId, dayId] for performance
+- Only the last guess per user/day is used for scoring (query by timestamp DESC)
+- Index: [userId, dayId, timestamp] for efficient last guess queries
+- No `isLatest` flag - simpler to query by timestamp
 
-### Badge Model
+### Production Models (Phase 3.2 - Commented in schema)
+
+#### Badge Model
 - Achievement definitions
 - Fields: name, description, icon (Cloudinary URL or emoji)
 - Relations: users (UserBadge[]) - many-to-many
+- Unique constraint: name
 - Examples: "First Blood" (first correct guess), "Tea Master" (highest score), etc.
 
-### UserBadge Model
+#### UserBadge Model
 - Junction table for User ↔ Badge many-to-many relation
 - Fields: userId, badgeId, earnedAt
-- Unique constraint on [userId, badgeId]
-
-### DayImage Model
-- Images for tea day stories
-- Fields: storyTeaId, url (Cloudinary URL), publicId (for management), createdAt
-- Uploaded by assigned user or admin
-- Multiple images per StoryTea supported
+- Relations: user (User), badge (Badge)
+- Unique constraint: [userId, badgeId] - prevents duplicate badge awards
+- Cascade delete: if User or Badge is deleted, relation is deleted
 
 ## Development Workflow
 
