@@ -244,7 +244,8 @@ The schema supports multiple calendar editions (2025, 2026, etc.) through the `y
 - **No feature branches:** Commit directly to develop for speed
 
 **Commit Convention:**
-- **Format:** `<type>: <description> (#issue-number)`
+- **Format:** `<type>: <description>`
+- **Issue numbers:** If the commit is associated with a tracked issue, append the issue reference as ` (#issue-number)`; include the issue number for any commit that resolves, implements, or is intended to be tracked by an issue.
 - **Max length:** 72 characters (strict)
 - **Body:** Avoid unless absolutely essential (details go in code/PR/issue)
 - **Types:** feat, fix, test, refactor, chore, docs
