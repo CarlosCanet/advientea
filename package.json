@@ -7,7 +7,9 @@
     "build": "next build --turbopack",
     "start": "next start",
     "test": "jest",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:reset": "npx prisma migrate reset --force"
   },
   "dependencies": {
     "@prisma/client": "^6.18.0",
