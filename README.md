@@ -31,7 +31,7 @@ A gamified advent calendar web application for tea lovers, built with Next.js 15
 ### Prerequisites
 
 - Node.js 18.17 or later
-- npm, yarn, pnpm, or bun
+- pnpm (recommended) or npm/yarn/bun
 
 ### Installation
 
@@ -43,6 +43,10 @@ cd advientea
 
 2. Install dependencies
 ```bash
+# Using pnpm (recommended)
+pnpm install
+
+# Or using npm
 npm install
 ```
 
@@ -63,12 +67,21 @@ CLOUDINARY_API_SECRET="your-api-secret"
 
 4. Set up the database
 ```bash
+# Using pnpm
+pnpm dlx prisma generate
+pnpm dlx prisma migrate dev --name init
+
+# Or using npx
 npx prisma generate
 npx prisma migrate dev --name init
 ```
 
 5. Run the development server
 ```bash
+# Using pnpm
+pnpm dev
+
+# Or using npm
 npm run dev
 ```
 
