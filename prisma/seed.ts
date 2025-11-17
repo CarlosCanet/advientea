@@ -8,70 +8,120 @@ const prisma = new PrismaClient();
 
 async function createUsers() {
   // Create admin
-  await prisma.user.create({
+  const admin = await prisma.user.create({
     data: {
       username: "CarlosC",
-      password: await bcrypt.hash("admin", 12),
       email: "carlos@carlos.com",
       isAdmin: true,
       image: "rve5rqyjkdryycl81m46_f3pno3",
     },
   });
+  await prisma.account.create({
+    data: {
+      id: admin.id,
+      accountId: admin.id,
+      providerId: "credential",
+      userId: admin.id,
+      password: await bcrypt.hash("admin", 12),
+    }
+  })
   
   // Create user1
-  await prisma.user.create({
+  const user1 = await prisma.user.create({
     data: {
       username: "Deinos",
-      password: await bcrypt.hash("deinos", 12),
       email: "jorgedeinos@gmail.com",
       isAdmin: false,
       image: "lmajfu1dxzdh2pu14sho_mhryym",
     },
   });
+  await prisma.account.create({
+    data: {
+      id: user1.id,
+      accountId: user1.id,
+      providerId: "credential",
+      userId: user1.id,
+      password: await bcrypt.hash("deinos", 12),
+    }
+  })
 
   // Create user2
-  await prisma.user.create({
+  const user2 = await prisma.user.create({
     data: {
       username: "mikoalilla",
-      password: await bcrypt.hash("miko", 12),
       email: "miko@gmail.com",
       isAdmin: false,
       image: "yckwmkloc2wdfqt2fsab_dq3bja",
     },
   });
+  await prisma.account.create({
+    data: {
+      id: user2.id,
+      accountId: user2.id,
+      providerId: "credential",
+      userId: user2.id,
+      password: await bcrypt.hash("miko", 12),
+    }
+  })
 
   // Create user3
-  await prisma.user.create({
+  const user3 = await prisma.user.create({
     data: {
       username: "Ñita",
-      password: await bcrypt.hash("ana", 12),
       email: "ana@gmail.com",
       isAdmin: false,
       image: "rkmsaem9fxnahkuomx7x_beqzba",
     },
   });
+  await prisma.account.create({
+    data: {
+      id: user3.id,
+      accountId: user3.id,
+      providerId: "credential",
+      userId: user3.id,
+      password: await bcrypt.hash("ana", 12),
+    }
+  })
 
   // Create user4
-  await prisma.user.create({
+  const user4 = await prisma.user.create({
     data: {
       username: "Sony",
-      password: await bcrypt.hash("ynos", 12),
       email: "sony@gmail.com",
       isAdmin: false,
       image: "mmcqcamq3nqxfajaznar_xczowt",
     },
   });
+  await prisma.account.create({
+    data: {
+      id: user4.id,
+      accountId: user4.id,
+      providerId: "credential",
+      userId: user4.id,
+      password: await bcrypt.hash("ynos", 12),
+    }
+  })
+
 
   // Create user5
-  await prisma.user.create({
+  const user5 = await prisma.user.create({
     data: {
       username: "María",
-      password: await bcrypt.hash("maria", 12),
       email: "maria@gmail.com",
       isAdmin: false,
       image: "mmcqcamq3nqxfajaznar_xczowt",
     },
   });
+  await prisma.account.create({
+    data: {
+      id: user5.id,
+      accountId: user5.id,
+      providerId: "credential",
+      userId: user5.id,
+      password: await bcrypt.hash("maria", 12),
+    }
+  })
+
 }
 
 async function createDays() {
@@ -207,24 +257,24 @@ async function createDaysAssignments() {
   const mariaUser = await prisma.user.findFirst({ where: { username: "María" } });
   if (deinosUser && mikoalillaUser && nitaUser && sonyUser && mariaUser) {
     const users = [deinosUser, mikoalillaUser, nitaUser, sonyUser, mariaUser];
-    users.forEach(async (user, i) => {
+    for(const [i, user] of users.entries()){
       await prisma.dayAssignment.create({
         data: {
           year: 2025,
           dayId: days[i].id,
           userId: user!.id
       }})
-    })
+    }
   }
 }
 
 async function seed() {
   try {
-    await createUsers();
-    await createDays();
-    await createTeas();
-    await createStoryTeas();
-    await createStoryImages();
+    // await createUsers();
+    // await createDays();
+    // await createTeas();
+    // await createStoryTeas();
+    // await createStoryImages();
     await createDaysAssignments();
   } catch (error) {
     console.error(error);

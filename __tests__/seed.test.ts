@@ -153,10 +153,12 @@ describe("Database seed", () => {
     it("should create 6 users", async () => {
       const users = await prisma.user.findMany();
       expect(users).toHaveLength(6);
-      const adminUsers = await prisma.user.findMany({ where: { isAdmin: true } });
+    });
+    it("should have 1 admin and match its values", async () => {
+      const adminUsers = await prisma.user.findMany({ where: { isAdmin: true }, include: { accounts: true } });
       expect(adminUsers).toHaveLength(1);
       expect(adminUsers[0].username).toBe("CarlosC");
-      expect(await bcrypt.compare("admin", adminUsers[0].password)).toBe(true);
+      expect(await bcrypt.compare("admin", adminUsers[0].accounts[0].password!)).toBe(true);
     });
   });
 
@@ -360,7 +362,6 @@ describe("Database seed", () => {
         data: {
           username: "A",
           email: "a@a.com",
-          password: "a",
         },
       });
       const testAssignment = await prisma.dayAssignment.create({
@@ -384,7 +385,6 @@ describe("Database seed", () => {
         data: {
           username: "A",
           email: "a@a.com",
-          password: "a",
         },
       });
       const testAssignment = await prisma.dayAssignment.create({
