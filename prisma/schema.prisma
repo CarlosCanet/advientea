@@ -94,7 +94,6 @@ model StoryTea {
 model User {
   id       String  @id @default(cuid())
   username String  @unique
-  // password String
   email    String  @unique
   isAdmin  Boolean @default(false)
   image    String?
