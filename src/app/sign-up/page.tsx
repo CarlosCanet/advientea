@@ -1,6 +1,11 @@
-function SignUpPage() {
+import SignUpForm from "@/components/SignUpForm";
+
+export default function SignUpPage() {
   return (
-    <div>page</div>
-  )
+    <>
+      <div className="flex justify-center">
+        <SignUpForm />
+      </div>
+    </>
+  );
 }
-export default SignUpPage
