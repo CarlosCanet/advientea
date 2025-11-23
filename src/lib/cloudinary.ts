@@ -23,13 +23,13 @@ cloudinary.config({
  * Uploads an image file to Cloudinary
  * Images are stored in a year-specific calendar folder structure
  * 
- * @param imagePath - Path to the local image file or remote URL to upload
+ * @param source - Path to the local image file or remote URL to upload or buffer
  * @param folder - The target folder where the image should be stored (avatars or teaDay)
  * @returns Promise resolving to the Cloudinary upload response with image details (URL, publicId, etc.)
  *          Returns undefined if the upload fails
  * ```
  */
-export const uploadImage = async (imagePath: string, folder: CloudarinaryFolder): Promise<UploadApiResponse | undefined> => {
+export const uploadImage = async (source: string | Buffer, folder: CloudarinaryFolder): Promise<UploadApiResponse | undefined> => {
   const options: UploadApiOptions = {
     use_filename: true,
     unique_filename: false,
@@ -37,7 +37,8 @@ export const uploadImage = async (imagePath: string, folder: CloudarinaryFolder)
     folder: `advientea/2025-Caoslendario/${folder}`
   }
   try {
-    const result = await cloudinary.uploader.upload(imagePath, options);
+    const uploadSource = Buffer.isBuffer(source) ? `data:image/png;base64,${source.toString('base64')}` : source;
+    const result = await cloudinary.uploader.upload(uploadSource, options);
     return result;
   } catch (error) {
     console.error(error)
