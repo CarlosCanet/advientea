@@ -113,10 +113,30 @@ The project emphasizes server components, performance, security, and maintainabi
 - Handles email templates for user communications
 - Ensures email delivery reliability and error handling
 
+### 14. Documentation Agent
+- **ALWAYS** consult Context7 MCP Server (`mcp_context7_*` tools) for:
+  - Package documentation (resolve library ID first with `resolve-library-id`, then use `get-library-docs`)
+  - API references and function signatures
+  - Framework/library usage patterns and best practices
+  - Code examples and implementation guides
+- Use `mode='code'` for API references and code examples (default)
+- Use `mode='info'` for conceptual guides and architectural questions
+
+### 15. Issue Management Agent
+- **ALWAYS** consult GitHub MCP Server (`mcp_github_*` tools) for:
+  - Retrieving issue details (`mcp_github_search_issues` with specific query)
+  - Checking issue requirements, tasks, and acceptance criteria
+  - Verifying issue status and assigned labels
+  - Reviewing issue comments and discussions
+- Search issues by title, number, or labels before starting work
+- Use structured queries: `repo:owner/repo is:issue number:X` or `in:title "Issue Title"`
+
 ## Agent Collaboration
 - Agents communicate via clear TypeScript interfaces and props
 - Shared logic and types are placed in common modules
 - All agents follow the standards in `.github/copilot-instructions.md`
+- Documentation Agent must be consulted before implementing any external library feature
+- Issue Management Agent must be consulted before starting work on any issue
 
 ## File Structure Reference
 ```
