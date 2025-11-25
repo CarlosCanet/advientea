@@ -1,4 +1,4 @@
-import 'dotenv/config'
+import "@/envConfig"
 import { PrismaClient } from "../src/generated/prisma/client";
 import bcrypt from "bcryptjs";
 import { Day } from '@/generated/prisma/browser';
@@ -270,11 +270,11 @@ async function createDaysAssignments() {
 
 async function seed() {
   try {
-    // await createUsers();
-    // await createDays();
-    // await createTeas();
-    // await createStoryTeas();
-    // await createStoryImages();
+    await createUsers();
+    await createDays();
+    await createTeas();
+    await createStoryTeas();
+    await createStoryImages();
     await createDaysAssignments();
   } catch (error) {
     console.error(error);

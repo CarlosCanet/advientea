@@ -1,7 +1,8 @@
-import "dotenv/config";
+import "@/envConfig"
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { PrismaClient } from "../generated/prisma/client";
+import { nextCookies } from "better-auth/next-js";
 
 const prisma = new PrismaClient();
 export const auth = betterAuth({
@@ -44,5 +45,6 @@ export const auth = betterAuth({
   },
   // trustedOrigins: ["http://localhost:3000", "https://adviente.netlify.app/"],
   secret: process.env.BETTER_AUTH_SECRET,
-  baseURL: process.env.BETTER_AUTH_URL
+  baseURL: process.env.BETTER_AUTH_URL,
+  plugins: [nextCookies()]
 });

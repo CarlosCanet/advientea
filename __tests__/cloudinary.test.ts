@@ -1,4 +1,4 @@
-import "dotenv/config";
+import "@/envConfig"
 import { CloudinaryFolders, deleteAsset, getAssetInfo, uploadImage } from "@/lib/cloudinary";
 import "@testing-library/jest-dom";
 import { v2 as cloudinary } from "cloudinary";
