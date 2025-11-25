@@ -98,7 +98,10 @@ export async function signin(prevState: SignInActionResponse | null, formData: F
     console.error(error)
     return {
       success: false,
-      message: "An error has ocurred",
+      message: "Usuario o contraseña incorrectos",
+      errors: {
+        password: ["Usuario o contraseña incorrectos"],
+      }
     }
   }
   
