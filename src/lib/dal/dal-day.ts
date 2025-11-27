@@ -17,11 +17,11 @@ export async function getDay(day: number, year: number = 2025): Promise<Prisma.D
   }
 }
 
-export async function getAllDays(year: number): Promise<Array<Prisma.DayGetPayload<{ include: { tea: { include: { story: { include: { images: true } } } } } }>>> {
+export async function getAllDays(year: number): Promise<Array<Prisma.DayGetPayload<{ include: { assignment: { include: { user: true } }, tea: { include: { story: { include: { images: true } } } } } }>>> {
   try {
     const allDays = await prisma.day.findMany({
       where: { year },
-      include: { tea: { include: { story: { include: { images: true } } } } },
+      include: { assignment: { include: { user: true } }, tea: { include: { story: { include: { images: true } } } } },
       orderBy: { dayNumber: "asc" }
     });
     return allDays;

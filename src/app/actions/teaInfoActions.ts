@@ -1,11 +1,11 @@
 "use server";
-import { redirect } from "next/navigation";
 import { z } from "zod";
 import { uploadImageCloudinary } from "./uploadActions";
 import { TeaInfoActionResponse, TeaInfoFormData } from "@/lib/types";
 import { getFormBoolean, getFormFilesByPrefix, getFormNumber, getFormString } from "./commonActions";
 import { addDay, addStoryImage, addStoryTea, addTea, deleteStoryImage, editStoryTea, editTea } from "@/lib/dal";
 import { prisma } from "@/lib/prisma";
+import { revalidatePath } from "next/cache";
 
 // Schema de validación con Zod
 const TeaInfoFormSchema = z.object({
@@ -253,6 +253,30 @@ export async function editTeaInfo(prevState: TeaInfoActionResponse | null, formD
       errors: {
         errors: [errorMsg ? errorMsg : "An error has ocurred"]
       }
+    }
+  }
+}
+
+export async function assignUserToDay(dayId: string, userId: string, year: number = 2025) {
+  try {
+    if (!userId) {
+      const assignment = await prisma.dayAssignment.delete({ where: { dayId }, include: { day: true, user: true } });
+      console.log(`Assignment for day ${assignment.day.dayNumber}/${year} and user ${assignment.user.username} deleted`);
+      return { success: true };
+    }
+
+    await prisma.dayAssignment.upsert({
+      where: { userId_year: { userId, year } },
+      create: { dayId, userId, year },
+      update: { dayId, userId, year }
+    });
+    revalidatePath("/edit-tea-info");
+    return { success: true };
+  } catch (error) {
+    console.log(error);
+    return {
+      success: false,
+      error: `Error assigning user ${userId} to day ${dayId}`
     }
   }
 }

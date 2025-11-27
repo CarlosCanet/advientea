@@ -43,7 +43,7 @@ export async function getAllUser(): Promise<Array<User>> {
       throw new Error("You cannot get that information.");
     }
 
-    const data = await prisma.user.findMany({ orderBy: { username: "asc" } });
+    const data = await prisma.user.findMany({ orderBy: { username: "asc" }, include: { daysAssigned: { include: { day: true } } } });
     return data;
   } catch (error) {
     console.error(error);
