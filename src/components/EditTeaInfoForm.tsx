@@ -42,6 +42,11 @@ function EditTeaInfoForm({ username, dayNumber, teaCompleteInfo }: EditTeaInfoFo
       });
     };
   }, [images]);
+  useEffect(() => {
+    if (state.success) {
+      router.push("/");
+    }
+  }, [state, router]);
   const errors = state.errors?.properties ?? undefined;
   const imagesError = imageSizeError ?? state.errors?.properties?.images?.errors.join(" ");
 

@@ -138,8 +138,6 @@ export async function addTeaInfo(prevState: TeaInfoActionResponse | null, formDa
       }
     }
   }
-  
-  redirect("/profile");
 }
 
 export async function editTeaInfo(prevState: TeaInfoActionResponse | null, formData: FormData): Promise<TeaInfoActionResponse> {
