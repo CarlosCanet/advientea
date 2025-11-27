@@ -12,19 +12,22 @@ async function EditTeaInfoDayPage({ params }: { params: Promise<{ teaId: string 
   if (!session) {
     return;
   }
-  const assignment = await getDayAssignment(2025, session.user.email);
-  if (!assignment) {
-    return <WaitForDayAssignment />
-  } else if (!assignment.day.tea) {
-    redirect("/add-tea-info");
-  } else if (session.user.role === Role.USER && assignment.day.tea.id !== teaId) {
-    redirect(`/edit-tea-info/${assignment.day.tea.id}`);
+
+  if (session.user.role === Role.USER) {
+    const assignment = await getDayAssignment(2025, session.user.email);
+    if (!assignment) {
+      return <WaitForDayAssignment />
+    } else if (!assignment.day.tea) {
+      redirect("/add-tea-info");
+    } else if (session.user.role === Role.USER && assignment.day.tea.id !== teaId) {
+      redirect(`/edit-tea-info/${assignment.day.tea.id}`);
+    }
   }
-  const teaCompleteInfo = await getTea(assignment.day.tea.id);
+  const teaCompleteInfo = await getTea(teaId);
   
   return (
     <div className="flex justify-center">
-      <EditTeaInfoForm username={session.user.name} dayNumber={assignment.day.dayNumber} teaCompleteInfo={teaCompleteInfo}  />
+      <EditTeaInfoForm username={session.user.name} dayNumber={teaCompleteInfo.day.dayNumber} teaCompleteInfo={teaCompleteInfo} isExecuTEAve={session.user.role !== Role.USER} />
     </div>
   )
 }

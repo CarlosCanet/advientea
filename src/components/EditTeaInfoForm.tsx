@@ -14,6 +14,7 @@ import TeaListImageForm from "./ui/TeaListImageForm";
 
 interface EditTeaInfoFormProps {
   username: string,
+  isExecuTEAve: boolean,
   dayNumber: number,
   teaCompleteInfo: Prisma.TeaGetPayload<{ include: { story: { include: { images: true } } } }>
 }
@@ -26,7 +27,7 @@ function initImages(teaCompleteInfo : Prisma.TeaGetPayload<{ include: { story: {
   return [];
 }
 
-function EditTeaInfoForm({ username, dayNumber, teaCompleteInfo }: EditTeaInfoFormProps) {
+function EditTeaInfoForm({ username, isExecuTEAve, dayNumber, teaCompleteInfo }: EditTeaInfoFormProps) {
   const [state, action, isPending] = useActionState(editTeaInfo, initialTeaInfoActionResponse);
   const [images, setImages] = useState<Array<ImageStoryForm>>(() => initImages(teaCompleteInfo));
   const [storyImageIdsToDelete, setStoryImageIdsToDelete] = useState<Array<string>>([]);
@@ -84,7 +85,7 @@ function EditTeaInfoForm({ username, dayNumber, teaCompleteInfo }: EditTeaInfoFo
             {errors?.personName && <p className="text-xs text-error font-bold -mt-2 mb-2">{errors.personName.errors.join(", ")}</p>}
             <label className="input input-bordered flex items-center gap-2 mb-2 w-full">
               <FaCalendar />
-              <input type="text" name="dayNumber" className="grow" placeholder="Día asignado" required min={1} max={25} defaultValue={dayNumber} readOnly />
+              <input type="text" name="dayNumber" className="grow" placeholder="Día asignado" required min={1} max={25} defaultValue={dayNumber} readOnly={!isExecuTEAve} />
             </label>
             {errors?.dayNumber && <p className="text-xs text-error font-bold -mt-2 mb-2">{errors.dayNumber.errors.join(", ")}</p>}
           </div>

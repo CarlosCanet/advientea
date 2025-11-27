@@ -3,15 +3,15 @@ import { prisma } from "@/lib/prisma";
 import { getDay } from "./dal-day";
 import { TeaGetPayload } from "@/generated/prisma/models";
 
-export async function getTea(id: string): Promise<TeaGetPayload<{ include: { story: { include: { images: true } } } }>>;
-export async function getTea(day: number, year?: number): Promise<TeaGetPayload<{ include: { story: { include: { images: true } } } }>>;
+export async function getTea(id: string): Promise<TeaGetPayload<{ include: { day: true, story: { include: { images: true } } } }>>;
+export async function getTea(day: number, year?: number): Promise<TeaGetPayload<{ include: { day: true, story: { include: { images: true } } } }>>;
 
-export async function getTea(idOrDay: string | number, year: number = 2025): Promise<TeaGetPayload<{ include: { story: { include: { images: true } } } }>> {
+export async function getTea(idOrDay: string | number, year: number = 2025): Promise<TeaGetPayload<{ include: { day: true, story: { include: { images: true } } } }>> {
   try {
     if (typeof idOrDay === "string") {
       const tea = await prisma.tea.findUnique({
         where: { id: idOrDay },
-        include: { story: { include: { images: true } } }
+        include: { day: true, story: { include: { images: true } } }
       });
       if (!tea) {
         throw new Error(`Tea with id ${idOrDay} not found`);
@@ -23,7 +23,14 @@ export async function getTea(idOrDay: string | number, year: number = 2025): Pro
     if (!dayResponse.tea) {
       throw new Error(`There is no tea for ${day}/${year}`);
     }
-    return dayResponse.tea;
+    const teaResponse = await prisma.tea.findUnique({
+      where: { id: dayResponse.tea.id },
+      include: { day: true, story: { include: { images: true } } }
+    });
+    if (!teaResponse) {
+      throw new Error(`There is no tea with id ${dayResponse.tea.id}`);
+    }
+    return teaResponse;
   } catch (error) {
     console.error(error);
     throw error;
