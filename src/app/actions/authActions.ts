@@ -1,10 +1,12 @@
 "use server";
+import { createUser } from "@/lib/dal";
 import { uploadImageCloudinary } from "./uploadActions";
 import { auth } from "@/lib/auth";
-import { SignInActionResponse, SignInFormData, SignUpActionResponse, SignUpFormData } from "@/lib/definitions";
+import { SignInActionResponse, SignInFormData, SignUpActionResponse, SignUpFormData } from "@/lib/types";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { getFormFiles, getFormString } from "./commonActions";
 
 const SignupFormSchema = z.object({
   username: z.string().min(2, { error: "Name must be at least 2 characters long." }).trim(),
@@ -33,11 +35,11 @@ const SignupFormSchema = z.object({
 export async function signup(prevState: SignUpActionResponse | null, formData: FormData): Promise<SignUpActionResponse> {
   try {
     const rawData: SignUpFormData = {
-      username: formData.get("username") as string,
-      email: formData.get("email") as string,
-      password: formData.get("password") as string,
-      passwordConfirmation: formData.get("passwordConfirmation") as string,
-      image: formData.get("image") as File,
+      username: getFormString(formData, "username"),
+      email: getFormString(formData, "email"),
+      password: getFormString(formData, "password"),
+      passwordConfirmation: getFormString(formData, "passwordConfirmation"),
+      image: getFormFiles(formData, "image")[0],
     }
     const validatedFields = SignupFormSchema.safeParse(rawData)
 
@@ -49,17 +51,13 @@ export async function signup(prevState: SignUpActionResponse | null, formData: F
         inputs: rawData
       }
     }
-    const imgPublicId = await uploadImageCloudinary(validatedFields.data.image);
+    const imgPublicId = await uploadImageCloudinary(validatedFields.data.image, "avatars");
   
-    const result = await auth.api.signUpEmail({
-      body: {
-        name: validatedFields.data.username,
-        email: validatedFields.data.email,
-        password: validatedFields.data.password,
-        image: imgPublicId,
-        username: validatedFields.data.username,
-        callbackURL: "/profile"
-      }
+    const result = await createUser({
+      email: validatedFields.data.email,
+      password: validatedFields.data.password,
+      image: imgPublicId,
+      username: validatedFields.data.username,
     })
     console.log("Validation success:", result)    
   } catch (error) {
