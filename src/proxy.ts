@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const PROTECTED_ROUTES = ["/profile", "/add-tea", "/edit-tea"];
+const PROTECTED_ROUTES = ["/profile", "/edit-tea-info"];
 const ADMIN_ROUTES = ["/admin-dashboard"];
 
 export async function proxy(request: NextRequest) {
