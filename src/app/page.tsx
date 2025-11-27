@@ -1,12 +1,11 @@
 import Image from "next/image";
-import BgLeaves from "../../public/BackgroundSemiCircleLeaves.svg"
 
 export default function Home() {
   return (
     <div className="flex flex-col items-center justify-center p-4 gap-6 mt-16">
       <header className="card bg-neutral image-full w-96 h-50 shadow-lg overflow-hidden">
         <figure>
-          <Image src={BgLeaves} alt="Tea leaves" className="opacity-20 rotate-180 translate-x-75" />
+          <Image src="/BackgroundSemiCircleLeaves.svg" alt="Tea leaves" width={800} height={1400} className="opacity-20 rotate-180 translate-x-75" />
         </figure>
         <div className="card-body">
           <h1 className="mb-4 text-4xl font-semibold text-center font-[Griffy] text-accent">Advien<i>té</i></h1>
