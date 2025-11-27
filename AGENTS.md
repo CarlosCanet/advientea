@@ -73,7 +73,7 @@ The project emphasizes server components, performance, security, and maintainabi
 - Handles database queries in Server Components
 - Ensures data integrity with proper relations and constraints
 - Manages indexes for optimized queries (userId, dayId combinations)
-- Uses SQLite for development (configurable for production)
+- Uses PostgreSQL for development (configurable for other environments)
 
 ### 9. Media Integration Agent
 - Handles YouTube embed integration for ambient music/videos

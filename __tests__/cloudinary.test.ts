@@ -45,7 +45,6 @@ describe("Cloudinary integration", () => {
       if (result && result.public_id) {
         expect(result.public_id).toBeTruthy();
         expect(result.public_id).toContain("advientea/2025-Caoslendario/");
-        console.log("PUBLIC_ID:", result.public_id);
       }
     });
   });
@@ -79,7 +78,6 @@ describe("Cloudinary integration", () => {
     it("should delete asset and return success result", async () => {
       const publicId = "advientea/2025-Caoslendario/avatars/axvcr1ufv0gpdmwbebmc";
       const result = await deleteAsset(publicId);
-      console.log("DELETE:", result);
 
       expect(result).toBeDefined();
       if (result) {

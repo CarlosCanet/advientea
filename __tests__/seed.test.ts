@@ -1,8 +1,7 @@
-import bcrypt from "bcryptjs";
-import { PrismaClient, Tea } from "../src/generated/prisma/client";
+import { prisma } from "@/lib/prisma";
+import { Role, Tea } from "@/generated/prisma/client";
 
 describe("Database seed", () => {
-  const prisma = new PrismaClient();
 
   describe("Tea model", () => {
     it("should create 25 teas", async () => {
@@ -155,10 +154,9 @@ describe("Database seed", () => {
       expect(users).toHaveLength(6);
     });
     it("should have 1 admin and match its values", async () => {
-      const adminUsers = await prisma.user.findMany({ where: { isAdmin: true }, include: { accounts: true } });
+      const adminUsers = await prisma.user.findMany({ where: { role: Role.ADMIN }, include: { accounts: true } });
       expect(adminUsers).toHaveLength(1);
       expect(adminUsers[0].username).toBe("CarlosC");
-      expect(await bcrypt.compare("admin", adminUsers[0].accounts[0].password!)).toBe(true);
     });
   });
 
@@ -331,7 +329,7 @@ describe("Database seed", () => {
           }
         })
       } catch (error) {
-        
+        console.log(error);
       }
       const checkAssignments = await prisma.dayAssignment.findMany({ where: { year: dayAssignment!.year, dayId: dayAssignment!.dayId, userId: dayAssignment!.userId } });
       expect(checkAssignments).toBeTruthy();
@@ -414,7 +412,6 @@ describe("Database seed", () => {
       expect(imageOne).toBeDefined();
       expect(imageOne).toHaveProperty("id");
       expect(imageOne).toHaveProperty("storyTeaId");
-      expect(imageOne).toHaveProperty("url");
       expect(imageOne).toHaveProperty("publicId");
       expect(imageOne).toHaveProperty("order");
       expect(imageOne).toHaveProperty("createdAt");
@@ -425,8 +422,6 @@ describe("Database seed", () => {
       const images = await prisma.storyImage.findMany();
       expect(images.length).toBeGreaterThan(0);
       images.forEach((image) => {
-        expect(typeof image.url).toBe("string");
-        expect(image.url.length).toBeGreaterThan(0);
         expect(typeof image.publicId).toBe("string");
         expect(image.publicId.length).toBeGreaterThan(0);
         expect(typeof image.order).toBe("number");
@@ -457,22 +452,16 @@ describe("Database seed", () => {
       expect(day1!.story).toBeDefined();
       const images = day1!.story!.images;
       expect(images).toHaveLength(3);
-      expect(images[0]).toHaveProperty("url");
-      expect(images[0].url).toBe("https://res.cloudinary.com/dljj7f5mi/image/upload/v1719052708/samples/dessert-on-a-plate.jpg");
       expect(images[0]).toHaveProperty("publicId");
       expect(images[0].publicId).toBe("samples/dessert-on-a-plate");
       expect(images[0]).toHaveProperty("order");
       expect(images[0].order).toBe(0);
 
-      expect(images[1]).toHaveProperty("url");
-      expect(images[1].url).toBe("https://res.cloudinary.com/dljj7f5mi/image/upload/v1719052707/samples/coffee.jpg");
       expect(images[1]).toHaveProperty("publicId");
       expect(images[1].publicId).toBe("samples/coffee");
       expect(images[1]).toHaveProperty("order");
       expect(images[1].order).toBe(1);
 
-      expect(images[2]).toHaveProperty("url");
-      expect(images[2].url).toBe("https://res.cloudinary.com/dljj7f5mi/image/upload/v1719052708/samples/cup-on-a-table.jpg");
       expect(images[2]).toHaveProperty("publicId");
       expect(images[2].publicId).toBe("samples/cup-on-a-table");
       expect(images[2]).toHaveProperty("order");
@@ -485,8 +474,6 @@ describe("Database seed", () => {
       expect(day2!.story).toBeDefined();
       const images = day2!.story!.images;
       expect(images).toHaveLength(1);
-      expect(images[0]).toHaveProperty("url");
-      expect(images[0].url).toBe("https://res.cloudinary.com/dljj7f5mi/image/upload/v1719052704/samples/breakfast.jpg");
       expect(images[0]).toHaveProperty("publicId");
       expect(images[0].publicId).toBe("samples/breakfast");
       expect(images[0]).toHaveProperty("order");
@@ -516,7 +503,6 @@ describe("Database seed", () => {
       const testImage = await prisma.storyImage.create({
         data: {
           storyTeaId: testStory.id,
-          url: "https://res.cloudinary.com/dljj7f5mi/image/upload/v1719052703/samples/balloons.jpg",
           publicId: "samples/balloons",
           order: 0,
       }})

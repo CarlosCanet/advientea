@@ -1,6 +1,6 @@
 # Adviente - Tea Advent Calendar 🍵
 
-A gamified advent calendar web application for tea lovers, built with Next.js 15, featuring daily challenges, user authentication, and a ranking system.
+A gamified advent calendar web application for tea lovers, built with Next.js 16, featuring daily challenges, user authentication, and a ranking system.
 
 ## Features
 
@@ -16,10 +16,10 @@ A gamified advent calendar web application for tea lovers, built with Next.js 15
 
 ## Tech Stack
 
-- **Framework**: Next.js 15.5.4 (App Router)
-- **UI**: React 19.1.0 + TypeScript 5
+- **Framework**: Next.js 16 (App Router)
+- **UI**: React 19.2 + TypeScript 5
 - **Styling**: Tailwind CSS v4.1.13 + daisyUI 5.1.23
-- **Database**: Prisma ORM + SQLite (development)
+- **Database**: Prisma ORM + PostgreSQL (configured in `prisma/schema.prisma`)
 - **Auth**: BetterAuth + bcryptjs
 - **Email**: Resend
 - **Images**: Cloudinary

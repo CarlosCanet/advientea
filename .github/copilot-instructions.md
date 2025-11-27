@@ -1,5 +1,5 @@
 ---
-description: 'Adviente - Next.js 15 + Tailwind CSS v4 + daisyUI 5 development standards'
+description: 'Adviente - Next.js 16 + Tailwind CSS v4 + daisyUI 5 development standards'
 applyTo: '**/*.tsx, **/*.ts, **/*.jsx, **/*.js, **/*.css'
 ---
 
@@ -17,7 +17,7 @@ This is a Next.js 16.0 project using the App Router pattern with TypeScript, fea
 - Tailwind CSS v4.1.13+ + daisyUI 5.3.9+
 - Turbopack for development and builds (stable in v16)
 - Geist fonts (Sans & Mono) from Next.js font optimization
-- Prisma ORM with SQLite (development)
+- Prisma ORM with PostgreSQL (development)
 - BetterAuth for authentication
 - Resend for email delivery
 - Cloudinary for image management
