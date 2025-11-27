@@ -39,7 +39,9 @@ export default function RootLayout({
           minHeight: "100vh",
         }}>
         <Navbar />
-        {children}
+        <main className="pt-16">
+          {children}
+        </main>
       </body>
     </html>
   );

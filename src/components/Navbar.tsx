@@ -12,7 +12,7 @@ async function Navbar() {
   });
 
   return (
-    <nav className="navbar bg-neutral shadow-sm">
+    <nav className="navbar bg-neutral shadow-sm fixed z-50 h-16">
       <div className="navbar-start ml-3" >
         <Image src="/LogoAdvientea.png" alt="Logo de advienté" width={40} height={40}/>
       </div>
