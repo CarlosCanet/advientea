@@ -75,7 +75,7 @@ export async function signup(prevState: SignUpActionResponse | null, formData: F
     }
   }
   
-  redirect("/profile");
+  redirect("/");
 }
 
 
@@ -103,7 +103,7 @@ export async function signin(prevState: SignInActionResponse | null, formData: F
     }
   }
   
-  redirect("/profile");
+  redirect("/");
 }
 
 export async function signout() {

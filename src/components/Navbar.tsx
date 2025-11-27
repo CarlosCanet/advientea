@@ -5,6 +5,7 @@ import Link from "next/link";
 import { RxHamburgerMenu } from "react-icons/rx";
 import ProfileImage from "./ui/ProfileImage";
 import Image from "next/image";
+import { Role } from "@/generated/prisma/enums";
 
 async function Navbar() {
   const session = await auth.api.getSession({
@@ -38,21 +39,14 @@ async function Navbar() {
             )}
           </div>
           <ul tabIndex={-1} className="menu menu-sm dropdown-content bg-base-100 rounded-box z-1 mt-3 w-30 p-2 shadow">
-            {session ? (
-              <>
-                <li>
-                  <form action={signout}><button type="submit">Cerrar sesión</button></form>
-                </li>
-              </>
-            ) : (
-              <>
-                <li><Link href="/sign-in">Login</Link></li>
-                <li><Link href="/sign-up">Registro</Link></li>
-                <li><Link href="/profile">Perfil</Link></li>
-              </>
-            )}
-            <li><Link href="/teaDay">Té del día</Link></li>
+            {!session && <li><Link href="/sign-in">Login</Link></li>}
+            {!session && <li><Link href="/sign-up">Registro</Link></li>}
+            {session && `¡Hola, ${session.user.username}!` }
+            {/* {session && <li><Link href="/profile">Perfil</Link></li>} */}
+            {/* <li><Link href="/teaDay">Té del día</Link></li> */}
             <li><Link href="/add-tea-info">Añadir tu té</Link></li>
+            {session && session.user.role !== Role.USER && <li><Link href="/add-tea-info">Editar tu té</Link></li>}
+            {session && <li><form action={signout}><button type="submit">Cerrar sesión</button></form></li>}
           </ul>
         </div>
       </div>
