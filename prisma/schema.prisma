@@ -1,0 +1,200 @@
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Day {
+  id        String @id @default(cuid())
+  dayNumber Int
+  year      Int    @default(2025)
+
+  tea        Tea?
+  assignment DayAssignment?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  // guesses     TeaGuess[]
+
+  @@unique([dayNumber, year])
+}
+
+model Tea {
+  id              String  @id @default(cuid())
+  dayId           String  @unique
+  name            String
+  infusionTime    Int
+  temperature     Int
+  hasTheine       Boolean
+  canReinfuse     Boolean
+  reinfuseNumber  Int?
+  moreIndications String?
+  addMilk         Boolean @default(false)
+  storeName       String?
+  url             String?
+  story           StoryTea?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  day Day @relation(fields: [dayId], references: [id], onDelete: Cascade)
+}
+
+model DayAssignment {
+  id        String   @id @default(cuid())
+  userId    String
+  dayId     String   @unique
+  year      Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  day  Day  @relation(fields: [dayId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, year])
+  @@index([year])
+}
+
+model StoryImage {
+  id         String @id @default(cuid())
+  storyTeaId String
+  publicId   String
+  order      Int    @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  story StoryTea @relation(fields: [storyTeaId], references: [id], onDelete: Cascade)
+
+  @@unique([storyTeaId, order])
+}
+
+model StoryTea {
+  id         String   @id @default(cuid())
+  teaId      String   @unique
+  storyPart1 String?
+  storyPart2 String?
+  storyPart3 String?
+  youtubeURL String?
+  onlyMusic  Boolean?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tea    Tea          @relation(fields: [teaId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  images StoryImage[]
+}
+
+enum Role { 
+  ADMIN
+  USER
+  EXECUTEAVE
+}
+
+model User {
+  id       String  @id @default(cuid())
+  username String  @unique
+  email    String  @unique
+  role     Role    @default(USER)
+  image    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  daysAssigned  DayAssignment[]
+  // guesses      TeaGuess[]
+  // badges       UserBadge[]
+  name          String?
+  emailVerified Boolean         @default(false)
+  sessions      Session[]
+  accounts      Account[]
+
+  @@map("user")
+}
+
+// model TeaGuess {
+//   id          String   @id @default(cuid())
+//   userId      String
+//   dayId       String
+//   guessedName String
+//   createdAt DateTime @default(now())
+//   points      Int      @default(0)
+
+//   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+//   day  Day  @relation(fields: [dayId], references: [id], onDelete: Cascade)
+
+//   @@index([userId, dayId, timestamp])  // Query last guess efficiently
+// }
+
+// model Badge {
+//   id          String @id @default(cuid())
+//   name        String @unique
+//   description String
+//   icon        String
+
+//   createdAt DateTime @default(now())
+//   updatedAt DateTime @updatedAt
+
+//   users UserBadge[]
+// }
+
+// model UserBadge {
+//   id       String   @id @default(cuid())
+//   userId   String
+//   badgeId  String
+//   createdAt DateTime @default(now())
+
+//   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+//   badge Badge @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+//   @@unique([userId, badgeId])
+// }
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now()) @updatedAt
+
+  @@map("verification")
+}

@@ -1,11 +1,18 @@
+import Image from "next/image";
+
 export default function Home() {
   return (
-    <div className="flex flex-col min-h-dvh items-center justify-center p-4">
-      <header className="flex flex-col backdrop-blur-[2px] px-8 pt-8 pb-2 rounded-2xl mb-8">
-        <h1 className="mb-4 text-4xl font-semibold text-center font-[Griffy] text-primary">Advienté</h1>
-        <p className="mb-6 text-xl text-center font-[Griffy] text-base-content">
-          Bienvenides a la página del advienté 2025. <br /> Proximamen<span className="italic">té</span> más información...
-        </p>
+    <div className="flex flex-col items-center justify-center p-4 gap-6 mt-16">
+      <header className="card bg-neutral image-full w-96 h-50 shadow-lg overflow-hidden">
+        <figure>
+          <Image src="/BackgroundSemiCircleLeaves.svg" alt="Tea leaves" width={800} height={1400} className="opacity-20 rotate-180 translate-x-75" />
+        </figure>
+        <div className="card-body">
+          <h1 className="mb-4 text-4xl font-semibold text-center font-[Griffy] text-accent">Advien<i>té</i></h1>
+          <p className="mb-6 text-xl text-center font-[Griffy] text-neutral-content">
+            Bienvenides a la página del advien<i>té</i> 2025. <br /> Proximamen<span className="italic">té</span> más información...
+          </p>
+        </div>
       </header>
 
       <main className="flex flex-col gap-5 px-4 md:px-8">
@@ -16,8 +23,8 @@ export default function Home() {
           </div>
           <div className="collapse-content text-sm">
             {" "}
-            Advienté es una iniciativa de unes cuantes amantes del <i>té</i> que hacen un calendario de adviento de <i>té</i>. Si <i>te</i> interesa, contacta con
-            nosotres.
+            Advienté es una iniciativa de unes cuantes amantes del <i>té</i> que hacen un calendario de adviento de <i>té</i>. Si <i>te</i> interesa,
+            contacta con nosotres.
           </div>
         </section>
         <section className="collapse collapse-arrow bg-base-100 border border-accent">
@@ -62,12 +69,23 @@ export default function Home() {
           </div>
           <div className="collapse-content text-sm">
             <ul>
-              <li className="before:content-['🫖']"><span className="font-bold">30/09/2025:</span> Cierre de participantes</li>
               <li className="before:content-['🫖']">
-                <span className="font-bold">31/10/2025:</span> Fecha tope para haber recibido el sobre con las bolsitas individuales y sobre prefranqueado
+                <time dateTime="2025-09-30" className="font-bold">
+                  30/09/2025:
+                </time>{" "}
+                Cierre de participantes
               </li>
               <li className="before:content-['🫖']">
-                <span className="font-bold">15/11/2025:</span> Fecha tope para enviar los detalles inspiradores sobre vuestro té o infusión de vuestro día
+                <time dateTime="2025-10-31" className="font-bold">
+                  31/10/2025:
+                </time>{" "}
+                Fecha tope para haber recibido el sobre con las bolsitas individuales y sobre prefranqueado
+              </li>
+              <li className="before:content-['🫖']">
+                <time dateTime="2025-11-15" className="font-bold">
+                  15/11/2025:
+                </time>{" "}
+                Fecha tope para enviar los detalles inspiradores sobre vuestro té o infusión de vuestro día
               </li>
             </ul>
           </div>
