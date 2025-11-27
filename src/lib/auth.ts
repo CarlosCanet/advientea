@@ -1,12 +1,11 @@
 import "@/envConfig"
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { PrismaClient } from "../generated/prisma/client";
+import { prisma } from "@/lib/prisma";
 import { nextCookies } from "better-auth/next-js";
 
-const prisma = new PrismaClient();
 export const auth = betterAuth({
-  database: prismaAdapter(prisma, { provider: "sqlite" }),
+  database: prismaAdapter(prisma, { provider: "postgresql" }),
   emailAndPassword: {
     enabled: true,
   },
@@ -17,11 +16,11 @@ export const auth = betterAuth({
         required: true,
         input: true
       },
-      isAdmin: {
-        type: "boolean",
+      role: {
+        type: "string",
         required: true,
         input: false,
-        defaultValue: false
+        defaultValue: "USER"
       }
     }
   },

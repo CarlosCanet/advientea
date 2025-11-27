@@ -5,8 +5,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider = "postgresql"
 }
 
 model Day {
@@ -15,7 +14,6 @@ model Day {
   year      Int    @default(2025)
 
   tea        Tea?
-  story      StoryTea?
   assignment DayAssignment?
 
   createdAt DateTime @default(now())
@@ -38,6 +36,7 @@ model Tea {
   addMilk         Boolean @default(false)
   storeName       String?
   url             String?
+  story           StoryTea?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -63,7 +62,6 @@ model DayAssignment {
 model StoryImage {
   id         String @id @default(cuid())
   storyTeaId String
-  url        String
   publicId   String
   order      Int    @default(0)
 
@@ -72,30 +70,36 @@ model StoryImage {
 
   story StoryTea @relation(fields: [storyTeaId], references: [id], onDelete: Cascade)
 
-  @@index([storyTeaId, order])
+  @@unique([storyTeaId, order])
 }
 
 model StoryTea {
   id         String   @id @default(cuid())
-  dayId      String   @unique
-  storyPart1 String
-  storyPart2 String
-  storyPart3 String
+  teaId      String   @unique
+  storyPart1 String?
+  storyPart2 String?
+  storyPart3 String?
   youtubeURL String?
   onlyMusic  Boolean?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  day    Day          @relation(fields: [dayId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  tea    Tea          @relation(fields: [teaId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   images StoryImage[]
+}
+
+enum Role { 
+  ADMIN
+  USER
+  EXECUTEAVE
 }
 
 model User {
   id       String  @id @default(cuid())
   username String  @unique
   email    String  @unique
-  isAdmin  Boolean @default(false)
+  role     Role    @default(USER)
   image    String?
 
   createdAt DateTime @default(now())
