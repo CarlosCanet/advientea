@@ -1,4 +1,5 @@
 import AssignmentSelect from "@/components/ui/AssignmentSelect";
+import ButtonAddDays from "@/components/ui/ButtonAddDays";
 import WaitForDayAssignment from "@/components/ui/WaitForDayAssignment";
 import { Role } from "@/generated/prisma/client";
 import { auth } from "@/lib/auth";
@@ -25,8 +26,11 @@ async function EditTeaInfo() {
 
   return (
     <div className="flex justify-center">
-      <div className="card w-100 lg:w-180 m-10 bg-base-100 shadow-xl p-10 before:content-[''] before:absolute before:inset-0 before:bg-[url('/BackgroundSemiCircleLeaves.svg')] before:bg-no-repeat before:opacity-25">
-        Lista para GerenTés
+      <div className="card w-100 lg:w-180 m-10 bg-base-100 shadow-xl p-10 before:content-[''] before:absolute before:inset-0 before:bg-[url('/BackgroundSemiCircleLeaves.svg')] before:bg-no-repeat before:opacity-25 before:pointer-events-none">
+        <div className="flex gap-5 w-full justify-center items-center">
+          <div className="text-center text-xl font-bold tracking-tight text-heading md:text-3xl lg:text-4xl">Lista para GerenTés</div>
+          <ButtonAddDays daysNumber={days.length} />
+        </div>
         <div className="overflow-x-auto">
           <table className="table table-zebra">
             {/* head */}

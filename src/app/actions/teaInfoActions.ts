@@ -3,7 +3,7 @@ import { z } from "zod";
 import { uploadImageCloudinary } from "./uploadActions";
 import { TeaInfoActionResponse, TeaInfoFormData } from "@/lib/types";
 import { getFormBoolean, getFormFilesByPrefix, getFormNumber, getFormString } from "./commonActions";
-import { addDay, addStoryImage, addStoryTea, addTea, deleteStoryImage, editStoryTea, editTea } from "@/lib/dal";
+import { add25Days, addDay, addStoryImage, addStoryTea, addTea, deleteStoryImage, editStoryTea, editTea } from "@/lib/dal";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
@@ -277,6 +277,20 @@ export async function assignUserToDay(dayId: string, userId: string, year: numbe
     return {
       success: false,
       error: `Error assigning user ${userId} to day ${dayId}`
+    }
+  }
+}
+
+export async function addDaysAction(year: number = 2025) {
+  try {
+    await add25Days(year);
+    revalidatePath("/edit-tea-info");
+    return { success: true };
+  } catch (error) {
+    console.log(error);
+    return {
+      success: false,
+      error: `Error assigning adding 25 days for year ${year}`
     }
   }
 }
