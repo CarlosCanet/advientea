@@ -11,7 +11,6 @@ export function getFormNumber(formData: FormData, key: string): number {
 
 export function getFormBoolean(formData: FormData, key: string): boolean {
   const value = formData.get(key);
-  // Checkbox envía "on" cuando está marcado, null cuando no
   return value === "on" || value === "true";
 }
 
@@ -20,7 +19,6 @@ export function getFormFiles(formData: FormData, key: string): File[] {
   return files.filter((f): f is File => f instanceof File && f.size > 0);
 }
 
-// Extrae archivos de campos con nombres dinámicos (image-0, image-1, etc.)
 export function getFormFilesByPrefix(formData: FormData, prefix: string): File[] {
   const files: File[] = [];
   for (const [key, value] of formData.entries()) {
@@ -30,3 +28,4 @@ export function getFormFilesByPrefix(formData: FormData, prefix: string): File[]
   }
   return files;
 }
+
