@@ -4,16 +4,18 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import { RxHamburgerMenu } from "react-icons/rx";
 import ProfileImage from "./ui/ProfileImage";
+import Image from "next/image";
 
 async function Navbar() {
   const session = await auth.api.getSession({
     headers: await headers(),
   });
-  console.log(session);
 
   return (
     <nav className="navbar bg-neutral shadow-sm">
-      <div className="navbar-start" />
+      <div className="navbar-start ml-3" >
+        <Image src="/LogoAdvientea.png" alt="Logo de advienté" width={40} height={40}/>
+      </div>
       <div className="navbar-center">
         <Link href="/" className="btn btn-ghost text-xl text-neutral-content">
           <div>
@@ -50,6 +52,7 @@ async function Navbar() {
               </>
             )}
             <li><Link href="/teaDay">Té del día</Link></li>
+            <li><Link href="/add-tea-info">Añadir tu té</Link></li>
           </ul>
         </div>
       </div>

@@ -8,7 +8,7 @@ import { GiBrainLeak } from "react-icons/gi";
 import { IoKeySharp } from "react-icons/io5";
 import { MdEmail } from "react-icons/md";
 import { signin } from "@/app/actions/authActions";
-import { initialSignInActionResponse } from "@/lib/definitions";
+import { initialSignInActionResponse } from "@/lib/types";
 
 export default function SignInForm() {
   const [state, action, isPending] = useActionState(signin, initialSignInActionResponse);

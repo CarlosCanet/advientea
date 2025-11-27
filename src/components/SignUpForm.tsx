@@ -10,7 +10,7 @@ import { MdEmail } from "react-icons/md";
 import Image from "next/image";
 import { CgProfile } from "react-icons/cg";
 import { signup } from "@/app/actions/authActions";
-import { initialSignUpActionResponse } from "@/lib/definitions";
+import { initialSignUpActionResponse } from "@/lib/types";
 
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/svg+xml", "image/webp"];
 
