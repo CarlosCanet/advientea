@@ -38,7 +38,8 @@ const config: Config = {
     "/node_modules/",
     "/src/generated/prisma/",
     "/.next/",
-    "/coverage/"
+    "/coverage/",
+    "/src/envConfig.ts"
   ],
 
   // Indicates which provider should be used to instrument code for coverage
