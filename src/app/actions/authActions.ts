@@ -56,7 +56,7 @@ export async function signup(prevState: SignUpActionResponse | null, formData: F
     }
     const imgPublicId = validatedFields.data.image
       ? await uploadImageCloudinary(validatedFields.data.image, "avatars")
-      : "advientea/2025-Caoslendario/avatars/kmz6ttle9ihjuosyqyns";
+      : "advientea/2025-Caoslendario/avatars/TeaLeavesImage_semx6n";
 
     const result = await createUser({
       email: validatedFields.data.email,
