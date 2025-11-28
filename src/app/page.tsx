@@ -1,7 +1,11 @@
+import { auth } from "@/lib/auth";
+import { headers } from "next/headers";
+import Link from "next/link";
 import { GiCoffeeCup, GiNightSleep } from "react-icons/gi";
 import { MdOutlineHistoryEdu } from "react-icons/md";
 
-export default function Home() {
+export default async function Home() {
+  const session = await auth.api.getSession({ headers: await headers() });
   return (
     <div className="flex flex-col items-center justify-center p-4 gap-6 mt-16">
       <header className="card bg-neutral image-full max-w-md shadow-lg overflow-hidden before:content-[''] before:absolute before:inset-0 before:bg-[url('/BackgroundSemiCircleLeaves.svg')] before:rotate-180 before:bg-no-repeat before:opacity-25 before:pointer-events-none">
@@ -46,9 +50,9 @@ export default function Home() {
               </ul>
               <p className="py-6 font-[Griffy]">Mi idea es no desvelar quién ha elegido qué infusión hasta el último día.</p>
               <div className="flex gap-3 justify-center">
-                <button className="btn btn-primary">Entra</button>
-                <button className="btn btn-primary">Regístrate</button>
-                <button className="btn btn-secondary">Añade tu té</button>
+                {!session && <Link href="/sign-in" className="btn btn-primary">Entra</Link>}
+                {!session && <Link href="/sign-up" className="btn btn-primary">Regístrate</Link>}
+                <Link href="/add-tea-info" className="btn btn-secondary">Añade tu té</Link>
               </div>
             </div>
           </div>
