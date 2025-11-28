@@ -53,6 +53,7 @@ export interface TeaInfoFormData {
   moreIndications?: string;
   storeName?: string;
   urlStore?: string;
+  teaId?: string;
   
   storyPart1: string;
   storyPart2: string;

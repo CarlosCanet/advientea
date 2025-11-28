@@ -101,30 +101,42 @@ export async function addTeaComplete(
   }
 }
 
-export async function editTea(data: Prisma.TeaUncheckedUpdateInput, id: string): Promise<TeaGetPayload<{ include: { day: true } }>>;
-export async function editTea(data: Prisma.TeaUncheckedUpdateInput, day: number, year?: number): Promise<TeaGetPayload<{ include: { day: true } }>>;
-
-export async function editTea(data: Prisma.TeaUncheckedUpdateInput, dayOrId: number | string, year: number = 2025): Promise<TeaGetPayload<{ include: { day: true } }>> {
+export async function editTea(data: Prisma.TeaUncheckedUpdateInput, id: string, newDayNumber?: number): Promise<TeaGetPayload<{ include: { day: true } }>>{
   try {
-    if (typeof dayOrId === "string") {
+    const currentTea = await prisma.tea.findUnique({ where: { id }, select: { dayId: true } });
+    if (!currentTea) throw new Error(`No tea found for id ${id}`);
+    const result = await prisma.$transaction(async (tx) => {
+      if (newDayNumber) {
+        const dayRecord = await prisma.day.findFirst({ where: { dayNumber: newDayNumber }, include: { tea: true, assignment: true} });
+        if (!dayRecord) throw new Error(`Day ${newDayNumber}/2025 not found`);
+        if (dayRecord.tea && dayRecord.tea.id !== id) throw new Error(`Day ${newDayNumber}/2025 already has a tea`);
+        if (dayRecord.assignment) throw new Error(`Day ${newDayNumber} already has a user assigned`);
+        delete data.dayId;
+        data.dayId = dayRecord.id;
+        
+        if (currentTea.dayId) {
+          const oldAssignment = await tx.dayAssignment.findUnique({ where: { dayId: currentTea.dayId } });
+          if (oldAssignment) {
+            await tx.dayAssignment.update({
+              where: { id: oldAssignment.id },
+              data: { dayId: dayRecord.id }
+            });
+          }
+        }
+      }
       const teaUpdated = await prisma.tea.update({
-        where: { id: dayOrId },
+        where: { id },
         include: { day: true },
-        data,
+        data: { ...data },
       });
-      return teaUpdated;
-    }
+      if (!teaUpdated) throw new Error(`No tea found for id ${id}`);
 
-    const dayResponse = await getDay(dayOrId, year);
-    if (!dayResponse.tea) {
-      throw new Error(`No tea found for day ${dayOrId}/${year}`);
-    }
-    const teaUpdated = await prisma.tea.update({
-      where: { id: dayResponse.tea.id },
-      include: { day: true },
-      data,
+      return teaUpdated;
+      
     });
-    return teaUpdated;
+    return result;
+
+    
   } catch (error) {
     console.error(error);
     throw error;
