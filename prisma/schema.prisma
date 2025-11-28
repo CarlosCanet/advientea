@@ -46,13 +46,14 @@ model Tea {
 
 model DayAssignment {
   id        String   @id @default(cuid())
-  userId    String
+  userId    String?
+  guestName String?
   dayId     String   @unique
   year      Int
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
   day  Day  @relation(fields: [dayId], references: [id], onDelete: Cascade)
 
   @@unique([userId, year])
