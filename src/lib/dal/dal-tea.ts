@@ -50,6 +50,16 @@ export async function getAllTeas(year: number): Promise<Prisma.TeaGetPayload<{ i
   }
 }
 
+export async function getUsernameAssignedToTea(id: string): Promise<string | null> {
+  const tea = await prisma.tea.findUnique({
+    where: { id },
+    select: { day: { select: { assignment: { select: { user: { select: { username: true } }, guestName: true } } } } }
+  });
+  const assignment = tea?.day?.assignment;
+  if(!assignment) return null
+  return assignment.guestName ?? assignment.user?.username ?? null;
+}
+
 export async function addTea(data: Prisma.TeaCreateWithoutDayInput, day: number, year: number = 2025): Promise<TeaGetPayload<{ include: { day: true } }>> {
   try {
     const dayResponse = await getDay(day, year);
