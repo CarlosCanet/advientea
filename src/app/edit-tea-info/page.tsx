@@ -33,7 +33,6 @@ async function EditTeaInfo() {
         </div>
         <div className="overflow-x-auto">
           <table className="table table-zebra">
-            {/* head */}
             <thead>
               <tr>
                 <th>Día</th>
@@ -45,9 +44,8 @@ async function EditTeaInfo() {
                 return (
                   <tr key={day.id}>
                     <th>{day.dayNumber}</th>
-                    {/* <td>{day.assignment?.user.username}</td> */}
                     <td>
-                      {<AssignmentSelect key={`${day.id}-${day.assignment?.user.id}`} dayId={day.id} userId={day.assignment?.user.id ?? ""} users={users} />}
+                      {<AssignmentSelect key={`${day.id}-${day.assignment?.user?.id ?? day.assignment?.guestName}`} dayId={day.id} userId={day.assignment?.user?.id ?? ""} users={users} guestName={day.assignment?.guestName ?? undefined} />}
                     </td>
                     <td><Link href={`/edit-tea-info/${day.tea?.id}`}>{day.tea?.name}</Link></td>
                   </tr>

@@ -16,7 +16,7 @@ async function AddTeaInfo() {
     if (canAssign) {
       const allAssignments = await getAllDayAssignment();
       const allUsers = await getAllUser();
-      const usersWithAssignments = allAssignments.map(assignment => assignment.user.username);
+      const usersWithAssignments = allAssignments.map(assignment => assignment.user?.username);
       users = allUsers.map(user => user.username).filter(user => !usersWithAssignments.includes(user));
     }
     if (assignment &&  assignment.day.tea) {

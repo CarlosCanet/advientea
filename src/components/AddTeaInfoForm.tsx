@@ -4,7 +4,7 @@ import Form from "next/form";
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useState } from "react";
 import { BsCupHotFill } from "react-icons/bs";
-import { FaCalendar, FaClock,  FaStore, FaUser } from "react-icons/fa";
+import { FaCalendar, FaClock,  FaInfoCircle,  FaStore, FaUser } from "react-icons/fa";
 import { FaMusic, FaRepeat, FaTemperatureFull } from "react-icons/fa6";
 import { MdComputer, MdMore } from "react-icons/md";
 import { SiUndertale } from "react-icons/si";
@@ -65,10 +65,11 @@ function AddTeaInfoForm({ username, dayNumber, isLoggedIn, canAssign, users }: A
   }
   
   return (
-    <div className="card w-full mx-10 bg-base-100 shadow-xl mt-10 mb-10">
+    <div className="card w-full mx-10 bg-base-100 shadow-xl mt-10 mb-10 before:content-[''] before:absolute before:inset-0 before:bg-[url('/BackgroundSemiCircleLeaves.svg')] before:bg-no-repeat before:opacity-10 before:pointer-events-none">
       <Form className="card-body" action={onSubmit}>
         <h2 className="card-title"><div>Añadir<span className="italic">Té</span></div></h2>
         <div className="items-center mt-2">
+          <label className="label justify-center text-center w-full mb-2"><FaInfoCircle />El día se pone automáticamente</label>
           <div className="flex gap-2">
             {canAssign ? (
               <select defaultValue={`Elige a une persone`} className="select" name="personName">
@@ -88,6 +89,9 @@ function AddTeaInfoForm({ username, dayNumber, isLoggedIn, canAssign, users }: A
             </label>
             {errors?.dayNumber && <p className="text-xs text-error font-bold -mt-2 mb-2">{errors.dayNumber.errors.join(", ")}</p>}
           </div>
+          
+          <div className="divider divider-neutral">Info del té</div>
+          
           <label className="input input-bordered flex items-center gap-2 mb-2 w-full">
             <BsCupHotFill />
             <input type="text" name="teaName" className="grow" placeholder="Nombre del té" required defaultValue={state.inputs?.teaName} />
@@ -129,6 +133,9 @@ function AddTeaInfoForm({ username, dayNumber, isLoggedIn, canAssign, users }: A
             </label>
             {errors?.reinfuseNumber && <p className="text-xs text-error font-bold -mt-2 mb-2">{errors.reinfuseNumber.errors.join(", ")}</p>}
           </div>
+          
+          <div className="divider">Opcional</div>
+          
           <label className="input input-bordered flex items-center gap-2 mb-2 w-full">
             <MdMore />
             <input type="text" name="moreIndications" className="grow" placeholder="Más indicaciones" defaultValue={state.inputs?.moreIndications}/>
@@ -145,20 +152,21 @@ function AddTeaInfoForm({ username, dayNumber, isLoggedIn, canAssign, users }: A
           </label>
           {errors?.urlStore && <p className="text-xs text-error font-bold -mt-2 mb-2">{errors.urlStore.errors.join(", ")}</p>}
         </div>
-
-        <div className="divider">Ambientación</div>
-
+        
+        <div className="divider divider-neutral">Ambientación</div>
+        
+        <label className="label justify-center text-center">No tienes que rellenar toda la ambientación, <br />sólo lo que te interese o hayas podido</label>
         <fieldset className="fieldset">
           <legend className="fieldset-legend"><SiUndertale /> Historia</legend>  
           <label className="label">Parte 1 (08:00 h)</label>
           <textarea name="storyPart1" className="textarea w-full" placeholder="Historia: parte 1" defaultValue={state.inputs?.storyPart1} />
-          <label className="label">Parte 2 (15:00 h)</label>
+          <label className="label">Parte 2 (13:00 h)</label>
           <textarea name="storyPart2" className="textarea w-full" placeholder="Historia: parte 2" defaultValue={state.inputs?.storyPart2} />
-          <label className="label">Parte 3 (20:00 h)</label>
+          <label className="label">Parte 3 (28:00 h)</label>
           <textarea name="storyPart3" className="textarea w-full" placeholder="Historia: parte 3" defaultValue={state.inputs?.storyPart3} />
         </fieldset>
-        <fieldset>
-          <legend className="fieldset-legend"><FaMusic /> Vídeo o música</legend>
+        <fieldset className="fieldset">
+          <legend className="fieldset-legend"><FaMusic /> Vídeo o música (08:00 h)</legend>
           <div className="flex gap-2 items-center">
             <label className="input input-bordered flex items-center gap-2 w-full">
               <input type="text" name="youtubeURL" className="grow" placeholder="Enlace de youtube a video o música" defaultValue={state.inputs?.youtubeURL} />
@@ -171,14 +179,8 @@ function AddTeaInfoForm({ username, dayNumber, isLoggedIn, canAssign, users }: A
           {errors?.youtubeURL && <p className="text-xs text-error font-bold mt-2 mb-2">{errors.youtubeURL.errors.join(", ")}</p>}
           {errors?.onlyMusic && <p className="text-xs text-error font-bold mt-2 mb-2">{errors.onlyMusic.errors.join(", ")}</p>}
         </fieldset>
-        {/* <fieldset>
-          <legend className="fieldset-legend"><FaImages /> Imágenes</legend>
-          {images.map((img, i) => <TeaImageForm key={img.id} image={img} images={images} setImages={setImages} index={i} />)}
-          <TeaImageForm key={`new-image-${images.length}`} images={images} setImages={setImages} />
-        </fieldset> */}
         <TeaListImageForm images={images} setImages={setImages} />
         {imagesError && <p className="text-xs text-error font-bold self-center -mt-2 mb-2">{imagesError}</p>}
-
 
         <div className="card-actions justify-center mt-4 gap-2">
           <button className="btn btn-error" onClick={() => router.back()}>Cancelar</button>

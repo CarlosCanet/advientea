@@ -14,7 +14,7 @@ async function Navbar() {
 
   return (
     <nav className="navbar bg-neutral shadow-sm fixed z-50 h-16">
-      <div className="navbar-start ml-3" >
+      <div className="navbar-start ml-4" >
         <Image src="/LogoAdvientea.png" alt="Logo de advienté" width={40} height={40}/>
       </div>
       <div className="navbar-center">
@@ -24,7 +24,7 @@ async function Navbar() {
           </div>
         </Link>
       </div>
-      <div className="navbar-end">
+      <div className="navbar-end mr-4">
         <div className="dropdown dropdown-end">
           <div tabIndex={0} role="button" className="btn btn-ghost btn-circle text-neutral-content">
             {session ? (

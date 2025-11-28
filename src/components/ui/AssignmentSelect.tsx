@@ -7,20 +7,22 @@ interface AssignmentSelectProps {
   userId: string;
   dayId: string;
   users: Array<User>;
+  guestName?: string;
 }
 
-function AssignmentSelect({ userId, dayId, users }: AssignmentSelectProps) {
+function AssignmentSelect({ userId, dayId, users, guestName }: AssignmentSelectProps) {
   const [isPending, startTransition] = useTransition();
 
-  const handleChangeSelect = async (event: React.ChangeEvent<HTMLSelectElement>, dayId: string) => {
+  const handleChangeSelect = async (event: React.ChangeEvent<HTMLSelectElement>) => {
     startTransition(async () => {
-      await assignUserToDay(dayId, event.target.value);
+      await assignUserToDay(dayId, event.target.value, 2025, guestName);
     });
   }
   return (
-    <select defaultValue={userId ?? ""} className="select" name={`person-day-${dayId}`} onChange={(event) => handleChangeSelect(event, dayId)} disabled={isPending} >
+    <select defaultValue={guestName ?? (userId ?? "")} className="select" name={`person-day-${dayId}`} onChange={(event) => handleChangeSelect(event)} disabled={isPending} >
       <option value="">Elige a une persone</option>
       {users.map((user) => <option key={user.id} value={user.id} >{user.username}</option>)}
+      {guestName && <option key={`${dayId}-${guestName}`} value={guestName} >{guestName}</option>}
     </select>
   )
 }

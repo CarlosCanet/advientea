@@ -3,9 +3,11 @@ import { z } from "zod";
 import { uploadImageCloudinary } from "./uploadActions";
 import { TeaInfoActionResponse, TeaInfoFormData } from "@/lib/types";
 import { getFormBoolean, getFormFilesByPrefix, getFormNumber, getFormString } from "./commonActions";
-import { add25Days, addDay, addStoryImage, addStoryTea, addTea, deleteStoryImage, editStoryTea, editTea } from "@/lib/dal";
+import { add25Days, addDay, addStoryImage, addStoryTea, addTea, deleteStoryImage, editStoryTea, editTea, getTea } from "@/lib/dal";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { auth } from "@/lib/auth";
+import { headers } from "next/headers";
 
 // Schema de validación con Zod
 const TeaInfoFormSchema = z.object({
@@ -27,18 +29,20 @@ const TeaInfoFormSchema = z.object({
   youtubeURL: z.url("URL de YouTube inválida. Debe empezar por http:// o https://.").includes("youtube.com").optional(),
   onlyMusic: z.boolean(),
   images: z
-    .array(z
-      .file()
-      .max(1 * 1024 * 1024, { error: "Tamaño de imagen demasiado grande (max 2 MB)." })
-      .mime(["image/jpeg", "image/png", "image/gif", "image/svg+xml", "image/webp"], {
-        error: "Formato de archivo no permitido.",
-      }),
+    .array(
+      z
+        .file()
+        .max(1 * 1024 * 1024, { error: "Tamaño de imagen demasiado grande (max 2 MB)." })
+        .mime(["image/jpeg", "image/png", "image/gif", "image/svg+xml", "image/webp"], {
+          error: "Formato de archivo no permitido.",
+        })
     )
     .optional(),
   imagesOrder: z.array(z.coerce.number()).optional(),
   keptImages: z.array(z.string()).optional(),
   keptImagesOrder: z.array(z.coerce.number()).optional(),
-  deleteImages: z.array(z.string()).optional()
+  deleteImages: z.array(z.string()).optional(),
+  teaId: z.string(),
 });
 
 export async function addTeaInfo(prevState: TeaInfoActionResponse | null, formData: FormData): Promise<TeaInfoActionResponse> {
@@ -63,8 +67,8 @@ export async function addTeaInfo(prevState: TeaInfoActionResponse | null, formDa
       onlyMusic: getFormBoolean(formData, "onlyMusic"),
       images: getFormFilesByPrefix(formData, "image"),
     };
-    const validatedFields = TeaInfoFormSchema.safeParse(rawData)
-    
+    const validatedFields = TeaInfoFormSchema.safeParse(rawData);
+
     if (!validatedFields.success) {
       const myErrors = z.treeifyError(validatedFields.error);
       console.log("Validation errors:");
@@ -73,74 +77,86 @@ export async function addTeaInfo(prevState: TeaInfoActionResponse | null, formDa
         success: false,
         message: "Hay errores en el formulario",
         errors: z.treeifyError(validatedFields.error),
-        inputs: rawData
-      }
+        inputs: rawData,
+      };
     }
 
-    
     const data = validatedFields.data;
     let day = data.dayNumber;
     if (data.dayNumber === 0) {
       day = Math.floor(Math.random() * 50000);
       await addDay(day);
     }
-    const teaCreated = await addTea({
-      name: data.teaName,
-      infusionTime: data.infusionTime,
-      temperature: data.temperature,
-      hasTheine: data.hasTheine,
-      canReinfuse: data.canReinfuse,
-      reinfuseNumber: data.reinfuseNumber,
-      moreIndications: data.moreIndications,
-      addMilk: data.addMilk,
-      storeName: data.storeName,
-      url: data.urlStore
-    }, day);
+    const teaCreated = await addTea(
+      {
+        name: data.teaName,
+        infusionTime: data.infusionTime,
+        temperature: data.temperature,
+        hasTheine: data.hasTheine,
+        canReinfuse: data.canReinfuse,
+        reinfuseNumber: data.reinfuseNumber,
+        moreIndications: data.moreIndications,
+        addMilk: data.addMilk,
+        storeName: data.storeName,
+        url: data.urlStore,
+      },
+      day
+    );
     if (!teaCreated) {
       throw new Error("Cannot create tea");
     }
-    if (data.storyPart1 || data.storyPart2 || data.storyPart3 || data.youtubeURL ||data.onlyMusic || (data.images && data.images.length > 0)) {
-      const storyCreated = await addStoryTea({
-        storyPart1: data.storyPart1,
-        storyPart2: data.storyPart2,
-        storyPart3: data.storyPart3,
-        youtubeURL: data.youtubeURL,
-        onlyMusic: data.onlyMusic
-      }, day)
+    if (data.storyPart1 || data.storyPart2 || data.storyPart3 || data.youtubeURL || data.onlyMusic || (data.images && data.images.length > 0)) {
+      const storyCreated = await addStoryTea(
+        {
+          storyPart1: data.storyPart1,
+          storyPart2: data.storyPart2,
+          storyPart3: data.storyPart3,
+          youtubeURL: data.youtubeURL,
+          onlyMusic: data.onlyMusic,
+        },
+        day
+      );
       if (!storyCreated) {
         throw new Error("Cannot create story tea");
       }
       if (data.images) {
-        const publicIds = await Promise.all(data.images.map(async (image) => await uploadImageCloudinary(image, "teaDay") ));
-        for (const [i, publicId] of publicIds.entries()){
+        const publicIds = await Promise.all(data.images.map(async (image) => await uploadImageCloudinary(image, "teaDay")));
+        for (const [i, publicId] of publicIds.entries()) {
           if (publicId) {
-            await addStoryImage(publicId, i, day)
-          } 
+            await addStoryImage(publicId, i, day);
+          }
         }
       }
+    }
+    const session = await auth.api.getSession({ headers: await headers() });
+    const dayAssignmentCreated = session
+      ? await prisma.dayAssignment.create({ data: { year: 2025, userId: session.user.id, dayId: teaCreated.dayId } })
+      : await prisma.dayAssignment.create({ data: { year: 2025, guestName: data.personName, dayId: teaCreated.dayId } });
+    if (!dayAssignmentCreated) {
+      throw new Error(`Cannot create dayAssignment for user ${session ? session.user.id : data.personName} in day with id ${teaCreated.dayId}`);
     }
     console.log(`Tea with name ${data.teaName} for day ${day}/2025 added successfully.`);
     return {
       success: true,
-      message: "Tea created successfully"
-    }
+      message: "Tea created successfully",
+    };
   } catch (error) {
-    console.error("Validation error:", error)
+    console.error("Validation error:", error);
     let errorMsg = "";
-    if (error && typeof(error) === "object" && "message" in error) {
-      errorMsg = (error.message === "User already exists. Use another email.") ? "Ya existe un usuario con ese email" : error.message as string;
+    if (error && typeof error === "object" && "message" in error) {
+      errorMsg = error.message === "User already exists. Use another email." ? "Ya existe un usuario con ese email" : (error.message as string);
     }
     return {
       success: false,
       message: "An error has ocurred",
       errors: {
-        errors: [errorMsg ? errorMsg : "An error has ocurred"]
-      }
-    }
+        errors: [errorMsg ? errorMsg : "An error has ocurred"],
+      },
+    };
   }
 }
 
-export async function editTeaInfo(prevState: TeaInfoActionResponse | null, formData: FormData): Promise<TeaInfoActionResponse> {
+export async function editTeaInfoAction(prevState: TeaInfoActionResponse | null, formData: FormData): Promise<TeaInfoActionResponse> {
   try {
     const rawData: TeaInfoFormData = {
       personName: getFormString(formData, "personName"),
@@ -161,13 +177,13 @@ export async function editTeaInfo(prevState: TeaInfoActionResponse | null, formD
       youtubeURL: getFormString(formData, "youtubeURL") || undefined,
       onlyMusic: getFormBoolean(formData, "onlyMusic"),
       images: getFormFilesByPrefix(formData, "image"),
-      imagesOrder: formData.getAll("images_order") as Array<string> || undefined,
-      keptImages: formData.getAll("kept_images") as Array<string> || undefined,
-      keptImagesOrder: formData.getAll("kept_images_order") as Array<string> || undefined,
-      deleteImages: formData.getAll("delete_images") as Array<string> || undefined
+      imagesOrder: (formData.getAll("images_order") as Array<string>) || undefined,
+      keptImages: (formData.getAll("kept_images") as Array<string>) || undefined,
+      keptImagesOrder: (formData.getAll("kept_images_order") as Array<string>) || undefined,
+      deleteImages: (formData.getAll("delete_images") as Array<string>) || undefined,
+      teaId: getFormString(formData, "tea_id"),
     };
-    const validatedFields = TeaInfoFormSchema.safeParse(rawData)
-    
+    const validatedFields = TeaInfoFormSchema.safeParse(rawData);
     if (!validatedFields.success) {
       const myErrors = z.treeifyError(validatedFields.error);
       console.log("Validation errors:");
@@ -176,12 +192,16 @@ export async function editTeaInfo(prevState: TeaInfoActionResponse | null, formD
         success: false,
         message: "Hay errores en el formulario",
         errors: z.treeifyError(validatedFields.error),
-        inputs: rawData
-      }
+        inputs: rawData,
+      };
     }
 
     const data = validatedFields.data;
     const day = data.dayNumber;
+    const currentTea = await getTea(data.teaId);
+    if (!currentTea) {
+      throw new Error(`Cannot find tea with id ${data.teaId}`);
+    }
     const editedTea = await editTea({
       name: data.teaName,
       infusionTime: data.infusionTime,
@@ -192,8 +212,8 @@ export async function editTeaInfo(prevState: TeaInfoActionResponse | null, formD
       moreIndications: data.moreIndications,
       addMilk: data.addMilk,
       storeName: data.storeName,
-      url: data.urlStore
-    }, day);
+      url: data.urlStore,
+    }, data.teaId, currentTea.day.dayNumber === day ? undefined : day);
     if (!editedTea) {
       throw new Error("Cannot edit tea");
     }
@@ -204,18 +224,18 @@ export async function editTeaInfo(prevState: TeaInfoActionResponse | null, formD
         storyPart2: data.storyPart2,
         storyPart3: data.storyPart3,
         youtubeURL: data.youtubeURL,
-        onlyMusic: data.onlyMusic
-      }, day)
+        onlyMusic: data.onlyMusic,
+      }, day);
       if (!editedStory) {
         throw new Error("Cannot edit story tea");
       }
     }
     if (data.images && data.imagesOrder) {
-      const publicIds = await Promise.all(data.images.map(async (image) => await uploadImageCloudinary(image, "teaDay") ));
-      for (const [i, publicId] of publicIds.entries()){
+      const publicIds = await Promise.all(data.images.map(async (image) => await uploadImageCloudinary(image, "teaDay")));
+      for (const [i, publicId] of publicIds.entries()) {
         if (publicId) {
-          await addStoryImage(publicId, data.imagesOrder[i], day)
-        } 
+          await addStoryImage(publicId, data.imagesOrder[i], day);
+        }
       }
     }
     if (data.keptImages && data.keptImagesOrder) {
@@ -223,7 +243,7 @@ export async function editTeaInfo(prevState: TeaInfoActionResponse | null, formD
       const order = data.keptImagesOrder;
       await prisma.$transaction(async (tx) => {
         for (const [i, id] of images.entries()) {
-          await tx.storyImage.update({ where: { id }, data: { order: -i-100 } });
+          await tx.storyImage.update({ where: { id }, data: { order: -i - 100 } });
         }
         for (const [i, id] of images.entries()) {
           await tx.storyImage.update({ where: { id }, data: { order: order[i] } });
@@ -236,39 +256,44 @@ export async function editTeaInfo(prevState: TeaInfoActionResponse | null, formD
         await deleteStoryImage(id);
       }
     }
-    
+
     return {
       success: true,
-      message: "Tea created successfully"
-    }
+      message: "Tea created successfully",
+    };
   } catch (error) {
-    console.error("Validation error:", error)
+    console.error("Validation error:", error);
     let errorMsg = "";
-    if (error && typeof(error) === "object" && "message" in error) {
-      errorMsg = (error.message === "User already exists. Use another email.") ? "Ya existe un usuario con ese email" : error.message as string;
+    if (error && typeof error === "object" && "message" in error) {
+      errorMsg = error.message === "User already exists. Use another email." ? "Ya existe un usuario con ese email" : (error.message as string);
     }
     return {
       success: false,
       message: "An error has ocurred",
       errors: {
-        errors: [errorMsg ? errorMsg : "An error has ocurred"]
-      }
-    }
+        errors: [errorMsg ? errorMsg : "An error has ocurred"],
+      },
+    };
   }
 }
 
-export async function assignUserToDay(dayId: string, userId: string, year: number = 2025) {
+export async function assignUserToDay(dayId: string, userId: string, year: number = 2025, guestName?: string) {
   try {
-    if (!userId) {
-      const assignment = await prisma.dayAssignment.delete({ where: { dayId }, include: { day: true, user: true } });
-      console.log(`Assignment for day ${assignment.day.dayNumber}/${year} and user ${assignment.user.username} deleted`);
-      return { success: true };
+    if (!userId && !guestName) {
+      await prisma.dayAssignment.deleteMany({ where: { dayId } });
+      revalidatePath("/edit-tea-info");
+      return { success: true, message: `Assignment deleted for day id ${dayId}/${year} and user id ${userId}.` };
+    }
+
+    const assignment = { dayId, year, userId: userId || null, guestName: guestName || null };
+    if (assignment.userId && assignment.guestName) {
+      assignment.guestName = null;
     }
 
     await prisma.dayAssignment.upsert({
-      where: { userId_year: { userId, year } },
-      create: { dayId, userId, year },
-      update: { dayId, userId, year }
+      where: { dayId },
+      create: assignment,
+      update: assignment,
     });
     revalidatePath("/edit-tea-info");
     return { success: true };
@@ -276,8 +301,8 @@ export async function assignUserToDay(dayId: string, userId: string, year: numbe
     console.log(error);
     return {
       success: false,
-      error: `Error assigning user ${userId} to day ${dayId}`
-    }
+      error: `Error assigning user ${userId} to day ${dayId}`,
+    };
   }
 }
 
@@ -290,7 +315,7 @@ export async function addDaysAction(year: number = 2025) {
     console.log(error);
     return {
       success: false,
-      error: `Error assigning adding 25 days for year ${year}`
-    }
+      error: `Error assigning adding 25 days for year ${year}`,
+    };
   }
 }

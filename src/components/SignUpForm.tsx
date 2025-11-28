@@ -8,7 +8,6 @@ import { GiBrainLeak } from "react-icons/gi";
 import { IoKeySharp } from "react-icons/io5";
 import { MdEmail } from "react-icons/md";
 import Image from "next/image";
-import { CgProfile } from "react-icons/cg";
 import { signup } from "@/app/actions/authActions";
 import { initialSignUpActionResponse } from "@/lib/types";
 
@@ -71,7 +70,7 @@ export default function SignUpForm() {
 
           <label className="input input-bordered flex items-center gap-2 mb-2 w-full">
             <MdEmail />
-            <input type="email" name="email" className="grow" placeholder="Email" required defaultValue={state?.inputs?.email} />
+            <input type="email" name="email" className="grow" placeholder="Email" autoComplete="username" required defaultValue={state?.inputs?.email} />
           </label>
           {state?.errors?.properties?.email && <p className="text-xs text-error font-bold -mt-2 mb-2">{state.errors.properties.email.errors.join(" ")}</p>}
 
@@ -83,6 +82,7 @@ export default function SignUpForm() {
               className="grow"
               placeholder="Introduce tu contraseña"
               value={password}
+              autoComplete="new-password"
               onChange={(e) => setPassword(e.target.value)}
               defaultValue={state?.inputs?.password}
               required
@@ -101,6 +101,7 @@ export default function SignUpForm() {
               className="grow"
               placeholder="Confirma tu contraseña"
               value={passwordConfirmation}
+              autoComplete="new-password"
               onChange={(e) => setPasswordConfirmation(e.target.value)}
               defaultValue={state?.inputs?.passwordConfirmation}
               required
@@ -112,7 +113,7 @@ export default function SignUpForm() {
           <div className="flex items-center gap-4 mt-4">
             <div className="w-24 h-24 rounded-full overflow-hidden flex items-center justify-center">
               {!imagePreviewURL ? (
-                <CgProfile size={96} className="text-neutral text-opacity-70" />
+                <Image src="/TeaLeavesImage.jpg" alt="User profile preview" className="object-cover w-full h-full" width={96} height={96} />
               ) : (
                 <Image src={imagePreviewURL} alt="User profile preview" className="object-cover w-full h-full" width={96} height={96} />
               )}

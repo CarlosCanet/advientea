@@ -27,7 +27,7 @@ async function EditTeaInfoDayPage({ params }: { params: Promise<{ teaId: string 
   
   return (
     <div className="flex justify-center">
-      <EditTeaInfoForm username={session.user.name} dayNumber={teaCompleteInfo.day.dayNumber} teaCompleteInfo={teaCompleteInfo} isExecuTEAve={session.user.role !== Role.USER} />
+      <EditTeaInfoForm username={session.user.name} dayNumber={teaCompleteInfo.day.dayNumber} teaCompleteInfo={teaCompleteInfo} isExecuTEAve={session.user.role !== Role.USER} teaId={teaId} />
     </div>
   )
 }
