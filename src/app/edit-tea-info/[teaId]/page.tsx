@@ -2,7 +2,7 @@ import EditTeaInfoForm from "@/components/EditTeaInfoForm"
 import WaitForDayAssignment from "@/components/ui/WaitForDayAssignment";
 import { Role } from "@/generated/prisma/enums";
 import { auth } from "@/lib/auth";
-import { getDayAssignment, getTea } from "@/lib/dal";
+import { getDayAssignment, getTea, getUsernameAssignedToTea } from "@/lib/dal";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
@@ -24,10 +24,12 @@ async function EditTeaInfoDayPage({ params }: { params: Promise<{ teaId: string 
     }
   }
   const teaCompleteInfo = await getTea(teaId);
+  const username = await getUsernameAssignedToTea(teaId);
+  
   
   return (
     <div className="flex justify-center">
-      <EditTeaInfoForm username={session.user.name} dayNumber={teaCompleteInfo.day.dayNumber} teaCompleteInfo={teaCompleteInfo} isExecuTEAve={session.user.role !== Role.USER} teaId={teaId} />
+      <EditTeaInfoForm username={username || ""} dayNumber={teaCompleteInfo.day.dayNumber} teaCompleteInfo={teaCompleteInfo} isExecuTEAve={session.user.role !== Role.USER} teaId={teaId} />
     </div>
   )
 }

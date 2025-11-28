@@ -9,7 +9,7 @@ async function SignInPage() {
     redirect("/");
   }
   return (
-    <div className="flex justify-center">
+    <div className="flex justify-center mx-5">
       <SignInForm />
     </div>
   )

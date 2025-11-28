@@ -162,7 +162,7 @@ function AddTeaInfoForm({ username, dayNumber, isLoggedIn, canAssign, users }: A
           <textarea name="storyPart1" className="textarea w-full" placeholder="Historia: parte 1" defaultValue={state.inputs?.storyPart1} />
           <label className="label">Parte 2 (13:00 h)</label>
           <textarea name="storyPart2" className="textarea w-full" placeholder="Historia: parte 2" defaultValue={state.inputs?.storyPart2} />
-          <label className="label">Parte 3 (28:00 h)</label>
+          <label className="label">Parte 3 (18:00 h)</label>
           <textarea name="storyPart3" className="textarea w-full" placeholder="Historia: parte 3" defaultValue={state.inputs?.storyPart3} />
         </fieldset>
         <fieldset className="fieldset">
