@@ -162,9 +162,9 @@ function EditTeaInfoForm({ teaId, username, isExecuTEAve, dayNumber, teaComplete
           <legend className="fieldset-legend"><SiUndertale /> Historia</legend>  
           <label className="label">Parte 1 (08:00 h)</label>
           <textarea name="storyPart1" className="textarea w-full" placeholder="Historia: parte 1" defaultValue={state.inputs?.storyPart1 ?? (teaCompleteInfo.story?.storyPart1 ?? "")}/>
-          <label className="label">Parte 2 (15:00 h)</label>
+          <label className="label">Parte 2 (13:00 h)</label>
           <textarea name="storyPart2" className="textarea w-full" placeholder="Historia: parte 2" defaultValue={state.inputs?.storyPart2 ?? (teaCompleteInfo.story?.storyPart2 ?? "")}/>
-          <label className="label">Parte 3 (20:00 h)</label>
+          <label className="label">Parte 3 (18:00 h)</label>
           <textarea name="storyPart3" className="textarea w-full" placeholder="Historia: parte 3" defaultValue={state.inputs?.storyPart3 ?? (teaCompleteInfo.story?.storyPart3 ?? "")}/>
         </fieldset>
         <fieldset className="fieldset">
