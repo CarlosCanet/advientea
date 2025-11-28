@@ -22,7 +22,7 @@ export default function SignInForm() {
         <div className="items-center mt-2">
           <label className="input input-bordered flex items-center gap-2 mb-2 w-full">
             <MdEmail />
-            <input type="email" name="email" className="grow" placeholder="Email" required />
+            <input type="email" name="email" className="grow" placeholder="Email" autoComplete="username" required />
           </label>
           {state?.errors?.email && <p className="text-xs text-error font-bold -mt-2 mb-2">{state.errors.email.join(", ")}</p>}
 
@@ -34,6 +34,7 @@ export default function SignInForm() {
               className="grow"
               placeholder="Introduce tu contraseña"
               value={password}
+              autoComplete="current-password"
               onChange={(e) => setPassword(e.target.value)}
               required
             />
