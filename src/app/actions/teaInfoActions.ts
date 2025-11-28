@@ -42,7 +42,7 @@ const TeaInfoFormSchema = z.object({
   keptImages: z.array(z.string()).optional(),
   keptImagesOrder: z.array(z.coerce.number()).optional(),
   deleteImages: z.array(z.string()).optional(),
-  teaId: z.string(),
+  teaId: z.string().optional(),
 });
 
 export async function addTeaInfo(prevState: TeaInfoActionResponse | null, formData: FormData): Promise<TeaInfoActionResponse> {
@@ -195,8 +195,10 @@ export async function editTeaInfoAction(prevState: TeaInfoActionResponse | null,
         inputs: rawData,
       };
     }
-
+    
     const data = validatedFields.data;
+    if (!data.teaId) throw new Error("Tea id is missing.");
+    
     const day = data.dayNumber;
     const currentTea = await getTea(data.teaId);
     if (!currentTea) {
