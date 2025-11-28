@@ -8,11 +8,12 @@ import { FaCalendar, FaClock,  FaStore, FaUser } from "react-icons/fa";
 import { FaMusic, FaRepeat, FaTemperatureFull } from "react-icons/fa6";
 import { MdComputer, MdMore } from "react-icons/md";
 import { SiUndertale } from "react-icons/si";
-import { editTeaInfo } from "@/app/actions/teaInfoActions";
+import { editTeaInfoAction } from "@/app/actions/teaInfoActions";
 import { Prisma } from "@/generated/prisma/client";
 import TeaListImageForm from "./ui/TeaListImageForm";
 
 interface EditTeaInfoFormProps {
+  teaId: string,
   username: string,
   isExecuTEAve: boolean,
   dayNumber: number,
@@ -27,8 +28,8 @@ function initImages(teaCompleteInfo : Prisma.TeaGetPayload<{ include: { story: {
   return [];
 }
 
-function EditTeaInfoForm({ username, isExecuTEAve, dayNumber, teaCompleteInfo }: EditTeaInfoFormProps) {
-  const [state, action, isPending] = useActionState(editTeaInfo, initialTeaInfoActionResponse);
+function EditTeaInfoForm({ teaId, username, isExecuTEAve, dayNumber, teaCompleteInfo }: EditTeaInfoFormProps) {
+  const [state, action, isPending] = useActionState(editTeaInfoAction, initialTeaInfoActionResponse);
   const [images, setImages] = useState<Array<ImageStoryForm>>(() => initImages(teaCompleteInfo));
   const [storyImageIdsToDelete, setStoryImageIdsToDelete] = useState<Array<string>>([]);
   const [imageSizeError, setImageSizeError] = useState<string>("");
@@ -69,11 +70,12 @@ function EditTeaInfoForm({ username, isExecuTEAve, dayNumber, teaCompleteInfo }:
     storyImageIdsToDelete.forEach(img => {
       formData.append("delete_images", img);
     });
+    formData.append("tea_id", teaId)
     action(formData);
   }
   
   return (
-    <div className="card w-full mx-10 bg-base-100 shadow-xl mt-10 mb-10">
+    <div className="card w-full mx-10 bg-base-100 shadow-xl mt-10 mb-10 before:content-[''] before:absolute before:inset-0 before:bg-[url('/BackgroundSemiCircleLeaves.svg')] before:bg-no-repeat before:opacity-10 before:pointer-events-none">
       <Form className="card-body" action={onSubmit}>
         <h2 className="card-title"><div>Editar<span className="italic">Té</span></div></h2>
         <div className="items-center mt-2">
@@ -89,6 +91,9 @@ function EditTeaInfoForm({ username, isExecuTEAve, dayNumber, teaCompleteInfo }:
             </label>
             {errors?.dayNumber && <p className="text-xs text-error font-bold -mt-2 mb-2">{errors.dayNumber.errors.join(", ")}</p>}
           </div>
+          
+          <div className="divider divider-neutral">Info del té</div>
+          
           <label className="input input-bordered flex items-center gap-2 mb-2 w-full">
             <BsCupHotFill />
             <input type="text" name="teaName" className="grow" placeholder="Nombre del té" required defaultValue={state.inputs?.teaName ?? teaCompleteInfo.name} />
@@ -130,6 +135,9 @@ function EditTeaInfoForm({ username, isExecuTEAve, dayNumber, teaCompleteInfo }:
             </label>
             {errors?.reinfuseNumber && <p className="text-xs text-error font-bold -mt-2 mb-2">{errors.reinfuseNumber.errors.join(", ")}</p>}
           </div>
+          
+          <div className="divider">Opcional</div>
+          
           <label className="input input-bordered flex items-center gap-2 mb-2 w-full">
             <MdMore />
             <input type="text" name="moreIndications" className="grow" placeholder="Más indicaciones" defaultValue={state.inputs?.moreIndications ?? (teaCompleteInfo.moreIndications ?? "")}/>
@@ -147,8 +155,9 @@ function EditTeaInfoForm({ username, isExecuTEAve, dayNumber, teaCompleteInfo }:
           {errors?.urlStore && <p className="text-xs text-error font-bold -mt-2 mb-2">{errors.urlStore.errors.join(", ")}</p>}
         </div>
 
-        <div className="divider">Ambientación</div>
-
+        <div className="divider divider-neutral">Ambientación</div>
+        
+        <label className="label justify-center text-center">No tienes que rellenar toda la ambientación, <br />sólo lo que te interese o hayas podido</label>
         <fieldset className="fieldset">
           <legend className="fieldset-legend"><SiUndertale /> Historia</legend>  
           <label className="label">Parte 1 (08:00 h)</label>
@@ -158,7 +167,7 @@ function EditTeaInfoForm({ username, isExecuTEAve, dayNumber, teaCompleteInfo }:
           <label className="label">Parte 3 (20:00 h)</label>
           <textarea name="storyPart3" className="textarea w-full" placeholder="Historia: parte 3" defaultValue={state.inputs?.storyPart3 ?? (teaCompleteInfo.story?.storyPart3 ?? "")}/>
         </fieldset>
-        <fieldset>
+        <fieldset className="fieldset">
           <legend className="fieldset-legend"><FaMusic /> Vídeo o música</legend>
           <div className="flex gap-2 items-center">
             <label className="input input-bordered flex items-center gap-2 w-full">
