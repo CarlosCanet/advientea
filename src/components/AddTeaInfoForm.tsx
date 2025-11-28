@@ -85,7 +85,7 @@ function AddTeaInfoForm({ username, dayNumber, isLoggedIn, canAssign, users }: A
             {errors?.personName && <p className="text-xs text-error font-bold -mt-2 mb-2">{errors.personName.errors.join(", ")}</p>}
             <label className="input input-bordered flex items-center gap-2 mb-2 w-full">
               <FaCalendar />
-              <input type="text" name="dayNumber" className="grow" placeholder="Día asignado" required min={1} max={25} defaultValue={state.inputs?.dayNumber ?? dayNumber} readOnly />
+              <input type="text" name="dayNumber" className="grow" placeholder="Día asignado" required min={0} defaultValue={state.inputs?.dayNumber ?? dayNumber} readOnly />
             </label>
             {errors?.dayNumber && <p className="text-xs text-error font-bold -mt-2 mb-2">{errors.dayNumber.errors.join(", ")}</p>}
           </div>
@@ -125,14 +125,14 @@ function AddTeaInfoForm({ username, dayNumber, isLoggedIn, canAssign, users }: A
             <label className="label flex justify-center items-center mx-2 w-full">
               ¿Reinfusiona?
               <input type="checkbox" name="canReinfuse" className="checkbox" defaultChecked={state.inputs?.canReinfuse} />
-              {errors?.canReinfuse && <p className="text-xs text-error font-bold -mt-2 mb-2">{errors.canReinfuse.errors.join(", ")}</p>}
             </label>
             <label className="input input-bordered flex items-center gap-2 w-full">
               <FaRepeat />
               <input type="number" name="reinfuseNumber" className="grow" placeholder="¿Cuántas veces?" min={0} defaultValue={state.inputs?.reinfuseNumber} />
             </label>
-            {errors?.reinfuseNumber && <p className="text-xs text-error font-bold -mt-2 mb-2">{errors.reinfuseNumber.errors.join(", ")}</p>}
           </div>
+          {errors?.canReinfuse && <p className="text-xs text-error font-bold -mt-2 mb-2">{errors.canReinfuse.errors.join(", ")}</p>}
+          {errors?.reinfuseNumber && <p className="text-xs text-error font-bold -mt-2 mb-2">{errors.reinfuseNumber.errors.join(", ")}</p>}
           
           <div className="divider">Opcional</div>
           

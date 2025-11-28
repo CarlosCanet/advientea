@@ -87,7 +87,7 @@ function EditTeaInfoForm({ teaId, username, isExecuTEAve, dayNumber, teaComplete
             {errors?.personName && <p className="text-xs text-error font-bold -mt-2 mb-2">{errors.personName.errors.join(", ")}</p>}
             <label className="input input-bordered flex items-center gap-2 mb-2 w-full">
               <FaCalendar />
-              <input type="text" name="dayNumber" className="grow" placeholder="Día asignado" required min={1} max={25} defaultValue={dayNumber} readOnly={!isExecuTEAve} />
+              <input type="text" name="dayNumber" className="grow" placeholder="Día asignado" required min={0} defaultValue={dayNumber} readOnly={!isExecuTEAve} />
             </label>
             {errors?.dayNumber && <p className="text-xs text-error font-bold -mt-2 mb-2">{errors.dayNumber.errors.join(", ")}</p>}
           </div>
@@ -127,14 +127,14 @@ function EditTeaInfoForm({ teaId, username, isExecuTEAve, dayNumber, teaComplete
             <label className="label flex justify-center items-center mx-2 w-full">
               ¿Reinfusiona?
               <input type="checkbox" name="canReinfuse" className="checkbox" defaultChecked={state.inputs?.canReinfuse ?? teaCompleteInfo.canReinfuse} />
-              {errors?.canReinfuse && <p className="text-xs text-error font-bold -mt-2 mb-2">{errors.canReinfuse.errors.join(", ")}</p>}
             </label>
             <label className="input input-bordered flex items-center gap-2 w-full">
               <FaRepeat />
               <input type="number" name="reinfuseNumber" className="grow" placeholder="¿Cuántas veces?" min={0} defaultValue={state.inputs?.reinfuseNumber ?? (teaCompleteInfo.reinfuseNumber ?? 0)} />
             </label>
-            {errors?.reinfuseNumber && <p className="text-xs text-error font-bold -mt-2 mb-2">{errors.reinfuseNumber.errors.join(", ")}</p>}
           </div>
+          {errors?.canReinfuse && <p className="text-xs text-error font-bold -mt-2 mb-2">{errors.canReinfuse.errors.join(", ")}</p>}
+          {errors?.reinfuseNumber && <p className="text-xs text-error font-bold -mt-2 mb-2">{errors.reinfuseNumber.errors.join(", ")}</p>}
           
           <div className="divider">Opcional</div>
           
