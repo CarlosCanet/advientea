@@ -8,6 +8,10 @@
         "@upstash/context7-mcp@latest"
       ],
       "envFile": "${workspaceFolder}/.env"
+    },
+    "Sentry": {
+      "url": "https://mcp.sentry.dev/mcp/carlos-canet/advientea",
+      "type": "http"
     }
   }
 }
