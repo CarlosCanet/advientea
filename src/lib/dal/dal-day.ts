@@ -1,14 +1,25 @@
 import { Day, Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 
-export async function getDay(day: number, year: number = 2025): Promise<Prisma.DayGetPayload<{ include: { tea: { include: { story: { include: { images: true } } } } } }>> {
+export async function getDay(id: string): Promise<Prisma.DayGetPayload<{ include: { tea: { include: { story: { include: { images: true } } } } } }>>;
+export async function getDay(day: number, year?: number): Promise<Prisma.DayGetPayload<{ include: { tea: { include: { story: { include: { images: true } } } } } }>>;
+
+export async function getDay(idOrDay: string | number, year: number = 2025): Promise<Prisma.DayGetPayload<{ include: { tea: { include: { story: { include: { images: true } } } } } }>> {
   try {
+    if (typeof idOrDay === "string") {
+      const dayResponse = await prisma.day.findUnique({
+        where: { id: idOrDay },
+        include: { tea: { include: { story: { include: { images: true } } } } },
+      })
+      if (!dayResponse) throw new Error(`Day with id ${idOrDay} not found.`);
+      return dayResponse;
+    }
     const dayResponse = await prisma.day.findUnique({
-      where: { dayNumber_year: { dayNumber: day, year: year } },
+      where: { dayNumber_year: { dayNumber: idOrDay, year: year } },
       include: { tea: { include: { story: { include: { images: true } } } } },
     });
     if (!dayResponse) {
-      throw new Error(`Day ${day} of year ${year} not found.`);
+      throw new Error(`Day ${idOrDay} of year ${year} not found.`);
     }
     return dayResponse;
   } catch (error) {

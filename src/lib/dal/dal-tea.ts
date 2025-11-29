@@ -165,11 +165,19 @@ export async function editTeaComplete(
       data: {
         ...teaData,
         story: {
-          update: {
-            ...storyData,
-            images: {
-              deleteMany: {},
-              create: storyImagesData
+          upsert: {
+            create: {
+              ...storyData,
+              images: {
+                create: storyImagesData
+              }
+            },
+            update: {
+              ...storyData,
+              images: {
+                deleteMany: {},
+                create: storyImagesData
+            }
             }
           },
         },
