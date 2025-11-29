@@ -26,7 +26,18 @@ const TeaInfoFormSchema = z.object({
   storyPart1: z.string().optional(),
   storyPart2: z.string().optional(),
   storyPart3: z.string().optional(),
-  youtubeURL: z.url("URL de YouTube inválida. Debe empezar por http:// o https://.").includes("youtube.com").optional(),
+  youtubeURL: z
+    .url("Debe ser una URL válida que empiece por http:// o https://.")
+    .refine(url => {
+      try {
+        const { hostname } = new URL(url);
+        const cleanHostname = hostname.replace(/^www\./, "")
+        return cleanHostname.startsWith("youtube.com") || cleanHostname.startsWith("youtu.be");
+      } catch {
+        return false;
+      }
+    }, "Sólo URL de youtube.com o youtu.be")
+    .optional(),
   onlyMusic: z.boolean(),
   images: z
     .array(
