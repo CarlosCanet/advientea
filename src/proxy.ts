@@ -1,15 +1,18 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { Role } from "./generated/prisma/enums";
 
-const PROTECTED_ROUTES = ["/profile", "/edit-tea-info"];
-const ADMIN_ROUTES = ["/admin-dashboard"];
+const PROTECTED_ROUTES = ["/profile"];
+const EXECUTEAVE_ROUTES = ["/edit-tea-info"];
+const ADMIN_ROUTES = ["/admin-dashboard", "/users"];
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isProtected = PROTECTED_ROUTES.some((route) => pathname.startsWith(route));
+  const isExecuteave = EXECUTEAVE_ROUTES.some((route) => pathname.startsWith(route));
   const isAdmin = ADMIN_ROUTES.some((route) => pathname.startsWith(route));
 
-  if (isProtected || isAdmin) {
+  if (isProtected || isExecuteave || isAdmin) {
     try {
       const sessionResponse = await fetch(new URL("/api/auth/get-session", request.url), {
         headers: {
@@ -34,8 +37,11 @@ export async function proxy(request: NextRequest) {
         return NextResponse.redirect(loginUrl);
       }
   
-      // Verificar permisos de admin si es ruta admin
-      if (isAdmin && !user.isAdmin) {
+      // Verify route permissions
+      if (isExecuteave && user.role === Role.USER) {
+        return NextResponse.rewrite(new URL("/", request.url));
+      }
+      if (isAdmin && user.role !== Role.ADMIN) {
         return NextResponse.rewrite(new URL("/", request.url));
       }
   

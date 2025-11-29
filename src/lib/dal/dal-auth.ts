@@ -36,14 +36,17 @@ export async function getUser(email: string): Promise<User> {
   }
 }
 
-export async function getAllUser(): Promise<Array<User>> {
+export async function getAllUser(): Promise<Array<Prisma.UserGetPayload<{ include: { daysAssigned: { include: { day: true } } } }>>> {
   try {
     const session = await verifySession();
     if (!session.isAuth || session.role === Role.USER) {
       throw new Error("You cannot get that information.");
     }
-
-    const data = await prisma.user.findMany({ orderBy: { username: "asc" }, include: { daysAssigned: { include: { day: true } } } });
+    
+    const data = await prisma.user.findMany({
+      orderBy: { username: "asc" },
+      include: { daysAssigned: { include: { day: true } } }
+    });
     return data;
   } catch (error) {
     console.error(error);
@@ -129,6 +132,19 @@ export async function editUser(data: Omit<CreateUserDTO, "password">, callerRole
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
       console.error("User not found.");
     }
+    throw error;
+  }
+}
+
+export async function changeUserRole(id: string, role: Role): Promise<User> {
+  try {
+    const result = await prisma.user.update({
+      where: { id },
+      data: { role }
+    });
+    return result;
+  } catch (error) {
+    console.error(error);
     throw error;
   }
 }
