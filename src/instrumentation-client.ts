@@ -8,6 +8,7 @@ const SENTRY_DSN = process.env.SENTRY_DSN || process.env.NEXT_PUBLIC_SENTRY_DSN;
 
 Sentry.init({
   dsn: SENTRY_DSN,
+  enabled: process.env.NEXT_PUBLIC_VERCEL_ENV === "production",
 
   // Add optional integrations for additional features
   integrations: [
@@ -18,9 +19,8 @@ Sentry.init({
   tracesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1.0,
 
   // Enable logs to be sent to Sentry
-  enableLogs: true,
+  enableLogs: process.env.NEXT_PUBLIC_VERCEL_ENV === "production",
   environment: process.env.NEXT_PUBLIC_VERCEL_ENV || process.env.NODE_ENV,
-  debug: process.env.NODE_ENV === "development",
 
   // Define how likely Replay events are sampled.
   // This sets the sample rate to be 10%. You may want this to be 100% while

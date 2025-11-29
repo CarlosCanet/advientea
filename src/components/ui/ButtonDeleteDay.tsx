@@ -37,7 +37,7 @@ export default function ButtonDeleteDay({ dayId }: ButtonDeleteDayProps) {
               {/* if there is a button in form, it will close the modal */}
               <button className="btn btn-primary">Close</button>
             </form>
-            <button className="btn btn-error" onClick={handleDelete}>
+            <button className="btn btn-error" onClick={handleDelete} disabled={isPending} >
               Delete
             </button>
           </div>

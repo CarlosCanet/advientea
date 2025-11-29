@@ -1,5 +1,5 @@
 "use server";
-import { createUser } from "@/lib/dal";
+import { changeUserRole, createUser } from "@/lib/dal";
 import { uploadImageCloudinary } from "./uploadActions";
 import { auth } from "@/lib/auth";
 import { SignInActionResponse, SignInFormData, SignUpActionResponse, SignUpFormData } from "@/lib/types";
@@ -7,6 +7,8 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getFormFiles, getFormString } from "./commonActions";
+import { Role } from "@/generated/prisma/enums";
+import { revalidatePath } from "next/cache";
 
 const SignupFormSchema = z
   .object({
@@ -115,4 +117,18 @@ export async function signout() {
     headers: await headers(),
   });
   redirect("/");
+}
+
+export async function changeRoleAction(id: string, role: Role) {
+  try {
+    await changeUserRole(id, role);
+    revalidatePath("/users")
+    return { success: true };
+  } catch (error) {
+    console.error(error);
+    return {
+      success: false,
+      error: `Error changing role to user with id ${id}`,
+    };
+  }
 }
