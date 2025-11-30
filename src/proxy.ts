@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { Role } from "./generated/prisma/enums";
 
-const PROTECTED_ROUTES = ["/profile"];
-const EXECUTEAVE_ROUTES = ["/edit-tea-info"];
-const ADMIN_ROUTES = ["/admin-dashboard", "/users"];
+const PROTECTED_ROUTES: Array<string> = ["/profile", "/edit-tea-info"];
+const EXECUTEAVE_ROUTES: Array<string> = [];
+const ADMIN_ROUTES: Array<string> = ["/admin-dashboard", "/users"];
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
