@@ -16,6 +16,13 @@ export function isDatePast(targetDate: Date): boolean{
   return today > targetDate;
 }
 
+export function isDateTodayOrPast(targetDate: Date): boolean{
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  targetDate.setHours(0, 0, 0, 0);
+  return today >= targetDate;
+}
+
 export function getAdvienteaDayState(dayNumber: number, year: number, userRole: Role, isSimulated = false): AdvienteaDayState {
   const HOURS = {
     PART1: 8,
@@ -26,7 +33,7 @@ export function getAdvienteaDayState(dayNumber: number, year: number, userRole: 
   };
   
   const today = new Date();
-  const teaDate = new Date(Date.UTC(year, 11, dayNumber));
+  const teaDate = new Date(year, 11, dayNumber);
   
   const isExec = userRole === Role.ADMIN || userRole === Role.EXECUTEAVE;
   const canBeSimulated = today > teaDate || isExec;
@@ -43,10 +50,10 @@ export function getAdvienteaDayState(dayNumber: number, year: number, userRole: 
     };
   }
 
-  const currentHour = today.getUTCHours() + 1;
-  const isPastDate = isDatePast(new Date(year, 11, dayNumber));
+  const currentHour = (today.getUTCHours() + 1) % 24;
+  const isTodayOrPastDate = isDatePast(new Date(year, 11, dayNumber));
   
-  if (isPastDate && !isSimulated) {
+  if (isTodayOrPastDate && !isSimulated) {
     return { 
       isReleased: true, isPart1Released: true, isPart2Released: true, 
       isPart3Released: true, isPersonNameReleased: true, isTeaReleased: true 

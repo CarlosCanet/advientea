@@ -66,26 +66,32 @@ export default async function TeaDayPage({ params, searchParams }: TeaDayPagePro
                 Informa<span className="italic">Té</span>
               </div>
               <div className="collapse-content text-sm">
-                <div className="flex gap-2 items-center text-2xl mb-4">
-                  <BsCupHotFill />
-                  <div>¿Cómo infusionar?</div>
-                </div>
-                <TeaInfusionInfo tea={tea} />
-                <div className="mt-2">
-                  <Timer minutes={tea?.infusionTime ?? 0} />
-                </div>
-                
-                {(tea?.storeName || tea?.url) && 
-                  <div className="flex flex-col gap-2 mt-4">
+                {advienteaDayState.isPart1Released ? ( 
+                  <>
                     <div className="flex gap-2 items-center text-2xl mb-4">
-                      <FaStore />
-                      <div>¿Dónde comprar?</div>
-                    </div>                
-                    {tea.storeName && <div className="flex items-center gap-2 ml-4"><FaStore />{tea.storeName}</div>}
-                    {tea.url && <Link href={tea.url} className="flex items-center gap-2 ml-4"><MdComputer />{tea.url}</Link>}
-                  </div>
-                }
-              </div>
+                      <BsCupHotFill />
+                      <div>¿Cómo infusionar?</div>
+                    </div>
+                    <TeaInfusionInfo tea={tea} />
+                    <div className="mt-2">
+                      <Timer minutes={tea?.infusionTime ?? 0} />
+                    </div>
+                    
+                    {(tea?.storeName || tea?.url) && 
+                      <div className="flex flex-col gap-2 mt-4">
+                        <div className="flex gap-2 items-center text-2xl mb-4">
+                          <FaStore />
+                          <div>¿Dónde comprar?</div>
+                        </div>                
+                        {tea.storeName && <div className="flex items-center gap-2 ml-4"><FaStore />{tea.storeName}</div>}
+                        {tea.url && <Link href={tea.url} className="flex items-center gap-2 ml-4"><MdComputer />{tea.url}</Link>}
+                      </div>
+                    }
+                  </>
+                ): ( 
+                  <div className="skeleton skeleton-text font-[Griffy] text-center text-3xl">No es la hora todavía...</div>   
+                )}
+                </div>              
             </div>
             
             {tea?.story &&
