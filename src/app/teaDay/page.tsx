@@ -1,6 +1,6 @@
 import TeaInfusionInfo from "@/components/ui/TeaInfusionInfo";
 import { Role } from "@/generated/prisma/enums";
-import { isDatePast } from "@/lib/advientea-rules";
+import { isDatePast, isDateTodayOrPast } from "@/lib/advientea-rules";
 import { auth } from "@/lib/auth";
 import { getAllDays } from "@/lib/dal";
 import { headers } from "next/headers";
@@ -12,10 +12,10 @@ export default async function DaysList() {
   const session = await auth.api.getSession({ headers: await headers() });
   let days = await getAllDays(2025);
   const lastDay = days[days.length - 1];
-  const isNameReleased = isDatePast(new Date(lastDay.year, 11, lastDay.dayNumber));
+  const isNameReleased = isDateTodayOrPast(new Date(lastDay.year, 11, lastDay.dayNumber));
 
   if (session?.user.role !== Role.ADMIN && session?.user.role !== Role.EXECUTEAVE) {
-    days = days.filter((day) => isDatePast(new Date(day.year, 11, day.dayNumber)));
+    days = days.filter((day) => isDateTodayOrPast(new Date(day.year, 11, day.dayNumber)));
   }
 
   return (

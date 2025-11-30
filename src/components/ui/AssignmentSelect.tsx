@@ -1,12 +1,16 @@
 "use client";
 import { assignUserToDay } from "@/app/actions/teaInfoActions";
-import { User } from "@/generated/prisma/client";
 import { useEffect, useState, useTransition } from "react";
+
+interface UserBasic {
+  id: string;
+  username: string
+}
 
 interface AssignmentSelectProps {
   userId: string;
   dayId: string;
-  users: Array<User>;
+  users: Array<UserBasic>;
   guestName?: string;
 }
 

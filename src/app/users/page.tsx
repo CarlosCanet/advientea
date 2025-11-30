@@ -1,17 +1,17 @@
 import CheckboxUsersExecuteave from "@/components/ui/CheckboxUsersExecuteave";
 import { Role } from "@/generated/prisma/enums";
 import { auth } from "@/lib/auth";
-import { getAllUser } from "@/lib/dal";
+import { getAllUsers } from "@/lib/dal";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 export default async function Users() {
   const session = await auth.api.getSession({ headers: await headers() });
-
-  if (!session || session.user.role === Role.USER) {
+  const isUserPrivileged = session?.user.role === Role.ADMIN || session?.user.role === Role.EXECUTEAVE;
+  if (!session || !isUserPrivileged) {
     redirect("/");
   } 
-  const users = await getAllUser();
+  const users = await getAllUsers(isUserPrivileged);
 
   return (
     <div className="flex justify-center">

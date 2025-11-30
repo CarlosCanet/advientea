@@ -168,7 +168,7 @@ function EditTeaInfoForm({ teaId, username, isExecuTEAve, dayNumber, teaComplete
           <textarea name="storyPart3" className="textarea w-full" placeholder="Historia: parte 3" defaultValue={state.inputs?.storyPart3 ?? (teaCompleteInfo.story?.storyPart3 ?? "")}/>
         </fieldset>
         <fieldset className="fieldset">
-          <legend className="fieldset-legend"><FaMusic /> Vídeo o música</legend>
+          <legend className="fieldset-legend"><FaMusic /> Vídeo o música (08:00 h)</legend>
           <div className="flex gap-2 items-center">
             <label className="input input-bordered flex items-center gap-2 w-full">
               <input type="text" name="youtubeURL" className="grow" placeholder="Enlace de youtube a video o música" defaultValue={state.inputs?.youtubeURL ?? (teaCompleteInfo.story?.youtubeURL ?? "")} />

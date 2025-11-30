@@ -5,6 +5,17 @@ import { Prisma, Role, User } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { auth } from "../auth";
 
+interface CreateUserDTO {
+  username: string;
+  email: string;
+  password: string;
+  image?: string;
+  role?: Role;
+}
+
+type UserBase = Prisma.UserGetPayload<{ select: { id: true; username: true; image: true; daysAssigned: { include: { day: true } }; } }>;
+type SafeUser = UserBase & { email?: string | null; role?: Role };
+type NotSoSafeUser = Prisma.UserGetPayload<{ select: { id: true, username: true, image: true, email: true, role: true, daysAssigned: { include: { day: true } } } }>;
 
 export const verifySession = cache(async function verifySession() {
   const session = await auth.api.getSession({
@@ -36,30 +47,12 @@ export async function getUser(email: string): Promise<User> {
   }
 }
 
-export async function getAllUser(): Promise<Array<Prisma.UserGetPayload<{ include: { daysAssigned: { include: { day: true } } } }>>> {
-  try {
-    const session = await verifySession();
-    if (!session.isAuth || session.role === Role.USER) {
-      throw new Error("You cannot get that information.");
-    }
-    
-    const data = await prisma.user.findMany({
-      orderBy: { username: "asc" },
-      include: { daysAssigned: { include: { day: true } } }
-    });
-    return data;
-  } catch (error) {
-    console.error(error);
-    throw error;
-  }
-}
-
-interface CreateUserDTO {
-  username: string;
-  email: string;
-  password: string;
-  image?: string;
-  role?: Role;
+export async function getAllUsers(isAdmin: boolean): Promise<Array<NotSoSafeUser>> {
+  const data = await prisma.user.findMany({
+    orderBy: { username: "asc" },
+    select: { id: true, username: true, image: true, email: isAdmin, role: isAdmin, daysAssigned: { include: { day: true}} }
+  });
+  return data;
 }
 
 function canAssignRole(requestedRole: Role, callerRole?: Role): boolean {
