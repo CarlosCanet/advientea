@@ -17,6 +17,7 @@ export default async function Home() {
           <p className="mb-6 text-lg text-center font-[Griffy] text-neutral-content">
             Esta web nos va a servir para compartir las temperaturas y tiempos máximos de las infusiones que hemos decidido compartir con el resto del mundo, y también para que compartamos y disfrutemos de aquellos retazos de inspiración que nos acunan mientras cogemos la taza caliente con las manos frías. 
           </p>
+          <Link href="/teaDay" className="btn btn-accent px-8 py-10 text-lg place-self-center shadow-xl"><span>Pasa<span className="italic">Té</span> por<br />el Calendario</span></Link>
         </div>
       </header>
 
@@ -49,7 +50,7 @@ export default async function Home() {
                 </li>
               </ul>
               <p className="py-6 font-[Griffy]">Mi idea es no desvelar quién ha elegido qué infusión hasta el último día.</p>
-              <div className="flex gap-3 justify-center">
+              <div className="flex flex-wrap gap-3 justify-center">
                 {!session && <Link href="/sign-in" className="btn btn-primary">Entra</Link>}
                 {!session && <Link href="/sign-up" className="btn btn-primary">Regístrate</Link>}
                 <Link href="/add-tea-info" className="btn btn-secondary">Añade tu té</Link>
