@@ -38,10 +38,12 @@ async function Navbar() {
                 <RxHamburgerMenu />
             )}
           </div>
-          <ul tabIndex={-1} className="menu menu-sm dropdown-content bg-base-100 rounded-box z-1 mt-3 w-30 p-2 shadow">
+          {/* <ul tabIndex={-1} className="menu menu-sm dropdown-content bg-base-100 rounded-box z-1 mt-3 w-30 p-2 shadow"> */}
+          <ul tabIndex={-1} className="menu menu-sm dropdown-content bg-base-100 rounded-box z-1 mt-3 w-max min-w-28 whitespace-nowrap px-2 py-2 shadow">
+            {session && <li className="menu-title -ml-2 px-4">¡Hola, {session.user.username}!</li> }
+            <li><Link href="/teaDay">Advienté</Link></li>
             {!session && <li><Link href="/sign-in">Login</Link></li>}
             {!session && <li><Link href="/sign-up">Registro</Link></li>}
-            {session && `¡Hola, ${session.user.username}!` }
             {/* {session && <li><Link href="/profile">Perfil</Link></li>} */}
             {/* <li><Link href="/teaDay">Té del día</Link></li> */}
             <li><Link href="/add-tea-info">Añadir tu té</Link></li>

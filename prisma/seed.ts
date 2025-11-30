@@ -89,28 +89,28 @@ async function createTeas() {
 }
 
 async function createStoryTeas() {
-  await addStoryTea({
-    storyPart1: "Todo pasó hace tiempo",
-    storyPart2: "Tienes pistas en el nombre",
-    storyPart3: "Cuanto más avanzas, más te pierdes",
-    youtubeURL: "https://www.youtube.com/watch?v=jfKfPfyJRdk",
-    onlyMusic: false
-  }, 1, 2025);
+  // await addStoryTea({
+  //   storyPart1: "Todo pasó hace tiempo",
+  //   storyPart2: "Tienes pistas en el nombre",
+  //   storyPart3: "Cuanto más avanzas, más te pierdes",
+  //   youtubeURL: "https://www.youtube.com/watch?v=jfKfPfyJRdk",
+  //   onlyMusic: false
+  // }, 1, 2025);
 
-  await addStoryTea({
-    storyPart1: "Jamás",
-    storyPart2: "Me",
-    storyPart3: "pillarás",
-    youtubeURL: "https://www.youtube.com/watch?v=jfKfPfyJRdk",
-  }, 2, 2025);
+  // await addStoryTea({
+  //   storyPart1: "Jamás",
+  //   storyPart2: "Me",
+  //   storyPart3: "pillarás",
+  //   youtubeURL: "https://www.youtube.com/watch?v=jfKfPfyJRdk",
+  // }, 2, 2025);
 
-  for (let index = 2; index < 25; index++) {
-    await addStoryTea({
-      storyPart1: "Story 1",
-      storyPart2: "Story 2",
-      storyPart3: "Story 3",
-    }, index + 1, 2025);
-  }
+  // for (let index = 2; index < 25; index++) {
+  //   await addStoryTea({
+  //     storyPart1: "Story 1",
+  //     storyPart2: "Story 2",
+  //     storyPart3: "Story 3",
+  //   }, index + 1, 2025);
+  // }
 }
 
 async function createStoryImages() {

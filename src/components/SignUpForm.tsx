@@ -58,7 +58,7 @@ export default function SignUpForm() {
   };
 
   return (
-    <div className="card w-96 bg-base-100 shadow-xl mt-20 mb-20">
+    <div className="card w-full max-w-xl bg-base-100 shadow-xl mt-20 mb-20">
       <Form className="card-body" action={action}>
         <h2 className="card-title">Registro</h2>
         <div className="items-center mt-2">
