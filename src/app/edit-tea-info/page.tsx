@@ -4,17 +4,17 @@ import ButtonDeleteDay from "@/components/ui/ButtonDeleteDay";
 import WaitForDayAssignment from "@/components/ui/WaitForDayAssignment";
 import { Role } from "@/generated/prisma/client";
 import { auth } from "@/lib/auth";
-import { getAllDays, getAllUser, getDayAssignment } from "@/lib/dal";
+import { getAllDays, getAllUsers, getDayAssignment } from "@/lib/dal";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
 async function EditTeaInfo() {
   const session = await auth.api.getSession({ headers: await headers() });
-
+  const isUserPrivileged = session?.user.role === Role.ADMIN || session?.user.role === Role.EXECUTEAVE;
   if (!session) {
     redirect("/");
-  } else if (session.user.role === Role.USER) {
+  } else if (!isUserPrivileged) {
     const assignment = await getDayAssignment(2025, session.user.email);
     if (assignment && assignment.day.tea) {
       redirect(`/edit-tea-info/${assignment.day.tea.id}`);
@@ -22,7 +22,8 @@ async function EditTeaInfo() {
       return <WaitForDayAssignment />;
     }
   }
-  const users = await getAllUser();
+  
+  const users = await getAllUsers(isUserPrivileged);
   const days = await getAllDays(2025);
 
   return (
