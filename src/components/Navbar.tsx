@@ -15,7 +15,9 @@ async function Navbar() {
   return (
     <nav className="navbar bg-neutral shadow-sm fixed z-50 h-16">
       <div className="navbar-start ml-4" >
-        <Image src="/LogoAdvientea.png" alt="Logo de advienté" width={40} height={40}/>
+        <Link href="/" className="btn btn-ghost btn-circle text-xl text-neutral-content">
+          <Image src="/LogoAdvientea.png" alt="Logo de advienté" width={40} height={40}/>
+        </Link>
       </div>
       <div className="navbar-center">
         <Link href="/" className="btn btn-ghost text-xl text-neutral-content">
