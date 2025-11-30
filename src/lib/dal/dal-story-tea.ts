@@ -6,20 +6,20 @@ import { StoryTeaGetPayload } from "@/generated/prisma/models";
 type StoryWithTeaAndImages = Prisma.StoryTeaGetPayload<{ include: { tea: true, images: true } }>;
 type StoryWithTea = StoryTeaGetPayload<{ include: { tea: true } }>;
 
+export async function getStoryTea(id: string): Promise<StoryWithTeaAndImages | null>;
+export async function getStoryTea(day: number, year: number): Promise<StoryWithTeaAndImages | null>;
 export async function getStoryTea(idOrDay: string | number, year: number = 2025): Promise<StoryWithTeaAndImages | null> {
   if (typeof idOrDay === "string") {
     const story = await prisma.storyTea.findUnique({
       where: { id: idOrDay },
       include: { tea: true, images: true }
     });
-    if (!story) {
-      throw new Error(`Story with id ${idOrDay} not found`);
-    }
+    if (!story) return null;
     return story;
   }
   const day = idOrDay
   const dayResponse = await getDay(day, year);
-  if (!dayResponse.tea?.story) return null
+  if (!dayResponse || !dayResponse.tea?.story) return null
   const result: StoryWithTeaAndImages = { ... dayResponse.tea.story, tea: dayResponse.tea}  
   return result;
 }

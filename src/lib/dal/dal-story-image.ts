@@ -71,52 +71,12 @@ export async function addStoryImage(publicId: string, order: number, day: number
   }
 }
 
-export async function editStoryImage(data: Prisma.StoryImageUncheckedUpdateInput, id: string): Promise<StoryImage>;
-export async function editStoryImage(data: Prisma.StoryImageUncheckedUpdateInput, order: number, day: number, year?: number): Promise<StoryImage>;
-
-export async function editStoryImage(data: Prisma.StoryImageUncheckedUpdateInput, idOrOrder: number | string, day?: number, year: number = 2025): Promise<StoryImage> {
-  try {
-    if (typeof idOrOrder === "string") {
-      const imageUpdated = await prisma.storyImage.update({ where: { id: idOrOrder }, data });
-      return imageUpdated;
-    }
-    if (!day) {
-      throw new Error("Day is mandatory if editing by order");
-    }
-    const order = idOrOrder;
-    const teaResponse = await getTea(day, year);
-    if (!teaResponse.story) {
-      throw new Error(`There is not story tea for ${day}/${year}.`);
-    }
-    const teaUpdated = await prisma.storyImage.update({ where: { storyTeaId_order: { storyTeaId: teaResponse.story.id, order } }, data });
-    return teaUpdated;
-  } catch (error) {
-    console.error(error);
-    throw error;
-  }
+export async function editStoryImage(data: Prisma.StoryImageUncheckedUpdateInput, id: string): Promise<StoryImage> {
+  const imageUpdated = await prisma.storyImage.update({ where: { id }, data });
+  return imageUpdated;
 }
 
-export async function deleteStoryImage(id: string): Promise<StoryImage>;
-export async function deleteStoryImage(order: number, day: number, year?: number): Promise<StoryImage>;
-
-export async function deleteStoryImage (orderOrId: number | string, day?: number, year: number = 2025): Promise<StoryImage> {
-  try {
-    if (typeof orderOrId === "string") {
-      const imageDeleted = await prisma.storyImage.delete({ where: { id: orderOrId } });
-      return imageDeleted;
-    }
-    if (!day) {
-      throw new Error("Day is mandatory if deleting by order");
-    }
-    const order = orderOrId;
-    const teaResponse = await getTea(day, year);
-    if (!teaResponse.story) {
-      throw new Error(`No tea story found for day ${day}/${year}`);
-    }
-    const result = await prisma.storyImage.delete({ where: { storyTeaId_order: { storyTeaId: teaResponse.story.id, order} } });
-    return result;
-  } catch (error) {
-    console.error(error);
-    throw error;
-  }
+export async function deleteStoryImage(id: string): Promise<StoryImage> {
+  const imageDeleted = await prisma.storyImage.delete({ where: { id } });
+  return imageDeleted;
 }

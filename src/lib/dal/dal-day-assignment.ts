@@ -77,66 +77,19 @@ export async function addDayAssignment(email: string, day: number, year: number 
   }
 }
 
-export async function editDayAssignment(data: Prisma.DayAssignmentUncheckedUpdateInput, id: string): Promise<Prisma.DayAssignmentGetPayload<{ include: { user: true, day: true } }>>;
-export async function editDayAssignment(data: Prisma.DayAssignmentUncheckedUpdateInput, year: number, email: string): Promise<Prisma.DayAssignmentGetPayload<{ include: { user: true, day: true } }>>;
-
-export async function editDayAssignment(data: Prisma.DayAssignmentUncheckedUpdateInput, yearOrId: number | string, email?: string): Promise<Prisma.DayAssignmentGetPayload<{ include: { user: true, day: true } }>> {
-  try {
-    if (typeof yearOrId === "string") {
-      const dayAssignmentUpdated = await prisma.dayAssignment.update({
-        where: { id: yearOrId },
-        include: { day: true, user: true },
-        data,
-      });
-      return dayAssignmentUpdated;
-    }
-    if (!email) {
-      throw new Error("Email is mandatory when editing by year.");
-    }
-    const year = yearOrId;
-    const userResponse = await prisma.user.findUnique({ where: { email } });
-    if (!userResponse) {
-      throw new Error(`The user with email ${email} doesn't exist`);
-    }
-    const dayAssignmentUpdated = await prisma.dayAssignment.update({
-      where: { userId_year: { userId: userResponse.id, year } },
-      include: { day: true, user: true },
-      data,
-    });
-    return dayAssignmentUpdated;
-  } catch (error) {
-    console.error(error);
-    throw error;
-  }
+export async function editDayAssignment(data: Prisma.DayAssignmentUncheckedUpdateInput, id: string): Promise<Prisma.DayAssignmentGetPayload<{ include: { user: true, day: true } }>> {
+  const dayAssignmentUpdated = await prisma.dayAssignment.update({
+    where: { id: id },
+    include: { day: true, user: true },
+    data,
+  });
+  return dayAssignmentUpdated;
 }
 
-export async function deleteDayAssignment(id: string): Promise<Prisma.DayAssignmentGetPayload<{ include: { user: true, day: true } }>>;
-export async function deleteDayAssignment(year: number, email: string): Promise<Prisma.DayAssignmentGetPayload<{ include: { user: true, day: true } }>>;
-
-export async function deleteDayAssignment(yearOrId: number | string, email?: string): Promise<Prisma.DayAssignmentGetPayload<{ include: { user: true, day: true } }>> {
-  try {
-    if (typeof yearOrId === "string") {
-      const dayAssignmentDeleted = await prisma.dayAssignment.delete({
-        where: { id: yearOrId },
-        include: { day: true, user: true }
-      });
-      return dayAssignmentDeleted;
-    }
-    if (!email) {
-      throw new Error("Email is mandatory when deleting by year.");
-    }
-    const year = yearOrId;
-    const userResponse = await prisma.user.findUnique({ where: { email } });
-    if (!userResponse) {
-      throw new Error(`The user with email ${email} doesn't exist`);
-    }
-    const result = await prisma.dayAssignment.delete({
-      where: { userId_year: { userId: userResponse.id, year } },
-      include: { day: true, user: true },
-    });
-    return result;
-  } catch (error) {
-    console.error(error);
-    throw error;
-  }
+export async function deleteDayAssignment(id: string): Promise<Prisma.DayAssignmentGetPayload<{ include: { user: true, day: true } }>> {
+  const dayAssignmentDeleted = await prisma.dayAssignment.delete({
+    where: { id },
+    include: { day: true, user: true }
+  });
+  return dayAssignmentDeleted;
 }

@@ -128,7 +128,7 @@ export async function addTeaInfo(prevState: TeaInfoActionResponse | null, formDa
           youtubeURL: data.youtubeURL,
           onlyMusic: data.onlyMusic,
         },
-        day
+        teaCreated.id
       );
       if (!storyCreated) {
         throw new Error("Cannot create story tea");
@@ -235,15 +235,23 @@ export async function editTeaInfoAction(prevState: TeaInfoActionResponse | null,
     }
 
     if (data.storyPart1 || data.storyPart2 || data.storyPart3 || data.youtubeURL || data.onlyMusic) {
-      const editedStory = await editStoryTea({
+      const formStoryTea = {
         storyPart1: data.storyPart1,
         storyPart2: data.storyPart2,
         storyPart3: data.storyPart3,
         youtubeURL: data.youtubeURL,
         onlyMusic: data.onlyMusic,
-      }, day);
-      if (!editedStory) {
-        throw new Error("Cannot edit story tea");
+      }
+      if (currentTea.story) {
+        const editedStory = await editStoryTea( formStoryTea, currentTea.story.id);
+        if (!editedStory) {
+          throw new Error("Cannot edit story tea");
+        }
+      } else {
+        const addedStory = await addStoryTea(formStoryTea, currentTea.id)
+        if (!addedStory) {
+          throw new Error("Cannot edit story tea");
+        }
       }
     }
     if (data.images && data.imagesOrder) {
