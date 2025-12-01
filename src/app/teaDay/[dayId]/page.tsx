@@ -77,7 +77,7 @@ export default async function TeaDayPage({ params, searchParams }: TeaDayPagePro
                       <Timer minutes={tea?.infusionTime ?? 0} />
                     </div>
                     
-                    {(tea?.storeName || tea?.url) && 
+                    {advienteaDayState.isTeaReleased && (tea?.storeName || tea?.url) && 
                       <div className="flex flex-col gap-2 mt-4">
                         <div className="flex gap-2 items-center text-2xl mb-4">
                           <FaStore />
