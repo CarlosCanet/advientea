@@ -89,7 +89,7 @@ export default async function TeaDayPage({ params, searchParams }: TeaDayPagePro
                     }
                   </>
                 ): ( 
-                  <div className="skeleton skeleton-text font-[Griffy] text-center text-3xl">No es la hora todavía...</div>   
+                  <div className="skeleton skeleton-text font-[Griffy] text-center text-2xl">No es la hora todavía...</div>   
                 )}
                 </div>              
             </div>
