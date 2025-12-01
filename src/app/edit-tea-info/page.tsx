@@ -8,6 +8,7 @@ import { getAllDays, getAllUsers, getDayAssignment } from "@/lib/dal";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { FaPencil } from "react-icons/fa6";
 
 async function EditTeaInfo() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -34,7 +35,7 @@ async function EditTeaInfo() {
           <ButtonAddDays daysNumber={days.length} />
         </div>
         <div className="overflow-x-auto">
-          <table className="table-xs lg:table table-zebra">
+          <table className="table-xs lg:table table-zebra text-center">
             <thead>
               <tr>
                 <th>Día</th>
@@ -52,7 +53,10 @@ async function EditTeaInfo() {
                       {<AssignmentSelect key={`${day.id}-${day.assignment?.user?.id ?? day.assignment?.guestName}`} dayId={day.id} userId={day.assignment?.user?.id ?? ""} users={users} guestName={day.assignment?.guestName ?? undefined} />}
                     </td>
                     <td><Link href={`/edit-tea-info/${day.tea?.id}`}>{day.tea?.name}</Link></td>
-                    <td><ButtonDeleteDay dayId={day.id} /></td>
+                    <td className="flex gap-3 items-center justify-center flex-nowrap">
+                      <Link href={`/edit-tea-info/${day.tea?.id}`}><FaPencil /></Link>
+                      <ButtonDeleteDay dayId={day.id} />
+                    </td>
                   </tr>
                 );
               })}
