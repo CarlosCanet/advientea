@@ -1,6 +1,6 @@
 import TeaInfusionInfo from "@/components/ui/TeaInfusionInfo";
 import { Role } from "@/generated/prisma/enums";
-import { isDatePast, isDateTodayOrPast } from "@/lib/advientea-rules";
+import { getAdvienteaDayState, isDateTodayOrPast } from "@/lib/advientea-rules";
 import { auth } from "@/lib/auth";
 import { getAllDays } from "@/lib/dal";
 import { headers } from "next/headers";
@@ -43,6 +43,7 @@ export default async function DaysList() {
           </li>
         )}
         {days.map((day) => {
+          const advienteaDayState = getAdvienteaDayState(day.dayNumber, day.year, session?.user.role as Role, false);
           const assigneeName = day.assignment?.guestName ?? day.assignment?.user?.username;
           const advienteaDayTitle = isNameReleased && assigneeName ? `${day.tea?.name} - ${assigneeName}` : day.tea?.name;
           return (
@@ -58,8 +59,14 @@ export default async function DaysList() {
                   </div>
                 </div>
                 <div className="list-col-grow">
-                  <div className="font-[Griffy] text-md">{advienteaDayTitle}</div>
-                  {day.tea && <TeaInfusionInfo tea={day.tea} hasMoreIndication={false} xs={true} />}
+                  {advienteaDayState.isTeaReleased ? (
+                    <div className="font-[Griffy] text-md">{advienteaDayTitle}</div>
+                  ): (
+                    <div className="skeleton skeleton-text font-[Griffy] text-lg">Té desconocido</div>
+                  )}
+                  {day.tea && advienteaDayState.isPart1Released &&
+                    <TeaInfusionInfo tea={day.tea} hasMoreIndication={false} xs={true} />
+                  }
                 </div>
                 <div className="text-2xl">
                   {day.dayNumber % 2 === 0 ? <BsCupHot /> : <BsCupHotFill />}
