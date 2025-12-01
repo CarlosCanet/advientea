@@ -13,6 +13,7 @@ interface CreateUserDTO {
   role?: Role;
 }
 
+export type UserBasic = Prisma.UserGetPayload<{ select: { id: true; username: true; } }>;
 type UserBase = Prisma.UserGetPayload<{ select: { id: true; username: true; image: true; daysAssigned: { include: { day: true } }; } }>;
 type SafeUser = UserBase & { email?: string | null; role?: Role };
 type NotSoSafeUser = Prisma.UserGetPayload<{ select: { id: true, username: true, image: true, email: true, role: true, daysAssigned: { include: { day: true } } } }>;
