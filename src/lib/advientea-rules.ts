@@ -66,6 +66,6 @@ export function getAdvienteaDayState(dayNumber: number, year: number, userRole: 
     isPart2Released: currentHour >= HOURS.PART2,
     isPart3Released: currentHour >= HOURS.PART3,
     isTeaReleased: currentHour >= HOURS.TEA,
-    isPersonNameReleased: currentHour >= HOURS.NAME,
+    isPersonNameReleased: isDatePast(new Date(year, 11, 21)) && currentHour >= HOURS.NAME,
   };
 }

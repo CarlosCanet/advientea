@@ -4,13 +4,13 @@ import { Role } from "@/generated/prisma/enums";
 import { auth } from "@/lib/auth";
 import { getDayAssignment, getTea, getUsernameAssignedToTea } from "@/lib/dal";
 import { headers } from "next/headers";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 async function EditTeaInfoDayPage({ params }: { params: Promise<{ teaId: string }> }) {
   const { teaId } = await params;
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) {
-    return;
+    redirect("/");
   }
 
   if (session.user.role === Role.USER) {
@@ -24,6 +24,9 @@ async function EditTeaInfoDayPage({ params }: { params: Promise<{ teaId: string 
     }
   }
   const teaCompleteInfo = await getTea(teaId);
+  if (!teaCompleteInfo) {
+    notFound();
+  }
   const username = await getUsernameAssignedToTea(teaId);
   
   
