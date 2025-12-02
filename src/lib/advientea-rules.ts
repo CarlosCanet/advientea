@@ -9,14 +9,14 @@ export interface AdvienteaDayState {
   isTeaReleased: boolean;
 }
 
-export function isDatePast(targetDate: Date): boolean{
+export function isDatePast(targetDate: Date): boolean {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   targetDate.setHours(0, 0, 0, 0);
   return today > targetDate;
 }
 
-export function isDateTodayOrPast(targetDate: Date): boolean{
+export function isDateTodayOrPast(targetDate: Date): boolean {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   targetDate.setHours(0, 0, 0, 0);
@@ -29,43 +29,46 @@ export function getAdvienteaDayState(dayNumber: number, year: number, userRole: 
     PART2: 11,
     PART3: 18,
     TEA: 20,
-    NAME: 20
+    NAME: 20,
   };
-  
+  const RELEASE_NAME_DAY = new Date(year, 11, 21);
+
+  const state: AdvienteaDayState = {
+    isReleased: false,
+    isPart1Released: false,
+    isPart2Released: false,
+    isPart3Released: false,
+    isPersonNameReleased: false,
+    isTeaReleased: false,
+  };
+
   const today = new Date();
+  const currentHour = (today.getUTCHours() + 1) % 24;
   const teaDate = new Date(year, 11, dayNumber);
-  
+
   const isExec = userRole === Role.ADMIN || userRole === Role.EXECUTEAVE;
   const canBeSimulated = today > teaDate || isExec;
-  
-  const effectiveDate = (canBeSimulated && isSimulated) ? today : teaDate;
-  
+
+  const effectiveDate = canBeSimulated && isSimulated ? today : teaDate;
+
   const isDayReached = today >= effectiveDate;
-  const isReleased = isExec || isDayReached;
-
-  if (!isReleased) {
-    return { 
-      isReleased: false, isPart1Released: false, isPart2Released: false, 
-      isPart3Released: false, isPersonNameReleased: false, isTeaReleased: false 
-    };
-  }
-
-  const currentHour = (today.getUTCHours() + 1) % 24;
-  const isTodayOrPastDate = isDatePast(new Date(year, 11, dayNumber));
+  const isPastDate = isDatePast(effectiveDate);
   
-  if (isTodayOrPastDate && !isSimulated) {
-    return { 
-      isReleased: true, isPart1Released: true, isPart2Released: true, 
-      isPart3Released: true, isPersonNameReleased: true, isTeaReleased: true 
-    };
+  state.isReleased = isDayReached;
+  
+  if (isPastDate && !isSimulated) {
+    state.isPart1Released = true;
+    state.isPart2Released = true;
+    state.isPart3Released = true;
+    state.isTeaReleased = true;
+  } else {
+    state.isPart1Released = currentHour >= HOURS.PART1;
+    state.isPart2Released = currentHour >= HOURS.PART2;
+    state.isPart3Released = currentHour >= HOURS.PART3;
+    state.isTeaReleased = currentHour >= HOURS.TEA;
   }
 
-  return {
-    isReleased: true,
-    isPart1Released: currentHour >= HOURS.PART1,
-    isPart2Released: currentHour >= HOURS.PART2,
-    isPart3Released: currentHour >= HOURS.PART3,
-    isTeaReleased: currentHour >= HOURS.TEA,
-    isPersonNameReleased: isDatePast(new Date(year, 11, 21)) && currentHour >= HOURS.NAME,
-  };
+  state.isPersonNameReleased = isDatePast(RELEASE_NAME_DAY) || (isDateTodayOrPast(RELEASE_NAME_DAY) && currentHour >= HOURS.NAME);
+
+  return state;
 }

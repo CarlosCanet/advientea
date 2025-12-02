@@ -8,6 +8,7 @@ import { getAllDays, getAllUsers, getDayAssignment } from "@/lib/dal";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { FaEye } from "react-icons/fa";
 import { FaPencil } from "react-icons/fa6";
 
 async function EditTeaInfo() {
@@ -54,6 +55,7 @@ async function EditTeaInfo() {
                     </td>
                     <td><Link href={`/edit-tea-info/${day.tea?.id}`}>{day.tea?.name}</Link></td>
                     <td className="flex gap-3 items-center justify-center flex-nowrap">
+                      <Link href={`/teaDay/${day.id}?simulated=true`}><FaEye /></Link>
                       <Link href={`/edit-tea-info/${day.tea?.id}`}><FaPencil /></Link>
                       <ButtonDeleteDay dayId={day.id} />
                     </td>
