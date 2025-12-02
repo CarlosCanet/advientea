@@ -32,8 +32,8 @@ function TeaImageForm({ image, totalImages, onDelete, onChangeOrder }: TeaImageF
       </div>
 
       <div className="flex flex-col gap-2 w-1/4">
-        <label className="input input-bordered flex items-center gap-2 mb-2 w-full">
-          Posición
+        <label className="input input-bordered floating-label flex items-center gap-2 mb-2 w-full">
+          <span>Posición</span>
           <input type="number" className="grow text-center" placeholder="1" onChange={handleOrderChange} required min={1} max={totalImages} value={image.order + 1} />
         </label>
         <button className="btn btn-soft btn-error" type="button" onClick={() => onDelete(image.id)}>Borrar imagen</button>

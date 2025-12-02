@@ -23,7 +23,7 @@ export default function ButtonDeleteDay({ dayId }: ButtonDeleteDayProps) {
 
   return (
     <>
-      <button className="btn btn-ghost btn-error" onClick={openModal} disabled={isPending}>
+      <button className="btn btn-ghost btn-error px-1" onClick={openModal} disabled={isPending}>
         <FaTrashAlt />
       </button>
       <dialog ref={modalRef} className="modal">

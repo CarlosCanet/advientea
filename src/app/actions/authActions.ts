@@ -2,18 +2,20 @@
 import { changeUserRole, createUser } from "@/lib/dal";
 import { uploadImageCloudinary } from "./uploadActions";
 import { auth } from "@/lib/auth";
-import { SignInActionResponse, SignInFormData, SignUpActionResponse, SignUpFormData } from "@/lib/types";
+import { SignInActionResponse, SignInFormData, SignUpActionResponse, SignUpFormData, UpdateProfileActionResponse, UpdateProfileFormData } from "@/lib/types";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getFormFiles, getFormString } from "./commonActions";
 import { Role } from "@/generated/prisma/enums";
 import { revalidatePath } from "next/cache";
+import { prisma } from "@/lib/prisma";
+import { deleteAsset } from "@/lib/cloudinary";
 
 const SignupFormSchema = z
   .object({
     username: z.string().min(2, { error: "Name must be at least 2 characters long." }).trim(),
-    email: z.string().email({ error: "Introduce un email correcto." }).trim(),
+    email: z.email({ error: "Introduce un email correcto." }).trim(),
     password: z
       .string()
       .min(8, { error: "La contraseña debe ser de al menos 8 caracteres." })
@@ -131,4 +133,120 @@ export async function changeRoleAction(id: string, role: Role) {
       error: `Error changing role to user with id ${id}`,
     };
   }
+}
+
+const updateProfileFormSchema = z
+  .object({
+    username: z.string().min(2, { error: "Name must be at least 2 characters long." }).trim(),
+    // email: z.email({ error: "Introduce un email correcto." }).trim(),
+    currentPassword: z.string().optional(),
+    newPassword: z
+      .string()
+      .trim()
+      .transform((value) => (value === "" ? undefined : value))
+      .pipe(
+        z.string()
+        .min(8, { error: "La contraseña debe ser de al menos 8 caracteres." })
+        .regex(/[a-zA-Z]/, { error: "La contraseña debe contener al menos una letra." })
+        .regex(/[0-9]/, { error: "La contraseña debe contener al menos un número." })
+        .regex(/[^a-zA-Z0-9]/, {
+          error: "Debe contener al menos un caracter especial.",
+        }).optional()
+    ),      
+    newPasswordConfirmation: z
+      .string()
+      .transform((value) => (value === "" ? undefined : value))
+      .optional(),
+    image: z
+      .file()
+      .max(2 * 1024 * 1024, { error: "Tamaño de imagen demasiado grande (max 2 MB)." })
+      .mime(["image/jpeg", "image/png", "image/gif", "image/svg+xml", "image/webp"], {
+        error: "Formato de archivo no permitido.",
+      })
+      .optional(),
+  })
+  .refine((data) => data.newPassword === data.newPasswordConfirmation, {
+    error: "Las contraseñas no coinciden.",
+    path: ["newPasswordConfirmation"],
+  });
+
+export async function updateUserProfile(prevState: UpdateProfileActionResponse | null, formData: FormData): Promise<UpdateProfileActionResponse> {
+  let newImageId: string | null = null;
+  try {
+    const session = await auth.api.getSession({ headers: await headers() });
+    if (!session || !session.user) {
+      return { success: false, message: "User is not login" };
+    }
+
+    const user = session.user;
+    const currentImageId: string | null = user.image ?? null;
+    let shouldLogout: boolean = false;
+    
+    const rawData: UpdateProfileFormData = {
+      username: getFormString(formData, "username"),
+      // email: getFormString(formData, "email"),
+      currentPassword: getFormString(formData, "currentPassword"),
+      newPassword: getFormString(formData, "newPassword"),
+      newPasswordConfirmation: getFormString(formData, "newPasswordConfirmation"),
+      image: getFormFiles(formData, "image")[0],
+    };
+    const validatedFields = updateProfileFormSchema.safeParse(rawData);
+    if (validatedFields.error) {
+      const errors = z.treeifyError(validatedFields.error);
+      console.log(errors);
+    }
+    if (!validatedFields.success) {
+      return {
+        success: false,
+        message: "Hay errores en el formulario",
+        errors: z.treeifyError(validatedFields.error),
+        inputs: rawData,
+      };
+    }
+
+    if (validatedFields.data.currentPassword && validatedFields.data.newPassword) {
+      await auth.api.changePassword({
+        body: {
+            newPassword: validatedFields.data.newPassword,
+            currentPassword: validatedFields.data.currentPassword,
+            revokeOtherSessions: true,
+        },
+        headers: await headers(),
+      });
+      shouldLogout = true;
+    }
+    
+    if (validatedFields.data.image) {
+      const result = await uploadImageCloudinary(validatedFields.data.image, "avatars");
+      if (result) {
+        newImageId = result;
+        if (currentImageId) {
+          await deleteAsset(currentImageId);
+        }
+      }
+    }
+    
+    await prisma.user.update({
+      where: { id: session.user.id },
+      data: {
+        username: validatedFields.data.username,
+        ...(currentImageId ? { image: currentImageId } : {})
+      }
+    })
+    revalidatePath("/profile");
+    if (shouldLogout) {
+      await signout()
+    }
+    return { success: true, message: "Profile updated" };
+  } catch (error) {
+    console.error("Validation error:", error);
+    if (newImageId) {
+      await deleteAsset(newImageId);
+    }
+    return {
+      success: false,
+      message: "An error has ocurred",
+    };
+  }
+
 }

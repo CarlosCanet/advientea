@@ -9,9 +9,7 @@ import { IoKeySharp } from "react-icons/io5";
 import { MdEmail } from "react-icons/md";
 import Image from "next/image";
 import { signup } from "@/app/actions/authActions";
-import { initialSignUpActionResponse } from "@/lib/types";
-
-const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/svg+xml", "image/webp"];
+import { ALLOWED_IMAGE_TYPES, initialSignUpActionResponse } from "@/lib/types";
 
 export default function SignUpForm() {
   const [state, action, isPending] = useActionState(signup, initialSignUpActionResponse);
