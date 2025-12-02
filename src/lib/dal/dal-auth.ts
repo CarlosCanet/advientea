@@ -155,3 +155,16 @@ export async function deleteUser(email: string, callerRole?: Role): Promise<User
     throw error;
   }
 }
+
+export async function changePassword(currentPassword: string, newPassword: string, revokeOtherSessions: boolean) {
+  const data = await auth.api.changePassword({
+    body: {
+        newPassword,
+        currentPassword,
+        revokeOtherSessions,
+    },
+    // This endpoint requires session cookies.
+    headers: await headers(),
+  });
+  return !!data;
+}

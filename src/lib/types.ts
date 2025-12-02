@@ -106,3 +106,32 @@ type ImageStoryFormNew = {
 }
 
 export type ImageStoryForm = ImageStoryFormOld | ImageStoryFormNew;
+
+export const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/svg+xml", "image/webp"];
+export interface UpdateProfileFormData {
+  username: string;
+  // email: string;
+  currentPassword?: string,
+  newPassword?: string;
+  newPasswordConfirmation?: string;
+  image?: File;
+}
+
+export interface UpdateProfileActionResponse {
+  success: boolean;
+  message: string;
+  errors?: {
+    errors: Array<string>;
+    properties?: {
+      [K in keyof UpdateProfileFormData]?: {
+        errors: Array<string>;
+      }
+    }
+  };
+  inputs?: UpdateProfileFormData
+}
+
+export const initialUpdateProfileActionResponse: UpdateProfileActionResponse = {
+  success: false,
+  message: "",
+}
