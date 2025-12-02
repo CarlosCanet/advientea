@@ -7,6 +7,7 @@ import ProfileImage from "./ui/ProfileImage";
 import Image from "next/image";
 import { Role } from "@/generated/prisma/enums";
 import { getDayAssignment } from "@/lib/dal";
+import { DEFAULT_IMAGE_PROFILE } from "@/lib/types";
 
 async function Navbar() {
   const session = await auth.api.getSession({
@@ -32,10 +33,7 @@ async function Navbar() {
           <div tabIndex={0} role="button" className="btn btn-ghost btn-circle text-neutral-content">
             {session ? (
               <div>
-                {session.user.image ?
-                  <ProfileImage name={session.user.name} image={session.user.image} />
-                :
-                  <></>}
+                <ProfileImage name={session.user.name} image={session.user.image || DEFAULT_IMAGE_PROFILE} />
               </div>
             ) : (
                 <RxHamburgerMenu />
