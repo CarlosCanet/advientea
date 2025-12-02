@@ -60,13 +60,13 @@ export async function signup(prevState: SignUpActionResponse | null, formData: F
     }
     const imgPublicId = validatedFields.data.image
       ? await uploadImageCloudinary(validatedFields.data.image, "avatars")
-      : "advientea/2025-Caoslendario/avatars/kmz6ttle9ihjuosyqyns";
+      : null;
 
     const result = await createUser({
       email: validatedFields.data.email,
       password: validatedFields.data.password,
-      image: imgPublicId,
       username: validatedFields.data.username,
+      ...(imgPublicId ? {image : imgPublicId} : {}),
     });
     console.log("Validation success:", result);
   } catch (error) {
@@ -227,7 +227,7 @@ export async function updateUserProfile(prevState: UpdateProfileActionResponse |
       where: { id: session.user.id },
       data: {
         username: validatedFields.data.username,
-        ...(currentImageId ? { image: currentImageId } : {})
+        ...(newImageId ? { image: newImageId } : {})
       }
     })
     revalidatePath("/profile");

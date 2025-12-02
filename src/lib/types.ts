@@ -1,3 +1,4 @@
+export const DEFAULT_IMAGE_PROFILE = "advientea/2025-Caoslendario/avatars/kmz6ttle9ihjuosyqyns";
 export interface SignUpFormData {
   username: string;
   email: string;
