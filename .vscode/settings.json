@@ -5,5 +5,6 @@
     "typescript": "javascript",
     "typescriptreact": "javascript"
   },
-  "tailwindCSS.classAttributes": ["class", "className", "classList", "ngClass"]
+  "tailwindCSS.classAttributes": ["class", "className", "classList", "ngClass"],
+  "jest.rootPath": "./"
 }
