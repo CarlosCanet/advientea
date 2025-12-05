@@ -3,7 +3,7 @@ import { z } from "zod";
 import { uploadImageCloudinary } from "./uploadActions";
 import { TeaInfoActionResponse, TeaInfoFormData } from "@/lib/types";
 import { getFormBoolean, getFormFilesByPrefix, getFormNumber, getFormString } from "./commonActions";
-import { add25Days, addDay, addStoryImage, addStoryTea, addTea, deleteDay, deleteStoryImage, editStoryTea, editTea, getTea } from "@/lib/dal";
+import { add25Days, addDay, addDayAssignment, addStoryImage, addStoryTea, addTea, deleteDay, deleteStoryImage, editStoryTea, editTea, getTea } from "@/lib/dal";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
@@ -98,7 +98,7 @@ export async function addTeaInfo(prevState: TeaInfoActionResponse | null, formDa
     const data = validatedFields.data;
     let day = data.dayNumber;
     if (data.dayNumber === 0) {
-      day = Math.floor(Math.random() * 50000);
+      day = Math.floor(Math.random() * 50000) + 25;
       await addDay(day);
     }
     const teaCreated = await addTea(
@@ -137,15 +137,15 @@ export async function addTeaInfo(prevState: TeaInfoActionResponse | null, formDa
         const publicIds = await Promise.all(data.images.map(async (image) => await uploadImageCloudinary(image, "teaDay")));
         for (const [i, publicId] of publicIds.entries()) {
           if (publicId) {
-            await addStoryImage(publicId, i, day);
+            await addStoryImage(publicId, i, storyCreated.id);
           }
         }
       }
     }
     const session = await auth.api.getSession({ headers: await headers() });
     const dayAssignmentCreated = session
-      ? await prisma.dayAssignment.create({ data: { year: 2025, userId: session.user.id, dayId: teaCreated.dayId } })
-      : await prisma.dayAssignment.create({ data: { year: 2025, guestName: data.personName, dayId: teaCreated.dayId } });
+      ? await addDayAssignment({ userId: session.user.id }, day)
+      : await addDayAssignment({ guestName: data.personName }, day);
     if (!dayAssignmentCreated) {
       throw new Error(`Cannot create dayAssignment for user ${session ? session.user.id : data.personName} in day with id ${teaCreated.dayId}`);
     }
@@ -215,9 +215,9 @@ export async function editTeaInfoAction(prevState: TeaInfoActionResponse | null,
     
     const day = data.dayNumber;
     const currentTea = await getTea(data.teaId);
-    if (!currentTea) {
-      throw new Error(`Cannot find tea with id ${data.teaId}`);
-    }
+    let storyId = currentTea.story?.id || null;
+    if (!currentTea) throw new Error(`Cannot find tea with id ${data.teaId}`);
+    const newDayNumber = currentTea.day?.dayNumber === day ? undefined : day;
     const editedTea = await editTea({
       name: data.teaName,
       infusionTime: data.infusionTime,
@@ -229,7 +229,7 @@ export async function editTeaInfoAction(prevState: TeaInfoActionResponse | null,
       addMilk: data.addMilk,
       storeName: data.storeName,
       url: data.urlStore,
-    }, data.teaId, currentTea.day.dayNumber === day ? undefined : day);
+    }, data.teaId, newDayNumber);
     if (!editedTea) {
       throw new Error("Cannot edit tea");
     }
@@ -244,21 +244,22 @@ export async function editTeaInfoAction(prevState: TeaInfoActionResponse | null,
       }
       if (currentTea.story) {
         const editedStory = await editStoryTea( formStoryTea, currentTea.story.id);
-        if (!editedStory) {
-          throw new Error("Cannot edit story tea");
-        }
+        if (!editedStory) throw new Error("Cannot edit story tea");
       } else {
         const addedStory = await addStoryTea(formStoryTea, currentTea.id)
-        if (!addedStory) {
-          throw new Error("Cannot edit story tea");
-        }
+        if (!addedStory) throw new Error("Cannot edit story tea");
+        storyId = addedStory.id;
       }
     }
     if (data.images && data.imagesOrder) {
+      if (!storyId) {
+        const addedStory = await addStoryTea({}, currentTea.id);
+        storyId = addedStory.id;
+      }
       const publicIds = await Promise.all(data.images.map(async (image) => await uploadImageCloudinary(image, "teaDay")));
       for (const [i, publicId] of publicIds.entries()) {
         if (publicId) {
-          await addStoryImage(publicId, data.imagesOrder[i], day);
+          await addStoryImage(publicId, data.imagesOrder[i], storyId);
         }
       }
     }

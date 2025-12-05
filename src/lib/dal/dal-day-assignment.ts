@@ -1,10 +1,13 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 
-export async function getDayAssignment(id: string): Promise<Prisma.DayAssignmentGetPayload<{ include: { day: { include: { tea: true } }; user: true } }> | null>;
-export async function getDayAssignment(year: number, email: string): Promise<Prisma.DayAssignmentGetPayload<{ include: { day: { include: { tea: true } }; user: true } }> | null>;
+export type DayAssignmentWithDayTeaAndUser = Prisma.DayAssignmentGetPayload<{ include: { day: { include: { tea: true } }; user: true } }>;
+export type DayAssignmentWithDayAndUser = Prisma.DayAssignmentGetPayload<{ include: { user: true; day: true } }>;
 
-export async function getDayAssignment(yearOrId: number | string, email?: string): Promise<Prisma.DayAssignmentGetPayload<{ include: { day: { include: { tea: true } }; user: true } }> | null> {
+export async function getDayAssignment(id: string): Promise<DayAssignmentWithDayTeaAndUser | null>;
+export async function getDayAssignment(year: number, email: string): Promise<DayAssignmentWithDayTeaAndUser | null>;
+
+export async function getDayAssignment(yearOrId: number | string, email?: string): Promise<DayAssignmentWithDayTeaAndUser | null> {
   try {
     if (typeof yearOrId === "string") {
       const assignment = await prisma.dayAssignment.findUnique({
@@ -33,7 +36,7 @@ export async function getDayAssignment(yearOrId: number | string, email?: string
   }
 }
 
-export async function getAllDayAssignment(year: number = 2025): Promise<Array<Prisma.DayAssignmentGetPayload<{ include: { day: { include: { tea: true } }; user: true } }>>> {
+export async function getAllDayAssignment(year: number = 2025): Promise<Array<DayAssignmentWithDayTeaAndUser>> {
   try {
     const assignments = await prisma.dayAssignment.findMany({
       where: { year },
@@ -46,38 +49,39 @@ export async function getAllDayAssignment(year: number = 2025): Promise<Array<Pr
   }
 }
 
-export async function addDayAssignment(email: string, day: number, year: number = 2025): Promise<Prisma.DayAssignmentGetPayload<{ include: { user: true, day: true } }>> {
-  email = email.trim().toLowerCase();
-  try {
-    const dayResponse = await prisma.day.findUnique({
-      where: { dayNumber_year: { dayNumber: day, year } },
-    });
-    const userResponse = await prisma.user.findUnique({ where: { email } });
-    if (!dayResponse) {
-      throw new Error(`The day ${day}/${year} doesn't exist yet.`);
-    }
-    if (!userResponse) {
-      throw new Error(`The user with email ${email} doesn't exist`);
-    }
-    const dayAssignment = await prisma.dayAssignment.create({
-      data: {
-        day: { connect: { id: dayResponse.id } },
-        user: { connect: { id: userResponse.id } },
-        year,
-      },
-      include: { day: true, user: true },
-    });
-    return dayAssignment;
-  } catch (error) {
-    console.error(error);
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      console.error("Unique constraint violation creating day assignment.");
-    }
-    throw error;
-  }
+interface AssigneeInput {
+  userId?: string;
+  guestName?: string;
 }
 
-export async function editDayAssignment(data: Prisma.DayAssignmentUncheckedUpdateInput, id: string): Promise<Prisma.DayAssignmentGetPayload<{ include: { user: true, day: true } }>> {
+export async function addDayAssignment(assignee: AssigneeInput, day: number, year: number = 2025): Promise<DayAssignmentWithDayAndUser> {
+  const dayResponse = await prisma.day.findUnique({
+    where: { dayNumber_year: { dayNumber: day, year } },
+  });
+  if (!dayResponse) throw new Error(`The day ${day}/${year} does not exist yet.`);
+
+  const data: Prisma.DayAssignmentCreateInput = {
+    day: { connect: { id: dayResponse.id } },
+    year,
+    guestName: null,
+  };
+
+  if (assignee.userId) {
+    data.user = { connect: { id: assignee.userId } };
+  } else if (assignee.guestName) {
+    data.guestName = assignee.guestName
+  } else {
+    throw new Error("Must provide either userId or guestName");
+  }
+
+  const dayAssignment = await prisma.dayAssignment.create({
+    data,
+    include: { day: true, user: true },
+  });
+  return dayAssignment;
+}
+
+export async function editDayAssignment(data: Prisma.DayAssignmentUncheckedUpdateInput, id: string): Promise<DayAssignmentWithDayAndUser> {
   const dayAssignmentUpdated = await prisma.dayAssignment.update({
     where: { id: id },
     include: { day: true, user: true },
@@ -86,10 +90,10 @@ export async function editDayAssignment(data: Prisma.DayAssignmentUncheckedUpdat
   return dayAssignmentUpdated;
 }
 
-export async function deleteDayAssignment(id: string): Promise<Prisma.DayAssignmentGetPayload<{ include: { user: true, day: true } }>> {
+export async function deleteDayAssignment(id: string): Promise<DayAssignmentWithDayAndUser> {
   const dayAssignmentDeleted = await prisma.dayAssignment.delete({
     where: { id },
-    include: { day: true, user: true }
+    include: { day: true, user: true },
   });
   return dayAssignmentDeleted;
 }

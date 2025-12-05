@@ -1,74 +1,66 @@
 import { Prisma, StoryImage } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
-import { StoryImageGetPayload } from "@/generated/prisma/models";
 import { getTea } from "./dal-tea";
+import { getStoryTea } from "./dal-story-tea";
+import { deleteAsset } from "../cloudinary";
+
+export type StoryImageWithStory = Prisma.StoryImageGetPayload<{ include: { story: true } }>;
 
 export async function getStoryImage(id: string): Promise<StoryImage>;
 export async function getStoryImage(order: number, day: number, year: number ): Promise<StoryImage>;
 
 export async function getStoryImage(idOrOrder: string | number, day?: number, year: number = 2025): Promise<StoryImage> {
-  try {
-    if (typeof idOrOrder === "string") {
-      const image = await prisma.storyImage.findUnique({ where: { id: idOrOrder } });
-      if (!image) {
-        throw new Error(`No story image found for id ${idOrOrder}`);
-      }
-      return image;
+  if (typeof idOrOrder === "string") {
+    const image = await prisma.storyImage.findUnique({ where: { id: idOrOrder } });
+    if (!image) {
+      throw new Error(`No story image found for id ${idOrOrder}`);
     }
-    if (!day) {
-      throw new Error("Day is mandatory when searching by day");
-    }
-    const order = idOrOrder;
-    const teaResponse = await getTea(day, year);
-    if (!teaResponse.story || !teaResponse.story.images) {
-      throw new Error(`No story found for day ${day}/${year}`);
-    }
-    return teaResponse.story.images[order];
-  } catch (error) {
-    console.error(error);
-    throw error;
+    return image;
   }
+  if (!day) {
+    throw new Error("Day is mandatory when searching by day");
+  }
+  const order = idOrOrder;
+  const teaResponse = await getTea(day, year);
+  if (!teaResponse.story || !teaResponse.story.images) {
+    throw new Error(`No story found for day ${day}/${year}`);
+  }
+  return teaResponse.story.images[order];
 }
 
 export async function getAllStoryImages(storyTeaId: string): Promise<StoryImage[]> {
-  try {
-    const images = await prisma.storyImage.findMany({
-      where: { storyTeaId },
-      orderBy: { order: "asc" },
-    });
-    return images;
-  } catch (error) {
-    console.error(error);
-    throw error;
-  }
+  const images = await prisma.storyImage.findMany({
+    where: { storyTeaId },
+    orderBy: { order: "asc" },
+  });
+  return images;
 }
 
-export async function addStoryImage(publicId: string, order: number, day: number, year: number = 2025): Promise<StoryImageGetPayload<{ include: { story: true } }>> {
-  try {
-    const teaResponse = await getTea(day, year);
-    if (!teaResponse.story) {
-      throw new Error(`There is not story tea for ${day}/${year}.`);
-    }
-    const dayImages = await getAllStoryImages(teaResponse.story.id);
-    const maxOrder = dayImages.length === 0 ? -1 : dayImages[dayImages.length - 1].order;
-    if (order > maxOrder + 1) {
-      order = maxOrder + 1;
+export async function addStoryImage(publicId: string, order: number, storyId: string): Promise<StoryImageWithStory> {
+  const storyRecord = await getStoryTea(storyId);
+  if (!storyRecord) throw new Error(`There is not story tea with id ${storyId}.`);
+  const result = await prisma.$transaction(async (tx) => {
+    const count = await tx.storyImage.count({ where: { id: storyId } });
+    let finalOrder = order;
+    if (order > count) {
+      finalOrder = count;
     } else {
-      await prisma.storyImage.updateMany({
-        where: { storyTeaId: teaResponse.story.id, order: { gte: order } },
+      await tx.storyImage.updateMany({
+        where: { storyTeaId: storyId, order: { gte: order } },
         data: { order: { increment: 1 } }
       });
     }
-    
-    const storyImage = await prisma.storyImage.create({
-      data: { publicId, order, story: { connect: { id: teaResponse.story.id } } },
+    const imageCreated = await tx.storyImage.create({
+      data: {
+        publicId,
+        order: finalOrder,
+        story: { connect: { id: storyId } }
+      },
       include: { story: true }
     });
-    return storyImage;
-  } catch (error) {
-    console.error(`Error adding the image with publicId: ${publicId}, in the order: ${order}, in day: ${day}/${year}`,error);
-    throw error;
-  }
+    return imageCreated;
+  });
+  return result;
 }
 
 export async function editStoryImage(data: Prisma.StoryImageUncheckedUpdateInput, id: string): Promise<StoryImage> {
@@ -78,5 +70,6 @@ export async function editStoryImage(data: Prisma.StoryImageUncheckedUpdateInput
 
 export async function deleteStoryImage(id: string): Promise<StoryImage> {
   const imageDeleted = await prisma.storyImage.delete({ where: { id } });
+  await deleteAsset(imageDeleted.publicId);
   return imageDeleted;
 }
