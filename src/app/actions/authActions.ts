@@ -1,5 +1,4 @@
 "use server";
-import { changeUserRole, createUser } from "@/lib/dal";
 import { uploadImageCloudinary } from "./uploadActions";
 import { auth } from "@/lib/auth";
 import { SignInActionResponse, SignInFormData, SignUpActionResponse, SignUpFormData, UpdateProfileActionResponse, UpdateProfileFormData } from "@/lib/types";
@@ -11,6 +10,8 @@ import { Role } from "@/generated/prisma/enums";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { deleteAsset } from "@/lib/cloudinary";
+import { createUser } from "@/lib/services/user-service";
+import { changeUserRole } from "@/lib/dal/dal-user";
 
 const SignupFormSchema = z
   .object({
