@@ -1,10 +1,9 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getDay } from "./dal-day";
-import { TeaGetPayload } from "@/generated/prisma/models";
 
-type TeaWithDayAndCompleteStory = TeaGetPayload<{ include: { day: true, story: { include: { images: true } } } }>;
-type TeaWithDay = TeaGetPayload<{ include: { day: true } }>;
+export type TeaWithDayAndCompleteStory = Prisma.TeaGetPayload<{ include: { day: true, story: { include: { images: true } } } }>;
+export type TeaWithDay = Prisma.TeaGetPayload<{ include: { day: true } }>;
 
 export async function getTea(id: string): Promise<TeaWithDayAndCompleteStory>;
 export async function getTea(day: number, year?: number): Promise<TeaWithDayAndCompleteStory>;
@@ -47,22 +46,27 @@ export async function getUsernameAssignedToTea(id: string): Promise<string | nul
   return assignment.guestName ?? assignment.user?.username ?? null;
 }
 
-export async function addTea(data: Prisma.TeaCreateWithoutDayInput, day: number, year: number = 2025): Promise<TeaWithDay | null> {
-  const dayResponse = await getDay(day, year);
-  if (!dayResponse) return null;
+export async function addTea(data: Prisma.TeaCreateWithoutDayInput, day?: number, year: number = 2025): Promise<TeaWithDay | null> {
+  let dayConnection: Prisma.DayCreateNestedOneWithoutTeaInput | undefined = undefined;
+
+  if (day !== undefined) {
+    const dayRecord = await prisma.day.findUnique({
+      where: { dayNumber_year: { dayNumber: day, year } },
+      include: { tea: true }
+    });
+    if (!dayRecord) throw new Error(`Day ${day}/${year} does not exist`);
+    if (dayRecord.tea) throw new Error(`Day ${day}/${year} already has a tea assigned`);
+    dayConnection = { connect: { id: dayRecord.id}};
+  }
+
   const tea = await prisma.tea.create({
-    data: { ...data, day: { connect: { id: dayResponse.id } } },
+    data: { ...data, day: dayConnection },
     include: { day: true },
   });
   return tea;
 }
 
-export async function addTeaComplete(teaData: Prisma.TeaCreateInput,
-  storyData: Prisma.StoryTeaCreateInput,
-  storyImagesData: Array<Prisma.StoryImageCreateInput>,
-  day: number,
-  year: number = 2025
-): Promise<TeaWithDay | null> {
+export async function addTeaComplete(teaData: Prisma.TeaCreateInput, storyData: Prisma.StoryTeaCreateWithoutTeaInput,  storyImagesData: Array<Prisma.StoryImageCreateWithoutStoryInput>, day: number, year: number = 2025 ): Promise<TeaWithDay | null> {
   const dayResponse = await getDay(day, year);
   if (!dayResponse) return null;
   const tea = await prisma.tea.create({
@@ -118,7 +122,7 @@ export async function editTea(data: Prisma.TeaUncheckedUpdateInput, id: string, 
 export async function editTeaComplete(
   id: string,
   teaData: Prisma.TeaUncheckedUpdateInput,
-  storyData: Prisma.StoryTeaUpsertWithoutTeaInput,
+  storyData: Prisma.StoryTeaCreateWithoutTeaInput,
   storyImagesData: Array<Prisma.StoryImageCreateWithoutStoryInput>,
 ): Promise<TeaWithDayAndCompleteStory> {
   const tea = await prisma.tea.update({

@@ -16,7 +16,7 @@ interface EditTeaInfoFormProps {
   teaId: string,
   username: string,
   isExecuTEAve: boolean,
-  dayNumber: number,
+  dayNumber: number | undefined,
   teaCompleteInfo: Prisma.TeaGetPayload<{ include: { story: { include: { images: true } } } }>
 }
 

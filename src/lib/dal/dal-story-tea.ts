@@ -1,10 +1,9 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getDay } from "./dal-day";
-import { StoryTeaGetPayload } from "@/generated/prisma/models";
 
-type StoryWithTeaAndImages = Prisma.StoryTeaGetPayload<{ include: { tea: true, images: true } }>;
-type StoryWithTea = StoryTeaGetPayload<{ include: { tea: true } }>;
+export type StoryWithTeaAndImages = Prisma.StoryTeaGetPayload<{ include: { tea: true, images: true } }>;
+export type StoryWithTea = Prisma.StoryTeaGetPayload<{ include: { tea: true } }>;
 
 export async function getStoryTea(id: string): Promise<StoryWithTeaAndImages | null>;
 export async function getStoryTea(day: number, year: number): Promise<StoryWithTeaAndImages | null>;
