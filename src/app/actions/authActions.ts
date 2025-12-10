@@ -11,7 +11,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { deleteAsset } from "@/lib/cloudinary";
 import { createUser } from "@/lib/services/user-service";
-import { changeUserRole } from "@/lib/dal/dal-user";
+import { changeUserRole } from "@/lib/dal";
 
 const SignupFormSchema = z
   .object({

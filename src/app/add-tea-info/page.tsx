@@ -1,8 +1,7 @@
 import AddTeaInfoForm from "@/components/AddTeaInfoForm";
 import { Role } from "@/generated/prisma/client";
 import { auth } from "@/lib/auth";
-import { getAllDayAssignment, getDayAssignment } from "@/lib/dal";
-import { getAllUsers } from "@/lib/dal/dal-user";
+import { getAllDayAssignment, getAllUsers, getDayAssignment } from "@/lib/dal";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
