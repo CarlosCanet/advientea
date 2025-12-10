@@ -40,7 +40,7 @@ export async function addStoryImage(publicId: string, order: number, storyId: st
   const storyRecord = await getStoryTea(storyId);
   if (!storyRecord) throw new Error(`There is not story tea with id ${storyId}.`);
   const result = await prisma.$transaction(async (tx) => {
-    const count = await tx.storyImage.count({ where: { id: storyId } });
+    const count = await tx.storyImage.count({ where: { storyTeaId: storyId } });
     let finalOrder = order;
     if (order > count) {
       finalOrder = count;
