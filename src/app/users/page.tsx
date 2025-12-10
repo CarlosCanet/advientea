@@ -1,7 +1,7 @@
 import CheckboxUsersExecuteave from "@/components/ui/CheckboxUsersExecuteave";
 import { Role } from "@/generated/prisma/enums";
 import { auth } from "@/lib/auth";
-import { getAllUsers } from "@/lib/dal";
+import { getAllUsers } from "@/lib/dal/dal-user";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
