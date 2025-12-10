@@ -1,16 +1,16 @@
-/**
- * @jest-environment node
- */
-
+import { prismaMock } from '@/lib/__mocks__/prisma';
+import { describe, expect, it, vi, beforeAll, beforeEach } from 'vitest'
 import { Day, Prisma, User } from "@/generated/prisma/client";
-import { prismaMock } from "../../singleton";
 import { getDayAssignment, getAllDayAssignment, addDayAssignment, editDayAssignment, deleteDayAssignment, DayAssignmentWithDayTeaAndUser, DayAssignmentWithDayAndUser } from "@/lib/dal/dal-day-assignment";
 
 describe("DAL DayAssignment", () => {
   beforeAll(() => {
-    jest.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
   });
-
+  beforeEach(() => {
+    vi.restoreAllMocks()
+  })
+  
   describe("getDayAssignment", () => {
     const mockUser: User = {
       id: "user-1",

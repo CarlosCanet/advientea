@@ -1,9 +1,6 @@
-/**
- * @jest-environment node
- */
-
+import { prismaMock } from '@/lib/__mocks__/prisma';
+import { describe, expect, it, vi, beforeAll } from 'vitest'
 import { Day, Prisma, TeaType } from "@/generated/prisma/client";
-import { prismaMock } from "../../singleton";
 import {
   getDay,
   getAllDays,
@@ -18,7 +15,7 @@ import {
 
 describe("DAL Day", () => {
   beforeAll(() => {
-    jest.spyOn(console, "error").mockImplementation(() => { });
+    vi.spyOn(console, "error").mockImplementation(() => { });
   });
 
   describe("getDay", () => {
@@ -198,12 +195,9 @@ describe("DAL Day", () => {
 
       const p2002Error = new Prisma.PrismaClientKnownRequestError("Unique constraint", { code: "P2002", clientVersion: "1" });
       prismaMock.day.create.mockRejectedValue(p2002Error);
-      const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
 
       const result = await addNextDay(2025);
       expect(result).toBeNull();
-
-      consoleSpy.mockRestore();
     });
   });
 

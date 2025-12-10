@@ -1,14 +1,11 @@
-/**
- * @jest-environment node
- */
-
-import { prismaMock } from "../../singleton";
+import { prismaMock } from '@/lib/__mocks__/prisma';
+import { describe, expect, it, vi, beforeAll } from 'vitest'
 import { User, Role } from "@/generated/prisma/client";
 import { getUser, getAllUsers, editUser, changeUserRole, deleteUser, createPrismaUser, UserWithDayAssignedDay } from "@/lib/dal/dal-user";
 
 describe("DAL User", () => {
   beforeAll(() => {
-    jest.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
   });
 
   const mockUser: User = {

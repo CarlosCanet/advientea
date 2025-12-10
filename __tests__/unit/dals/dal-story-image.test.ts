@@ -1,19 +1,16 @@
-/**
- * @jest-environment node
- */
-
-import { prismaMock } from "../../singleton";
+import { prismaMock } from '@/lib/__mocks__/prisma';
+import { describe, expect, it, vi, beforeAll } from 'vitest'
 import { StoryImage, TeaType } from "@/generated/prisma/client";
 import { getStoryImage, getAllStoryImages, addStoryImage, editStoryImage, deleteStoryImage, StoryImageWithStory } from "@/lib/dal/dal-story-image";
 
 // dal-tea MOCK
-jest.mock("@/lib/dal/dal-tea");
 import * as dalTea from "@/lib/dal/dal-tea";
-const dalTeaMock = dalTea as jest.Mocked<typeof dalTea>;
+vi.mock("@/lib/dal/dal-tea");
+const dalTeaMock = vi.mocked(dalTea)
 
 describe("DAL StoryImage", () => {
   beforeAll(() => {
-    jest.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
   });
 
   describe("getStoryImage", () => {
