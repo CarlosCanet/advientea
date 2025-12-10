@@ -160,7 +160,7 @@ function EditTeaInfoForm({ teaId, username, isExecuTEAve, dayNumber, teaComplete
         <label className="label justify-center text-center">No tienes que rellenar toda la ambientación, <br />sólo lo que te interese o hayas podido</label>
         <fieldset className="fieldset">
           <legend className="fieldset-legend"><SiUndertale /> Historia</legend>  
-          <label className="label">Parte 1 (08:00 h)</label>
+          <label className="label">Parte 1 (07:00 h)</label>
           <textarea name="storyPart1" className="textarea w-full" placeholder="Historia: parte 1" defaultValue={state.inputs?.storyPart1 ?? (teaCompleteInfo.story?.storyPart1 ?? "")}/>
           <label className="label">Parte 2 (13:00 h)</label>
           <textarea name="storyPart2" className="textarea w-full" placeholder="Historia: parte 2" defaultValue={state.inputs?.storyPart2 ?? (teaCompleteInfo.story?.storyPart2 ?? "")}/>
@@ -168,7 +168,7 @@ function EditTeaInfoForm({ teaId, username, isExecuTEAve, dayNumber, teaComplete
           <textarea name="storyPart3" className="textarea w-full" placeholder="Historia: parte 3" defaultValue={state.inputs?.storyPart3 ?? (teaCompleteInfo.story?.storyPart3 ?? "")}/>
         </fieldset>
         <fieldset className="fieldset">
-          <legend className="fieldset-legend"><FaMusic /> Vídeo o música (08:00 h)</legend>
+          <legend className="fieldset-legend"><FaMusic /> Vídeo o música (07:00 h)</legend>
           <div className="flex gap-2 items-center">
             <label className="input input-bordered flex items-center gap-2 w-full">
               <input type="text" name="youtubeURL" className="grow" placeholder="Enlace de youtube a video o música" defaultValue={state.inputs?.youtubeURL ?? (teaCompleteInfo.story?.youtubeURL ?? "")} />

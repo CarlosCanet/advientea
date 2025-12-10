@@ -43,8 +43,6 @@ function TeaListImageForm({ images, setImages, setStoryImageIdsToDelete }: TeaLi
       const imagesOrdered = imagesWithItemInNewIndex.map((img, i) => ({ ...img, order: i }));      
       return imagesOrdered;
     });
-    
-    
   };
 
   const handleDeleteImage = (idToDelete: string) => {
@@ -63,7 +61,7 @@ function TeaListImageForm({ images, setImages, setStoryImageIdsToDelete }: TeaLi
   return (
     <div className="flex items-center gap-4 mt-4">
       <fieldset className="fieldset w-full">
-        <legend className="fieldset-legend"><FaImages />Imágenes (08:00 h)</legend>
+        <legend className="fieldset-legend"><FaImages />Imágenes (07:00 h)</legend>
         {images &&
           images.map(img => <TeaImageForm key={img.id} image={img} totalImages={images.length} onDelete={handleDeleteImage} onChangeOrder={handleReorderImage} />)
         }
