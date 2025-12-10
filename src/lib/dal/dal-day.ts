@@ -1,7 +1,8 @@
 import { Day, Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 
-type DayWithTeaComplete = Prisma.DayGetPayload<{ include: { tea: { include: { story: { include: { images: true } } } } } }>;
+export type DayWithTeaComplete = Prisma.DayGetPayload<{ include: { tea: { include: { story: { include: { images: true } } } } } }>;
+export type DayWithAssignmentAndTeaComplete = Prisma.DayGetPayload<{ include: { assignment: { include: { user: true } }, tea: { include: { story: { include: { images: true } } } } } }>
 
 export async function getDay(id: string): Promise<DayWithTeaComplete | null>;
 export async function getDay(day: number, year: number): Promise<DayWithTeaComplete | null>;
@@ -22,7 +23,7 @@ export async function getDay(idOrDay: string | number, year: number = 2025): Pro
   return dayResponse;
 }
 
-export async function getAllDays(year: number): Promise<Array<Prisma.DayGetPayload<{ include: { assignment: { include: { user: true } }, tea: { include: { story: { include: { images: true } } } } } }>>> {
+export async function getAllDays(year: number): Promise<Array<DayWithAssignmentAndTeaComplete>> {
   const allDays = await prisma.day.findMany({
     where: { year },
     include: { assignment: { include: { user: true } }, tea: { include: { story: { include: { images: true } } } } },

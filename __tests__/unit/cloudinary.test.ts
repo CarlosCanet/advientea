@@ -1,31 +1,34 @@
-import "@/envConfig"
+import { describe, expect, it, vi, beforeAll, beforeEach } from 'vitest'
 import { CloudinaryFolders, deleteAsset, getAssetInfo, uploadImage } from "@/lib/cloudinary";
-import "@testing-library/jest-dom";
-import { v2 as cloudinary } from "cloudinary";
+import { v2 as cloudinary, UploadApiResponse } from "cloudinary";
 
-jest.mock("cloudinary", () => ({
+vi.mock("cloudinary", () => ({
   v2: {
-    config: jest.fn(),
+    config: vi.fn(),
     uploader: {
-      upload: jest.fn(),
-      destroy: jest.fn(),
+      upload: vi.fn(),
+      destroy: vi.fn(),
     },
     api: {
-      resource: jest.fn(),
+      resource: vi.fn(),
     },
   },
 }));
 
 describe("Cloudinary integration", () => {
+  beforeAll(() => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+  
   beforeEach(() => {
-    jest.clearAllMocks();
-    (cloudinary.uploader.upload as jest.Mock).mockResolvedValue({
+    vi.clearAllMocks();
+    vi.mocked(cloudinary.uploader.upload).mockResolvedValue({
       public_id: "advientea/2025-Caoslendario/axvcr1ufv0gpdmwbebmc",
       url: "http://res.cloudinary.com/dljj7f5mi/image/upload/v1762707856/advientea/2025-Caoslendario/avatars/axvcr1ufv0gpdmwbebmc.png",
       secure_url: "https://res.cloudinary.com/dljj7f5mi/image/upload/v1762707856/advientea/2025-Caoslendario/avatars/axvcr1ufv0gpdmwbebmc.png",
-    });
-    (cloudinary.uploader.destroy as jest.Mock).mockResolvedValue({ result: "ok" });
-    (cloudinary.api.resource as jest.Mock).mockResolvedValue({
+    } as UploadApiResponse);
+    vi.mocked(cloudinary.uploader.destroy).mockResolvedValue({ result: "ok" });
+    vi.mocked(cloudinary.api.resource).mockResolvedValue({
       asset_id: "5de5e79847577b586aa5d1849bfde8ca",
       public_id: "advientea/2025-Caoslendario/avatars/axvcr1ufv0gpdmwbebmc",
       url: "http://res.cloudinary.com/dljj7f5mi/image/upload/v1762707272/advientea/2025-Caoslendario/avatars/axvcr1ufv0gpdmwbebmc.png",
@@ -67,7 +70,7 @@ describe("Cloudinary integration", () => {
     });
 
     it("should return undefined for a non-existent publicId", async () => {
-      (cloudinary.api.resource as jest.Mock).mockRejectedValueOnce(undefined);
+      vi.mocked(cloudinary.api.resource).mockRejectedValueOnce(undefined);
       
       const result = await getAssetInfo("nnnnaaaokok123123123.$$$");
       expect(result).toBeUndefined();
@@ -88,7 +91,7 @@ describe("Cloudinary integration", () => {
     });
 
     it("should return not-found for a non-existent publicId", async () => {
-      (cloudinary.uploader.destroy as jest.Mock).mockResolvedValueOnce({ result: "not found" });
+      vi.mocked(cloudinary.uploader.destroy).mockResolvedValueOnce({ result: "not found" });
       
       const result = await deleteAsset("nnnnaaaokok123123123.$$$");
       expect(result).toBeDefined();

@@ -1,4 +1,3 @@
-
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
@@ -16,24 +15,39 @@ model Day {
   tea        Tea?
   assignment DayAssignment?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  // guesses     TeaGuess[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  guesses   TeaGuess[]
 
   @@unique([dayNumber, year])
 }
 
+enum TeaType {
+  BLACK
+  GREEN
+  RED
+  WHITE
+  OOLONG
+  ROOIBOS
+  HERBAL
+  MATE
+  CHAI
+  MATCHA
+  BLEND
+}
+
 model Tea {
-  id              String  @id @default(cuid())
-  dayId           String  @unique
+  id              String    @id @default(cuid())
+  dayId           String?   @unique
   name            String
+  teaType         TeaType   @default(BLEND)
   infusionTime    Int
   temperature     Int
   hasTheine       Boolean
   canReinfuse     Boolean
   reinfuseNumber  Int?
   moreIndications String?
-  addMilk         Boolean @default(false)
+  addMilk         Boolean   @default(false)
   storeName       String?
   url             String?
   story           StoryTea?
@@ -41,7 +55,19 @@ model Tea {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  day Day @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  day         Day?            @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  ingredients TeaIngredient[] @relation("TeaIngredients")
+}
+
+model TeaIngredient {
+  id      String     @id @default(cuid())
+  name    String     @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt @default(now())
+
+  teas    Tea[]      @relation("TeaIngredients")
+  guesses TeaGuess[] @relation("GuessedIngredients")
 }
 
 model DayAssignment {
@@ -54,7 +80,7 @@ model DayAssignment {
   updatedAt DateTime @updatedAt
 
   user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
-  day  Day  @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  day  Day   @relation(fields: [dayId], references: [id], onDelete: Cascade)
 
   @@unique([userId, year])
   @@index([year])
@@ -90,7 +116,7 @@ model StoryTea {
   images StoryImage[]
 }
 
-enum Role { 
+enum Role {
   ADMIN
   USER
   EXECUTEAVE
@@ -106,30 +132,39 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  daysAssigned  DayAssignment[]
-  // guesses      TeaGuess[]
+  daysAssigned    DayAssignment[]
+  guesses         TeaGuess[]
+  guessedReceived TeaGuess[]      @relation("GuessedUserTarget")
   // badges       UserBadge[]
-  name          String?
-  emailVerified Boolean         @default(false)
-  sessions      Session[]
-  accounts      Account[]
+  name            String?
+  emailVerified   Boolean         @default(false)
+  sessions        Session[]
+  accounts        Account[]
 
   @@map("user")
 }
 
-// model TeaGuess {
-//   id          String   @id @default(cuid())
-//   userId      String
-//   dayId       String
-//   guessedName String
-//   createdAt DateTime @default(now())
-//   points      Int      @default(0)
+model TeaGuess {
+  id                 String          @id @default(cuid())
+  userId             String
+  dayId              String
+  guessedTeaName     String?
+  guessedTeaType     TeaType?
+  guessedIngredients TeaIngredient[] @relation("GuessedIngredients")
+  guessedUserId      String?
+  guessedGuestName   String?
+  points             Int             @default(0)
 
-//   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-//   day  Day  @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-//   @@index([userId, dayId, timestamp])  // Query last guess efficiently
-// }
+  user        User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  day         Day   @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  guessedUser User? @relation("GuessedUserTarget", fields: [guessedUserId], references: [id])
+
+  @@unique([userId, dayId])
+  @@index([dayId])
+}
 
 // model Badge {
 //   id          String @id @default(cuid())

@@ -2,9 +2,9 @@
 import Image from "next/image";
 import { ImageStoryForm } from "@/lib/types";
 import { CldImage } from "next-cloudinary";
+import { IoIosArrowUp, IoIosArrowDown } from "react-icons/io";
 
-interface TeaImageFormProps {
-  
+interface TeaImageFormProps {  
   image: ImageStoryForm;
   totalImages: number;
   onDelete: (id: string) => void;
@@ -12,14 +12,17 @@ interface TeaImageFormProps {
 }
 
 function TeaImageForm({ image, totalImages, onDelete, onChangeOrder }: TeaImageFormProps) {
-  
-  const handleOrderChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const value = parseInt(event.target.value);
-    if (!isNaN(value) && value >= 1 && value <= totalImages) {
-      onChangeOrder(image.id, value - 1);
+  const handleIncreasePosition = () => {
+    if (image.order < totalImages - 1) {
+      onChangeOrder(image.id, image.order + 1);
     }
   }
 
+  const handleDecreasePosition = () => {
+    if (image.order > 0) {
+      onChangeOrder(image.id, image.order - 1);
+    }
+  }
 
   return (    
     <div className="flex justify-center items-center gap-4 mt-4">
@@ -31,11 +34,11 @@ function TeaImageForm({ image, totalImages, onDelete, onChangeOrder }: TeaImageF
         )}
       </div>
 
-      <div className="flex flex-col gap-2 w-1/4">
-        <label className="input input-bordered floating-label flex items-center gap-2 mb-2 w-full">
-          <span>Posición</span>
-          <input type="number" className="grow text-center" placeholder="1" onChange={handleOrderChange} required min={1} max={totalImages} value={image.order + 1} />
-        </label>
+      <div className="flex flex-col gap-4 w-1/4">
+          <div className="flex flex-row justify-center items-center w-full gap-1">
+            <button className="btn btn-xs btn-soft btn-secondary" type="button" onClick={handleDecreasePosition} disabled={image.order === 0}><IoIosArrowUp /></button>
+            <button className="btn btn-xs btn-soft btn-secondary" type="button" onClick={handleIncreasePosition} disabled={image.order === totalImages - 1}><IoIosArrowDown /></button>
+          </div>
         <button className="btn btn-soft btn-error" type="button" onClick={() => onDelete(image.id)}>Borrar imagen</button>
       </div>
     </div>

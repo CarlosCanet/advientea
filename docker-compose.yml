@@ -1,0 +1,13 @@
+name: integreation-tests
+
+services:
+  db:
+    image: postgres:17
+    restart: always
+    container_name: integration-tests
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: tests
