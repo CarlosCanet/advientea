@@ -69,7 +69,7 @@ export async function addDayAssignment(assignee: AssigneeInput, day: number, yea
   if (assignee.userId) {
     data.user = { connect: { id: assignee.userId } };
   } else if (assignee.guestName) {
-    data.guestName = assignee.guestName
+    data.guestName = assignee.guestName;
   } else {
     throw new Error("Must provide either userId or guestName");
   }

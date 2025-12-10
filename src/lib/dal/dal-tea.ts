@@ -56,7 +56,7 @@ export async function addTea(data: Prisma.TeaCreateWithoutDayInput, day?: number
     });
     if (!dayRecord) throw new Error(`Day ${day}/${year} does not exist`);
     if (dayRecord.tea) throw new Error(`Day ${day}/${year} already has a tea assigned`);
-    dayConnection = { connect: { id: dayRecord.id}};
+    dayConnection = { connect: { id: dayRecord.id } };
   }
 
   const tea = await prisma.tea.create({
