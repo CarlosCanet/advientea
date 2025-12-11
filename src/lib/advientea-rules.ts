@@ -26,7 +26,7 @@ export function isDateTodayOrPast(targetDate: Date): boolean {
 export function getAdvienteaDayState(dayNumber: number, year: number, userRole: Role, isSimulated = false): AdvienteaDayState {
   const HOURS = {
     PART1: 7,
-    PART2: 11,
+    PART2: 13,
     PART3: 18,
     TEA: 20,
     NAME: 20,
