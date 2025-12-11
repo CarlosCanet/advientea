@@ -12,7 +12,7 @@ export async function getTea(idOrDay: string | number, year: number = 2025): Pro
   if (typeof idOrDay === "string") {
     const tea = await prisma.tea.findUnique({
       where: { id: idOrDay },
-      include: { day: true, story: { include: { images: true } } }
+      include: { day: true, story: { include: { images: { orderBy: { order: "asc" } } } } }
     });
     if (!tea) return null;
     return tea;
@@ -22,7 +22,7 @@ export async function getTea(idOrDay: string | number, year: number = 2025): Pro
   if (!dayResponse || !dayResponse.tea) return null;
   const teaResponse = await prisma.tea.findUnique({
     where: { id: dayResponse.tea.id },
-    include: { day: true, story: { include: { images: true } } }
+    include: { day: true, story: { include: { images: { orderBy: { order: "asc" } } } } }
   });
   if (!teaResponse) return null;
   return teaResponse;
@@ -31,7 +31,7 @@ export async function getTea(idOrDay: string | number, year: number = 2025): Pro
 export async function getAllTeas(year: number): Promise<TeaWithDayAndCompleteStory[]> {
   const teas = await prisma.tea.findMany({
     where: { day: { year } },
-    include: { day: true, story: { include: { images: true } } },
+    include: { day: true, story: { include: { images: { orderBy: { order: "asc" } } } } },
   });
   return teas;
 }
@@ -142,12 +142,12 @@ export async function editTeaComplete(
             images: {
               deleteMany: {},
               create: storyImagesData
-          }
+            }
           }
         },
       },
     },
-    include: { day: true, story: { include: { images: true } } },
+    include: { day: true, story: { include: { images: { orderBy: { order: "asc" } } } } },
   });
   return tea;
 }
