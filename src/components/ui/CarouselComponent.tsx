@@ -40,18 +40,18 @@ export default function CarouselComponent({ images }: CarouselComponentProps) {
         })}
       </div>
       <dialog ref={modalRef} className="modal">
-        <div className="modal-box w-auto  max-h-screen bg-transparent! shadow-none overflow-hidden flex flex-col items-center justify-center">
-          <form method="dialog" className="self-end z-50">
+        <div className="modal-box w-screen max-w-11/12 max-h-11/12 bg-transparent! shadow-none overflow-hidden flex flex-col items-center justify-start p-0">
+          <form method="dialog" className="self-end z-50 p-2">
             <button className="btn btn-sm btn-circle btn-primary text-white">✕</button>
           </form>
           {selectedImageId && (
             <CldImage
-                src={selectedImageId}
-                alt="Imagen a pantalla completa"
-                className="object-contain -mt-8 max-h-[95vh] max-w-[95vw] w-auto h-auto"
-                width={1400}
-                height={1400}
-              />
+                  src={selectedImageId}
+                  alt="Imagen a pantalla completa"
+                  className="object-contain w-full h-full"
+                  width={1920}
+                  height={1080}
+                />
           )}
         </div>
       </dialog>
