@@ -42,7 +42,7 @@ export default async function DaysList() {
               <MdBackHand />
           </li>
         )}
-        {days.map((day) => {
+        {days.toSorted((day1,day2) => day2.dayNumber - day1.dayNumber).map((day) => {
           const advienteaDayState = getAdvienteaDayState(day.dayNumber, day.year, session?.user.role as Role, false);
           const assigneeName = day.assignment?.guestName ?? day.assignment?.user?.username;
           const advienteaDayTitle = isNameReleased && assigneeName ? `${day.tea?.name} - ${assigneeName}` : day.tea?.name;
