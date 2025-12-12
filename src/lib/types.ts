@@ -1,3 +1,5 @@
+import { TeaType } from "@/generated/prisma/client";
+
 export const DEFAULT_IMAGE_PROFILE = "advientea/2025-Caoslendario/avatars/kmz6ttle9ihjuosyqyns";
 export interface SignUpFormData {
   username: string;
@@ -135,4 +137,26 @@ export interface UpdateProfileActionResponse {
 export const initialUpdateProfileActionResponse: UpdateProfileActionResponse = {
   success: false,
   message: "",
+}
+
+export interface TeaGuessFormData {
+  teaName?: string;
+  teaType?: TeaType;
+  timestamp: Date;
+  ingredients?: Array<string>;
+  personaName?: string;
+}
+
+export interface TeaGuessActionResponse {
+  success: boolean;
+  message: string;
+  errors?: {
+    errors: Array<string>;
+    properties?: {
+      [K in keyof TeaGuessFormData]?: {
+        errors: Array<string>;
+      }
+    }
+  };
+  inputs?: TeaGuessFormData;
 }
