@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 describe("Tea guess scoring", () => { 
   describe("TeaName scoring", () => { 
-    it("should give 200 points to guess name", () => {
+    it("should give 200 points for exact match", () => {
       const result1 = calculateTeaNameScore("Té Pakistaní", "Té Pakistaní");
       const result2 = calculateTeaNameScore("Té Pakistaní", "Te Pakistani");
       const result3 = calculateTeaNameScore("Té Pakistaní", "Te paKistani");
@@ -14,7 +14,7 @@ describe("Tea guess scoring", () => {
       expect(result3).toBe(200);
     })
 
-    it("should give 0 points to be incredibly wrong", () => {
+    it("should give 0 points for incredibly wrong answers", () => {
       const result1 = calculateTeaNameScore("Té Pakistaní", "Chai ruta del desierto con dulces frutos del bosque");
       const result2 = calculateTeaNameScore("Té Pakistaní", "Infusión de hierbas");
       const result3 = calculateTeaNameScore("Té Pakistaní", "Blanco de la pradera");
@@ -26,7 +26,7 @@ describe("Tea guess scoring", () => {
       expect(result4).toBe(0);
     })
 
-    it("should give around 100 points to be somewhat on the middle", () => {
+    it("should give partial points for close matches", () => {
       const result1 = calculateTeaNameScore("Té Oolong con hierbas", "Té oolong");
       const result2 = calculateTeaNameScore("Té Oolong con hierbas", "Infusión de hierbas");
       expect(result1).toBe(85);
@@ -35,7 +35,7 @@ describe("Tea guess scoring", () => {
   })
 
   describe("TeaType scoring", () => { 
-    it("should give 200 points if you guessed it", () => {
+    it("should give 200 points for correct type", () => {
       const result1 = calculateTeaTypeScore(TeaType.BLACK, TeaType.BLACK);
       const result2 = calculateTeaTypeScore(TeaType.GREEN, TeaType.GREEN);
       const result3 = calculateTeaTypeScore(TeaType.OOLONG, TeaType.OOLONG);
@@ -44,7 +44,7 @@ describe("Tea guess scoring", () => {
       expect(result3).toBe(200);
     })
 
-    it("should give 0 points if you don't guessed it", () => {
+    it("should give 0 points for incorrect type", () => {
       const result1 = calculateTeaTypeScore(TeaType.BLACK, TeaType.GREEN);
       const result2 = calculateTeaTypeScore(TeaType.GREEN, TeaType.BLACK);
       const result3 = calculateTeaTypeScore(TeaType.OOLONG, TeaType.BLACK);
@@ -81,29 +81,29 @@ describe("Tea guess scoring", () => {
   })
 
   describe("Person Name scoring", () => { 
-    it("should give 200 points to guess name", () => {
+    it("should give 200 points for exact match", () => {
       const result1 = calculatePersonNameScore("Carlos", "Carlos")
-      const result2 = calculateTeaNameScore("Ana", "ana");
-      const result3 = calculateTeaNameScore("Ana", "aNa");
+      const result2 = calculatePersonNameScore("Ana", "ana");
+      const result3 = calculatePersonNameScore("Ana", "aNa");
       
       expect(result1).toBe(200);
       expect(result2).toBe(200);
       expect(result3).toBe(200);
     })
 
-    it("should give 0 points to be incredibly wrong", () => {
+    it("should give 0 points for incredibly wrong answers", () => {
       const result1 = calculatePersonNameScore("Carlos", "Eve")
-      const result2 = calculateTeaNameScore("Ana", "Carlos");
-      const result3 = calculateTeaNameScore("Ana", "miko");
+      const result2 = calculatePersonNameScore("Ana", "Carlos");
+      const result3 = calculatePersonNameScore("Ana", "miko");
       
       expect(result1).toBe(0);
       expect(result2).toBe(0);
       expect(result3).toBe(0);
     })
 
-    it("should give around 100 points to be somewhat on the middle", () => {
+    it("should give partial points for close matches", () => {
       const result1 = calculatePersonNameScore("Carlos", "Carlota")
-      const result2 = calculateTeaNameScore("Ana", "anita");
+      const result2 = calculatePersonNameScore("Ana", "anita");
       expect(result1).toBe(133);
       expect(result2).toBe(66);
     })
