@@ -26,7 +26,7 @@ export async function getDay(idOrDay: string | number, year: number = 2025): Pro
 export async function getAllDays(year: number): Promise<Array<DayWithAssignmentAndTeaComplete>> {
   const allDays = await prisma.day.findMany({
     where: { year },
-    include: { assignment: { include: { user: true } }, tea: { include: { story: { include: { images: true } } } } },
+    include: { assignment: { include: { user: true } }, tea: { include: { story: { include: { images: { orderBy: { order: "asc" } } } } } } },
     orderBy: { dayNumber: "asc" }
   });
   return allDays;
@@ -90,7 +90,7 @@ export async function editDay(data: Prisma.DayUncheckedUpdateInput, id: string):
 export async function deleteDay(id: string): Promise<DayWithTeaComplete> {
   const dayDeleted = await prisma.day.delete({
     where: { id },
-    include: { tea: { include: { story: { include: { images: true } } } } },
+    include: { tea: { include: { story: { include: { images: { orderBy: { order: "asc" } } } } } } },
   });
   return dayDeleted;
 }

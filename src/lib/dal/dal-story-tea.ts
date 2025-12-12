@@ -25,7 +25,7 @@ export async function getStoryTea(idOrDay: string | number, year: number = 2025)
 
 export async function getAllStoriesTea(): Promise<StoryWithTeaAndImages[]> {
   try {
-    const stories = await prisma.storyTea.findMany({ include: { tea: true, images: true } });
+    const stories = await prisma.storyTea.findMany({ include: { tea: true, images: { orderBy: { order: "asc" } } } });
     return stories;
   } catch (error) {
     console.error(error);
