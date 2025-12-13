@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 
 export type DayWithTeaComplete = Prisma.DayGetPayload<{ include: { tea: { include: { story: { include: { images: true } } } } } }>;
 export type DayWithAssignmentAndTeaComplete = Prisma.DayGetPayload<{ include: { assignment: { include: { user: true } }, tea: { include: { story: { include: { images: true } } } } } }>
+export type DayForGuessing = Prisma.DayGetPayload<{ select: { assignment: { select: { user: { select: { id: true, username: true } }, guestName: true } }, tea: { select: { name: true, ingredients: true, teaType: true } }, dayNumber: true, year: true } }>;
 
 export async function getDay(id: string): Promise<DayWithTeaComplete | null>;
 export async function getDay(day: number, year: number): Promise<DayWithTeaComplete | null>;
@@ -20,6 +21,35 @@ export async function getDay(idOrDay: string | number, year: number = 2025): Pro
     include: { tea: { include: { story: { include: { images: { orderBy: { order: "asc" } } } } } } },
   });
   if (!dayResponse) return null;
+  return dayResponse;
+}
+
+export async function getDayForGuessing(id: string): Promise<DayForGuessing | null> {
+  const dayResponse = await prisma.day.findUnique({
+    where: { id },
+    select: {
+      assignment: {
+        select: {
+          user: {
+            select: {
+              id: true,
+              username: true,
+            }
+          },
+          guestName: true,
+        }
+      },
+      tea: {
+        select: {
+          name: true,
+          ingredients: true,
+          teaType: true,
+        }
+      },
+      dayNumber: true,
+      year: true,
+    }
+  });
   return dayResponse;
 }
 

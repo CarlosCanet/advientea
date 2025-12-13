@@ -142,9 +142,8 @@ export const initialUpdateProfileActionResponse: UpdateProfileActionResponse = {
 export interface TeaGuessFormData {
   teaName?: string;
   teaType?: TeaType;
-  timestamp: Date;
   ingredients?: Array<string>;
-  personaName?: string;
+  personName?: string;
 }
 
 export interface TeaGuessActionResponse {
