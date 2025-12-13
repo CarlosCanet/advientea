@@ -11,22 +11,28 @@ const INGREDIENTS = [
   "Rooibos",
   "Honeybush",
   "Yerba Mate",
+  "Tulsi",
 
-  // Especias y Hierbas
+  // Especias
   "Canela",
   "Jengibre",
   "Cardamomo",
   "Clavo",
   "Pimienta negra",
   "Pimienta rosa",
+  "Pimienta blanca",
   "Anís estrellado",
   "Anís verde",
+  "Nuez moscada",
+
+  //Hierbas y Plantas
   "Hinojo",
   "Regaliz",
   "Vainilla",
   "Menta",
   "Hierbabuena",
   "Hierba limón (Lemongrass)",
+  "Hierbaluisa",
   "Melisa",
   "Cúrcuma",
   "Chile",
@@ -34,15 +40,28 @@ const INGREDIENTS = [
   "Ortiga",
   "Valeriana",
   "Tila",
+  "Salvia",
+  "Tomillo",
+  "Romero",
+  "Eucalipto",
+  "Ginseng",
+  "Ginkgo Biloba",
+  "Moringa",
+  "Estevia",
+  "Olivo",
+  "Bambú",
 
   // Cítricos
   "Cáscara de naranja",
   "Cáscara de limón",
   "Lima",
+  "Naranja",
+  "Limón",
   "Bergamota",
   "Pomelo",
   "Mandarina",
   "Flor de Azahar",
+  "Yuzu",
 
   // Frutas
   "Manzana",
@@ -65,24 +84,37 @@ const INGREDIENTS = [
   "Bayas de Goji",
   "Saúco",
   "Escaramujo",
+  "Pera",
+  "Maracuyá",
+  "Melón",
+  "Sandía",
+  "Mora",
+  "Ciruela",
+  "Granada",
+  "Kiwi",
 
   // Flores
   "Pétalos de rosa",
   "Hibisco",
   "Lavanda",
   "Jazmín",
+  "Azahar",
   "Manzanilla",
   "Aciano (Flor de aciano)",
   "Caléndula",
   "Malva",
   "Girasol",
+  "Violeta",
   "Azafrán silvestre",
   "Osmanthus",
+  "Sauco",
+  "Peonía",
+  "Crisantemo",
 
   // Dulces y Gourmand
   "Cacao",
   "Cáscara de cacao",
-  "Trozos de chocolate",
+  "Chocolate",
   "Chocolate blanco",
   "Caramelo",
   "Toffee",
@@ -97,6 +129,9 @@ const INGREDIENTS = [
   "Yogur",
   "Nata",
   "Sirope de arce",
+  "Piñones",
+  "Dulce de leche",
+  "Galleta",
 
   // Otros
   "Zanahoria",
@@ -105,11 +140,9 @@ const INGREDIENTS = [
   "Arroz tostado (Genmaicha)",
   "Algas",
   "Hojas de zarzamora",
-  "Eucalipto",
 ];
 
-async function main() {
-  console.log("Seeding ingredients");
+export async function seedIngredients() {
   for (const name of INGREDIENTS) {
     await prisma.teaIngredient.upsert({
       where: { name },
@@ -117,7 +150,6 @@ async function main() {
       update: {},
     });
   }
-  console.log("Done. Ingredients seeded");
 }
 
-main()
+seedIngredients()

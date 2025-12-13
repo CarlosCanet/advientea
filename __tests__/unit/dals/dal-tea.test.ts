@@ -1,6 +1,6 @@
 import { prismaMock } from '@/lib/__mocks__/prisma';
 import { describe, expect, it, vi } from 'vitest'
-import { Day, Role, Tea, TeaType } from "@/generated/prisma/client";
+import { Day, Role, TeaIngredient, TeaType } from "@/generated/prisma/client";
 import { DayWithAssignmentAndTeaComplete, DayWithTeaComplete } from "@/lib/dal";
 import {
   getTea,
@@ -20,6 +20,20 @@ vi.mock("@/lib/dal/dal-day");
 const dalDayMock = vi.mocked(dalDay);
 
 describe("DAL Tea", () => {
+    const mockIngredient1: TeaIngredient = {
+    id: "i1-cuid",
+    name: "ingredient1",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  }
+
+  const mockIngredient2: TeaIngredient = {
+    id: "i2-cuid",
+    name: "ingredient2",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  }
+
   describe("getTea", () => {
     it("should get tea by CUID id", async () => {
       const mockDay: Day = {
@@ -34,6 +48,7 @@ describe("DAL Tea", () => {
         id: "tea-cuid",
         dayId: "day-cuid",
         name: "Test Tea",
+        ingredients: [mockIngredient1, mockIngredient2],
         teaType: TeaType.GREEN,
         infusionTime: 3,
         temperature: 80,
@@ -59,6 +74,8 @@ describe("DAL Tea", () => {
       expect(result?.name).toBe("Test Tea");
       expect(result?.day).toBeDefined();
       expect(result?.day?.id).toBe("day-cuid");
+      expect(result?.ingredients).toHaveLength(2);
+      expect(result?.ingredients[0].name).toBe("ingredient1");
     });
 
     it("should get tea by dayNumber and year", async () => {
@@ -74,6 +91,7 @@ describe("DAL Tea", () => {
         id: "tea-cuid",
         dayId: "day-cuid",
         name: "Test Tea",
+        ingredients: [mockIngredient1, mockIngredient2],
         teaType: TeaType.GREEN,
         infusionTime: 3,
         temperature: 80,
@@ -115,6 +133,7 @@ describe("DAL Tea", () => {
         id: "tea-cuid",
         dayId: "day-cuid",
         name: "Tea with Story",
+        ingredients: [mockIngredient1, mockIngredient2],
         teaType: TeaType.OOLONG,
         infusionTime: 4,
         temperature: 90,
@@ -184,6 +203,7 @@ describe("DAL Tea", () => {
           id: "tea-1",
           dayId: "day-1",
           name: "Tea 2025-1",
+          ingredients: [mockIngredient1, mockIngredient2],
           teaType: TeaType.GREEN,
           infusionTime: 3,
           temperature: 80,
@@ -209,6 +229,7 @@ describe("DAL Tea", () => {
           id: "tea-2",
           dayId: "day-2",
           name: "Tea 2025-2",
+          ingredients: [],
           teaType: TeaType.BLACK,
           infusionTime: 5,
           temperature: 100,
@@ -284,6 +305,7 @@ describe("DAL Tea", () => {
         id: "tea-cuid",
         dayId: "day-cuid",
         name: "Test Tea",
+        ingredients: [mockIngredient1],
         teaType: TeaType.GREEN,
         infusionTime: 3,
         temperature: 80,
@@ -330,6 +352,7 @@ describe("DAL Tea", () => {
         id: "tea-cuid",
         dayId: "day-cuid",
         name: "Test Tea",
+        ingredients: [],
         teaType: TeaType.GREEN,
         infusionTime: 3,
         temperature: 80,
@@ -375,6 +398,7 @@ describe("DAL Tea", () => {
         id: "new-tea-cuid",
         dayId: "day-cuid",
         name: "New Tea",
+        ingredients: [mockIngredient1, mockIngredient2],
         teaType: TeaType.WHITE,
         infusionTime: 2,
         temperature: 70,
@@ -407,18 +431,31 @@ describe("DAL Tea", () => {
           storeName: "Tea Shop",
           url: "https://tea.example.com",
         },
+        ["ingredient1"],
         15,
         2025
       );
 
       expect(result?.id).toBe("new-tea-cuid");
       expect(result?.name).toBe("New Tea");
+      expect(prismaMock.tea.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            name: "New Tea",
+            ingredients: {
+              connect: [{ name: "ingredient1" }],
+            }
+          }),
+          include: expect.objectContaining({ ingredients: true }),
+        })
+      );
     });
 
     it("should create a tea without day assignment (Draft)", async () => {
       const mockTea: TeaWithDay = {
         id: "new-tea-cuid",
         name: "Draft Tea",
+        ingredients: [mockIngredient1, mockIngredient2],
         teaType: TeaType.WHITE,
         infusionTime: 2,
         temperature: 70,
@@ -498,6 +535,7 @@ describe("DAL Tea", () => {
             storeName: "Tea Shop",
             url: "https://tea.example.com",
           },
+          ["ingredient1"],
           1
         )
       ).rejects.toThrow("already has a tea assigned");
@@ -518,6 +556,7 @@ describe("DAL Tea", () => {
         id: "tea-cuid",
         dayId: "day-cuid",
         name: "Complete Tea",
+        ingredients: [mockIngredient1, mockIngredient2],
         teaType: TeaType.OOLONG,
         infusionTime: 4,
         temperature: 90,
@@ -548,6 +587,7 @@ describe("DAL Tea", () => {
           reinfuseNumber: 2,
           addMilk: false,
         },
+        ["ingredient1", "ingredient2"],
         {
           storyPart1: "Story Part 1",
           storyPart2: "Story Part 2",
@@ -565,52 +605,56 @@ describe("DAL Tea", () => {
   });
 
   describe("editTea", () => {
+    const mockCurrentTea: TeaWithDay = {
+      id: "tea-cuid",
+      dayId: "day-cuid",
+      name: "Updated Tea Name",
+      ingredients: [],
+      teaType: TeaType.HERBAL,
+      infusionTime: 5,
+      temperature: 100,
+      hasTheine: false,
+      canReinfuse: true,
+      reinfuseNumber: 2,
+      moreIndications: "Updated instructions",
+      addMilk: false,
+      storeName: "New Store",
+      url: "https://newstore.com",
+      day: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const mockUpdatedTea: TeaWithDay = {
+      id: "tea-cuid",
+      dayId: "day-cuid",
+      name: "Updated Tea Name",
+      ingredients: [mockIngredient1, mockIngredient2],
+      teaType: TeaType.HERBAL,
+      infusionTime: 5,
+      temperature: 100,
+      hasTheine: false,
+      canReinfuse: true,
+      reinfuseNumber: 2,
+      moreIndications: "Updated instructions",
+      addMilk: false,
+      storeName: "New Store",
+      url: "https://newstore.com",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      day: {
+        id: "day-cuid",
+        dayNumber: 1,
+        year: 2025,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    };  
+
     it("should update tea successfully", async () => {
-      const mockCurrentTea: Tea = {
-        id: "tea-cuid",
-        dayId: "day-cuid",
-        name: "Updated Tea Name",
-        teaType: TeaType.HERBAL,
-        infusionTime: 5,
-        temperature: 100,
-        hasTheine: false,
-        canReinfuse: true,
-        reinfuseNumber: 2,
-        moreIndications: "Updated instructions",
-        addMilk: false,
-        storeName: "New Store",
-        url: "https://newstore.com",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      const mockUpdatedTea: TeaWithDay = {
-        id: "tea-cuid",
-        dayId: "day-cuid",
-        name: "Updated Tea Name",
-        teaType: TeaType.HERBAL,
-        infusionTime: 5,
-        temperature: 100,
-        hasTheine: false,
-        canReinfuse: true,
-        reinfuseNumber: 2,
-        moreIndications: "Updated instructions",
-        addMilk: false,
-        storeName: "New Store",
-        url: "https://newstore.com",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        day: {
-          id: "day-cuid",
-          dayNumber: 1,
-          year: 2025,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-      };
-
       prismaMock.tea.findUnique.mockResolvedValue(mockCurrentTea);
-      prismaMock.$transaction.mockResolvedValue(mockUpdatedTea);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      prismaMock.$transaction.mockImplementation((cb: any) => cb(prismaMock));
+      prismaMock.tea.update.mockResolvedValue(mockUpdatedTea);
 
       const result = await editTea(
         {
@@ -628,30 +672,34 @@ describe("DAL Tea", () => {
     });
 
     it("should throw error if target day does not exist on editTea", async () => {
-      const existingTea: Tea = {
-        id: "tea-1",
-        dayId: "day-1",
-        name: "Existing Tea Name",
-        teaType: TeaType.HERBAL,
-        infusionTime: 5,
-        temperature: 100,
-        hasTheine: false,
-        canReinfuse: true,
-        reinfuseNumber: 2,
-        moreIndications: "Updated instructions",
-        addMilk: false,
-        storeName: "New Store",
-        url: "https://newstore.com",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      prismaMock.tea.findUnique.mockResolvedValue((existingTea));
+      prismaMock.tea.findUnique.mockResolvedValue((mockCurrentTea));
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       prismaMock.$transaction.mockImplementation((cb: any) => cb(prismaMock));
       prismaMock.day.findFirst.mockResolvedValue(null);
 
       await expect(editTea({}, "tea-1", 99)).rejects.toThrow("Day 99/2025 not found");
+    });
+
+    it("should update tea ingredients using SET", async () => {
+      prismaMock.tea.findUnique.mockResolvedValue(mockCurrentTea);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      prismaMock.$transaction.mockImplementation((cb: any) => cb(prismaMock));
+      prismaMock.tea.update.mockResolvedValue(mockUpdatedTea);
+      await editTea({ name: "Updated Tea Name", ingredientNames: ["ingredient1", "ingredient2"] }, "tea-1");
+      expect(prismaMock.tea.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "tea-1" },
+          data: expect.objectContaining({
+            name: "Updated Tea Name",
+            ingredients: {
+              set: [
+                { name: "ingredient1" },
+                { name: "ingredient2" }
+              ], 
+            },
+          }),
+        })
+      );
     });
   });
 
@@ -698,7 +746,10 @@ describe("DAL Tea", () => {
 
       const result = await editTeaComplete(
         "tea-cuid",
-        { name: "Updated Tea" },
+        {
+          name: "Updated Tea",
+          ingredientNames: ["ingredient1"]
+        },
         {
           storyPart1: "Updated Part 1",
           storyPart2: "Updated Part 2",
@@ -710,6 +761,15 @@ describe("DAL Tea", () => {
 
       expect(result.name).toBe("Updated Tea");
       expect(result.story?.storyPart1).toBe("Updated Part 1");
+      expect(prismaMock.tea.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            ingredients: {
+              set: [{ name: "ingredient1" }]
+            }
+          })
+        })
+      );
     });
   });
 

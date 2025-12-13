@@ -174,7 +174,7 @@ describe("DAL StoryTea", () => {
       prismaMock.storyTea.findMany.mockResolvedValue([]);
       await getAllStoriesTea();
       expect(prismaMock.storyTea.findMany).toHaveBeenCalledWith({
-        include: { tea: true, images: true },
+        include: { tea: true, images: { orderBy: { order: "asc" } } },
       });
     });
 

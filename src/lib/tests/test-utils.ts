@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { createPrismaUser } from "../dal/dal-user";
-import { Role } from "@/generated/prisma/enums";
+import { Role, TeaType } from "@/generated/prisma/enums";
 import { add25Days, addDayAssignment, addStoryImage, addStoryTea, addTea } from "../dal";
+import { seedIngredients } from "../../../prisma/seed-ingredients";
 
 export async function seedDatabase() {
   // **** CREATE USERS **** //
@@ -18,10 +19,14 @@ export async function seedDatabase() {
   // **** CREATE DAYS **** //
   await add25Days();
 
+  // **** CREATE INGREDIENTS **** //
+  await seedIngredients();
+
   // **** CREATE TEAS, STORIES & IMAGES **** //
   const tea1 = await addTea(
     {
       name: "Ruta del desierto",
+      teaType: TeaType.ROOIBOS,
       infusionTime: 3,
       temperature: 95,
       hasTheine: false,
@@ -31,6 +36,7 @@ export async function seedDatabase() {
       storeName: "La tienda de las especias",
       url: "wwww.tiendadelasespecias.com/rutadeldesierto",
     },
+    ["Manzana", "Limón"],
     1,
     2025
   );
@@ -53,6 +59,7 @@ export async function seedDatabase() {
   const tea2 = await addTea(
     {
       name: "Pakistaní",
+      teaType: TeaType.BLACK,
       infusionTime: 5,
       temperature: 105,
       hasTheine: true,
@@ -63,6 +70,7 @@ export async function seedDatabase() {
       storeName: "La tienda de las especias",
       url: "wwww.tiendadelasespecias.com/rutadeldesierto",
     },
+    ["Clavo", "Canela", "Cardamomo"],
     2,
     2025
   );
