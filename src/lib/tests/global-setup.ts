@@ -1,7 +1,6 @@
 import { execSync } from "node:child_process";
 
 export async function setup() {
-  // 1. Mounting container
   console.log("\n🐳 [Global Setup] Setting up test environment...");
   try {
     execSync("docker compose up -d", { stdio: "ignore" });
@@ -10,7 +9,6 @@ export async function setup() {
     throw e;
   }
 
-  // 2. Waiting for Postgres
   console.log("⏳ [Global Setup] Waiting for DB...");  
   const maxRetries = 10;
   let retries = 0;
@@ -20,6 +18,7 @@ export async function setup() {
     try {
       execSync("docker exec integration-tests pg_isready -U postgres", { stdio: "ignore" });
       ready = true;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (e) {
       retries++;
       await new Promise((r) => setTimeout(r, 5000));
@@ -30,7 +29,6 @@ export async function setup() {
     throw new Error("❌ Timeout: DB not running.");
   }
 
-  // 3. Migrating prisma schema
   console.log("🚀 [Global Setup] Running migrations...");
   try {
     execSync("pnpm dotenv -e .env.test -- prisma migrate deploy", { stdio: "inherit" });
