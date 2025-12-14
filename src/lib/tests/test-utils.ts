@@ -21,6 +21,12 @@ export async function seedDatabase() {
 
   // **** CREATE INGREDIENTS **** //
   await seedIngredients();
+  const apple = await prisma.teaIngredient.findUnique({ where: { name: "Manzana" } });
+  const lemon = await prisma.teaIngredient.findUniqueOrThrow({ where: { name: "Limón" } });
+  const clove = await prisma.teaIngredient.findUnique({ where: { name: "Clavo" } });
+  const cinnamon = await prisma.teaIngredient.findUniqueOrThrow({ where: { name: "Canela" } });
+  const cardamon = await prisma.teaIngredient.findUniqueOrThrow({ where: { name: "Cardamomo" } });
+  if (!apple || !lemon || !clove || !cinnamon || !cardamon) throw new Error("There was a problem adding ingredients");
 
   // **** CREATE TEAS, STORIES & IMAGES **** //
   const tea1 = await addTea(
@@ -36,7 +42,7 @@ export async function seedDatabase() {
       storeName: "La tienda de las especias",
       url: "wwww.tiendadelasespecias.com/rutadeldesierto",
     },
-    ["Manzana", "Limón"],
+    [apple.id, lemon.id],
     1,
     2025
   );
@@ -70,7 +76,7 @@ export async function seedDatabase() {
       storeName: "La tienda de las especias",
       url: "wwww.tiendadelasespecias.com/rutadeldesierto",
     },
-    ["Clavo", "Canela", "Cardamomo"],
+    [clove.id, cinnamon.id, cardamon.id],
     2,
     2025
   );

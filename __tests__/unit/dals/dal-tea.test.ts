@@ -443,7 +443,7 @@ describe("DAL Tea", () => {
           data: expect.objectContaining({
             name: "New Tea",
             ingredients: {
-              connect: [{ name: "ingredient1" }],
+              connect: [{ id: "ingredient1" }],
             }
           }),
           include: expect.objectContaining({ ingredients: true }),
@@ -685,7 +685,7 @@ describe("DAL Tea", () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       prismaMock.$transaction.mockImplementation((cb: any) => cb(prismaMock));
       prismaMock.tea.update.mockResolvedValue(mockUpdatedTea);
-      await editTea({ name: "Updated Tea Name", ingredientNames: ["ingredient1", "ingredient2"] }, "tea-1");
+      await editTea({ name: "Updated Tea Name", ingredientIds: ["ingredient1", "ingredient2"] }, "tea-1");
       expect(prismaMock.tea.update).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: "tea-1" },
@@ -693,8 +693,8 @@ describe("DAL Tea", () => {
             name: "Updated Tea Name",
             ingredients: {
               set: [
-                { name: "ingredient1" },
-                { name: "ingredient2" }
+                { id: "ingredient1" },
+                { id: "ingredient2" }
               ], 
             },
           }),
@@ -748,7 +748,7 @@ describe("DAL Tea", () => {
         "tea-cuid",
         {
           name: "Updated Tea",
-          ingredientNames: ["ingredient1"]
+          ingredientIds: ["ingredient1"]
         },
         {
           storyPart1: "Updated Part 1",
@@ -765,7 +765,7 @@ describe("DAL Tea", () => {
         expect.objectContaining({
           data: expect.objectContaining({
             ingredients: {
-              set: [{ name: "ingredient1" }]
+              set: [{ id: "ingredient1" }]
             }
           })
         })

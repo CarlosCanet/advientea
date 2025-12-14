@@ -4,6 +4,7 @@ import { getDay } from "./dal-day";
 
 export type TeaWithDayAndCompleteStory = Prisma.TeaGetPayload<{ include: { day: true, ingredients: true, story: { include: { images: true } } } }>;
 export type TeaWithDay = Prisma.TeaGetPayload<{ include: { day: true, ingredients: true } }>;
+export type TeaWithIngredients = Prisma.TeaGetPayload<{ include: { ingredients: true } }>;
 
 export async function getTea(id: string): Promise<TeaWithDayAndCompleteStory>;
 export async function getTea(day: number, year?: number): Promise<TeaWithDayAndCompleteStory>;
@@ -46,7 +47,7 @@ export async function getUsernameAssignedToTea(id: string): Promise<string | nul
   return assignment.guestName ?? assignment.user?.username ?? null;
 }
 
-export async function addTea(data: Prisma.TeaCreateWithoutDayInput, ingredientNames: Array<string> = [], day?: number, year: number = 2025): Promise<TeaWithDay | null> {
+export async function addTea(data: Prisma.TeaCreateWithoutDayInput, ingredientIds: Array<string> = [], day?: number, year: number = 2025): Promise<TeaWithDay | null> {
   let dayConnection: Prisma.DayCreateNestedOneWithoutTeaInput | undefined = undefined;
 
   if (day !== undefined) {
@@ -63,20 +64,20 @@ export async function addTea(data: Prisma.TeaCreateWithoutDayInput, ingredientNa
     data: {
       ...data,
       day: dayConnection,
-      ingredients: { connect: ingredientNames.map(name => ({ name })) }
+      ingredients: { connect: ingredientIds.map(id => ({ id })) }
     },
     include: { day: true, ingredients: true },
   });
   return tea;
 }
 
-export async function addTeaComplete(teaData: Prisma.TeaCreateInput, ingredientNames: Array<string> = [], storyData: Prisma.StoryTeaCreateWithoutTeaInput, storyImagesData: Array<Prisma.StoryImageCreateWithoutStoryInput>, day: number, year: number = 2025 ): Promise<TeaWithDay | null> {
+export async function addTeaComplete(teaData: Prisma.TeaCreateInput, ingredientIds: Array<string> = [], storyData: Prisma.StoryTeaCreateWithoutTeaInput, storyImagesData: Array<Prisma.StoryImageCreateWithoutStoryInput>, day: number, year: number = 2025 ): Promise<TeaWithDay | null> {
   const dayResponse = await getDay(day, year);
   if (!dayResponse) return null;
   const tea = await prisma.tea.create({
     data: {
       ...teaData,
-      ingredients: { connect: ingredientNames.map(name => ({ name })) },
+      ingredients: { connect: ingredientIds.map(id => ({ id })) },
       day: { connect: { id: dayResponse.id } },
       story: {
         create: {
@@ -92,9 +93,9 @@ export async function addTeaComplete(teaData: Prisma.TeaCreateInput, ingredientN
   return tea;
 }
 
-type EditTeaInput = Prisma.TeaUncheckedUpdateInput & { ingredientNames?: Array<string> };
+type EditTeaInput = Prisma.TeaUncheckedUpdateInput & { ingredientIds?: Array<string> };
 export async function editTea(dataWithIngredients: EditTeaInput, id: string, newDayNumber?: number): Promise<TeaWithDay | null>{
-  const { ingredientNames, ...data } = dataWithIngredients;
+  const { ingredientIds, ...data } = dataWithIngredients;
   const currentTea = await prisma.tea.findUnique({ where: { id }, select: { dayId: true } });
   if (!currentTea) throw new Error(`No tea found for id ${id}`);
   const result = await prisma.$transaction(async (tx) => {
@@ -121,7 +122,7 @@ export async function editTea(dataWithIngredients: EditTeaInput, id: string, new
       include: { day: true, ingredients: true },
       data: {
         ...data,
-        ingredients: ingredientNames ? { set: ingredientNames.map(name => ({ name })) } : undefined
+        ingredients: ingredientIds ? { set: ingredientIds.map(id => ({ id })) } : undefined
       },
     });
     return teaUpdated;
@@ -135,12 +136,12 @@ export async function editTeaComplete(
   storyData: Prisma.StoryTeaCreateWithoutTeaInput,
   storyImagesData: Array<Prisma.StoryImageCreateWithoutStoryInput>,
 ): Promise<TeaWithDayAndCompleteStory> {
-  const { ingredientNames, ...teaData } = dataWithIngredients;
+  const { ingredientIds, ...teaData } = dataWithIngredients;
   const tea = await prisma.tea.update({
     where: { id },
     data: {
       ...teaData,
-      ingredients: ingredientNames ? { set: ingredientNames.map(name => ({ name })) } : undefined,
+      ingredients: ingredientIds ? { set: ingredientIds.map(id => ({ id })) } : undefined,
       story: {
         upsert: {
           create: {
