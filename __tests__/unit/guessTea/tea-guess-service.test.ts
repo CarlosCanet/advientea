@@ -1,6 +1,7 @@
+import { TeaIngredient } from "@/generated/prisma/client";
 import { TeaType } from "@/generated/prisma/enums";
-import { getDayForGuessing } from "@/lib/dal";
-import { canUserGuessPerson, canUserGuessTea, validateTeaGuess } from "@/lib/services/tea-guess-service";
+import { DayForGuessing, getDayForGuessing } from "@/lib/dal";
+import { calculatePointsFromGuess, canUserGuessPerson, canUserGuessTea, validateTeaGuess } from "@/lib/services/tea-guess-service";
 import { TeaGuessFormData } from "@/lib/types";
 import { it, expect, describe, vi, afterEach, afterAll, beforeEach } from "vitest";
 
@@ -12,6 +13,7 @@ function createMockFormData(data: TeaGuessFormData): FormData {
   const formData = new FormData();
   if (data.teaName) formData.append("teaName", data.teaName);
   if (data.personName) formData.append("personName", data.personName);
+  if (data.personType) formData.append("personType", data.personType);
   if (data.teaType) formData.append("teaType", data.teaType);
   if (Array.isArray(data.ingredients)) {
     data.ingredients.forEach((ingredient, index) => formData.append(`ingredient-${index}`, ingredient));
@@ -22,10 +24,10 @@ function createMockFormData(data: TeaGuessFormData): FormData {
 describe("Tea service", () => {
   describe("validateTeaGuess (Form validation)", () => {
     it.each([
-      { name: "Full data", data: { ingredients: ["Ingre1", "Ingredient2"], teaName: "My tea", personaName: "Person", teaType: TeaType.BLACK } },
+      { name: "Full data", data: { ingredients: ["Ingre1", "Ingredient2"], teaName: "My tea", personName: "Person", personType: "userId" as const, teaType: TeaType.BLACK } },
       { name: "Only ingredients", data: { ingredients: ["Ingre1", "Ingredient2"] } },
       { name: "Only Tea Name", data: { teaName: "My tea" } },
-      { name: "Only Persona Name", data: { personName: "Person" } },
+      { name: "Only Person Name", data: { personName: "Person", personType: "userId" as const } },
       { name: "Only Tea Type", data: { teaType: TeaType.BLACK } },
     ])("should return true for valid data", ({ data }) => {
       const formData = createMockFormData(data);
@@ -34,9 +36,17 @@ describe("Tea service", () => {
 
     it.each([
       { name: "Only one empty field", data: { teaName: "" } },
-      { name: "Only blank spaces", data: { personaName: "   " } },
+      { name: "Only blank spaces", data: { personName: "   " } },
       { name: "Empty array", data: { ingredients: [] } },
     ])("should return false for empty string or empty arrays", ({ data }) => {
+      const formData = createMockFormData(data);
+      expect(validateTeaGuess(formData).success).toBe(false);
+    });
+
+    it("should return false if personType field is missing", () => {
+      const data: TeaGuessFormData = {
+        personName: "user",
+      }
       const formData = createMockFormData(data);
       expect(validateTeaGuess(formData).success).toBe(false);
     });
@@ -60,16 +70,16 @@ describe("Tea service", () => {
         assignment: {
           user: userId
             ? {
-                id: userId,
-                username: "",
-              }
+              id: userId,
+              username: "",
+            }
             : null,
           guestName: userId ? "" : "Anónimo",
         },
         tea: teaExists
-          ? { 
-          name: "",
-          ingredients: [],
+          ? {
+            name: "",
+            ingredients: [],
             teaType: TeaType.BLACK,
           }
           : null,
@@ -214,7 +224,7 @@ describe("Tea service", () => {
           mockGuessInDB("user-owner", 21);
           const simulatedNow = new Date(2025, 11, 21, 20, 1, 0);
           vi.setSystemTime(simulatedNow);
-          const result = await canUserGuessPerson("day-5", "user-player");
+          const result = await canUserGuessPerson("day-21", "user-player");
           expect(result).toBe(false);
         });
         
@@ -243,5 +253,63 @@ describe("Tea service", () => {
         });
       });
     });
-  })
+
+    describe("calculatePointsFromGuess", () => {
+      const TEST_DATE = new Date("2025-12-05T10:00:00Z");
+      beforeEach(() => {
+        vi.useFakeTimers();
+        vi.setSystemTime(TEST_DATE);
+      })
+      afterEach(() => {
+        vi.resetAllMocks();
+        vi.useRealTimers();
+      });
+
+      const mockIngredient1: TeaIngredient = {
+        id: "i1-id",
+        name: "ingredient1",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+
+      const mockDayData: DayForGuessing = {
+        dayNumber: 1,
+        year: 2025,
+        tea: {
+          name: "Earl Grey",
+          teaType: TeaType.BLACK,
+          ingredients: [mockIngredient1],
+        },
+        assignment: {
+          user: { id: "user-id", username: "userName" },
+          guestName: null,
+        },
+      };
+
+      const mockUserGuess = {
+        teaName: "Earl Grey",
+        teaType: TeaType.BLACK,
+        ingredients: ["i1-id"],
+        personName: "user1-id",
+        personType: "userId" as const,
+      };
+
+      it("should return null if the day or tea does not exist", async () => {
+        vi.mocked(getDayForGuessing).mockResolvedValue(null);
+        const result1 = await calculatePointsFromGuess("day999-id", mockUserGuess);
+        vi.mocked(getDayForGuessing).mockResolvedValue({ dayNumber: 2, year: 2025, assignment: null, tea: null });
+        const result2 = await calculatePointsFromGuess("day2-id", mockUserGuess);
+        expect(result1).toBeNull();
+        expect(result2).toBeNull();
+      });
+
+      it("should calculate points when day and tea exist", async () => {
+        vi.mocked(getDayForGuessing).mockResolvedValue(mockDayData);
+        const result = await calculatePointsFromGuess("day1-id", mockUserGuess);
+        expect(result).toBeTypeOf("number");
+        expect(result).toBeGreaterThan(0);
+        expect(getDayForGuessing).toHaveBeenCalledWith("day1-id");
+      });
+    });
+  });
 });

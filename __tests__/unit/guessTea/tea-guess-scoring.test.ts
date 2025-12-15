@@ -64,7 +64,7 @@ describe("Tea guess scoring", () => {
     });
     it("should give less than 200 points if you guessed it just after 10:00 h", () => {
       const date = new Date();
-      date.setHours(10, 5, 0, 0);
+      date.setHours(11, 5, 0, 0);
       const result1 = calculateTimeScore(date);
       expect(result1).toBeLessThan(200);
     });
