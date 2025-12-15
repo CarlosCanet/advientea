@@ -162,7 +162,6 @@ model TeaGuess {
   day         Day   @relation(fields: [dayId], references: [id], onDelete: Cascade)
   guessedUser User? @relation("GuessedUserTarget", fields: [guessedUserId], references: [id])
 
-  @@unique([userId, dayId])
   @@index([dayId])
 }
 
