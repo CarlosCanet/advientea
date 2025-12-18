@@ -24,25 +24,29 @@ export async function getAllGuesses(userId: string, dayId: string): Promise<Arra
 }
 
 export async function createTeaGuess(userId: string, dayId: string, guessData: TeaGuessFormData, points: number): Promise<TeaGuessWithIngredients | null>{
-  let newGuess: TeaGuessCreateInput = {
+  const newGuess: TeaGuessCreateInput = {
     day: { connect: { id: dayId } },
     user: { connect: { id: userId } },
-    guessedIngredients: { connect: guessData.ingredients?.map(ingredientId => ({ id: ingredientId })) || [] },
-    guessedTeaName: guessData.teaName,
-    guessedTeaType: guessData.teaType,    
     points
   }
-  if (guessData.personType === "userId") {
-    newGuess = {
-      ...newGuess,
-      guessedUser: { connect: { id: guessData.personName } },
-    }
-  } else {
-    newGuess = {
-      ...newGuess,
-      guessedGuestName: guessData.personName,
-    }
+
+  if (guessData.teaName) {
+    newGuess.guessedTeaName = guessData.teaName;
   }
+
+  if (guessData.teaType) {
+    newGuess.guessedTeaType = guessData.teaType;
+  }
+
+
+  if (guessData.ingredients && guessData.ingredients.length > 0) {
+    newGuess.guessedIngredients = { connect: guessData.ingredients.map(ingredientId => ({ id: ingredientId })) };
+  }
+
+  if (guessData.personName) {
+    newGuess.guessedPersonName = guessData.personName;
+  }
+
   try {
     const result = await prisma.teaGuess.create({ data: newGuess, include: { guessedIngredients: true } });
     return result;

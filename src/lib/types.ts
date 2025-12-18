@@ -144,7 +144,6 @@ export interface TeaGuessFormData {
   teaType?: TeaType;
   ingredients?: Array<string>;
   personName?: string;
-  personType?: "userId" | "guestName";
 }
 
 export interface TeaGuessActionResponse {
@@ -158,5 +157,15 @@ export interface TeaGuessActionResponse {
       }
     }
   };
-  inputs?: Omit<TeaGuessFormData, "teaType" | "personType"> & { teaType?: string, personType?: string };
+  inputs?: Omit<TeaGuessFormData, "teaType"> & { teaType?: string };
+}
+
+export const initialTeaGuessActionResponse: TeaGuessActionResponse = {  
+  success: false,
+  message: "",
+}
+
+export type SelectOption = {
+  id: string;
+  name: string;
 }

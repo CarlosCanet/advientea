@@ -72,8 +72,7 @@ describe("teaGuessAction", () => {
     guessedTeaName: "teaname",
     guessedTeaType: TeaType.GREEN,
     guessedIngredients: [mockIngredient1, mockIngredient2],
-    guessedUserId: "user2-id",
-    guessedGuestName: null,
+    guessedPersonName: "user2-id",
     points: 800,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -102,7 +101,7 @@ describe("teaGuessAction", () => {
     vi.mocked(validateTeaGuess).mockResolvedValue({
       success: false,
       error: { errors: ["error"], properties: { teaName: { errors: ["value"] } } },
-      inputs: { ingredients: [], personName: "", personType: "", teaName: "", teaType: "" },
+      inputs: { ingredients: [], personName: "", teaName: "", teaType: "" },
     });
     const result = await submitTeaGuess("day-id", null, invalidFormData);
     expect(result.success).toBe(false);
@@ -117,7 +116,6 @@ describe("teaGuessAction", () => {
       data: {
         teaName: "teaname",
         personName: "user2-id",
-        personType: "userId",
         teaType: TeaType.GREEN,
         ingredients: [mockIngredient1.id, mockIngredient2.id],
       },
@@ -141,7 +139,6 @@ describe("teaGuessAction", () => {
       data: {
         teaName: "teaname",
         personName: "user2-id",
-        personType: "userId",
         teaType: TeaType.GREEN,
         ingredients: [mockIngredient1.id, mockIngredient2.id],
       },
@@ -159,7 +156,6 @@ describe("teaGuessAction", () => {
         teaType: TeaType.GREEN,
         ingredients: ["i1-id", "i2-id"],
         personName: "user2-id",
-        personType: "userId",
       }),
       expect.anything()
     );

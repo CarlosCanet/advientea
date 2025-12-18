@@ -12,8 +12,7 @@ describe("Dal tea guess", async () => {
   let guessComplete2: TeaGuessFormData;
   let guessOnlyTeaName: TeaGuessFormData;
   let guessOnlyTeaType: TeaGuessFormData;
-  let guessOnlyUserId: TeaGuessFormData;
-  let guessOnlyGuestName: TeaGuessFormData;
+  let guessOnlyUsername: TeaGuessFormData;
   let guessOnlyIngredients: TeaGuessFormData;
   const TEST_POINTS = 300;
 
@@ -31,15 +30,13 @@ describe("Dal tea guess", async () => {
     guessComplete1 = {
       teaName: tea1?.name,
       teaType: tea1?.teaType,
-      personName: ownerDay1?.id,
-      personType: "userId",
+      personName: ownerDay1?.username ?? "",
       ingredients: tea1.ingredients.map(ingredient => ingredient.id),
     };
     guessComplete2 = {
       teaName: tea2?.name,
       teaType: tea2?.teaType,
       personName: dayAssignmentRecord2.guestName!,
-      personType: "guestName",
       ingredients: tea2.ingredients.map(ingredient => ingredient.id),
     };
     guessOnlyTeaName = {
@@ -48,13 +45,8 @@ describe("Dal tea guess", async () => {
     guessOnlyTeaType = {
       teaType: tea2?.teaType,
     };
-    guessOnlyUserId = {
-      personName: ownerDay1?.id,
-      personType: "userId",
-    };
-    guessOnlyGuestName = {
-      personName: "Anónimo",
-      personType: "guestName",
+    guessOnlyUsername = {
+      personName: ownerDay1?.username,
     };
     guessOnlyIngredients = {
       ingredients: tea1.ingredients.map(ingredient => ingredient.id),
@@ -66,24 +58,21 @@ describe("Dal tea guess", async () => {
     const result2 = await createTeaGuess(testUser.id, testDay2.id, guessComplete2, TEST_POINTS);
     const result3 = await createTeaGuess(testUser.id, testDay2.id, guessOnlyTeaName, TEST_POINTS);
     const result4 = await createTeaGuess(testUser.id, testDay2.id, guessOnlyTeaType, TEST_POINTS);
-    const result5 = await createTeaGuess(testUser.id, testDay1.id, guessOnlyUserId, TEST_POINTS);
-    const result6 = await createTeaGuess(testUser.id, testDay2.id, guessOnlyGuestName, TEST_POINTS);
-    const result7 = await createTeaGuess(testUser.id, testDay2.id, guessOnlyIngredients, TEST_POINTS);
+    const result5 = await createTeaGuess(testUser.id, testDay1.id, guessOnlyUsername, TEST_POINTS);
+    const result6 = await createTeaGuess(testUser.id, testDay2.id, guessOnlyIngredients, TEST_POINTS);
     expect(result1).toBeDefined();
     expect(result1?.userId).toBe(testUser.id);
     expect(result1?.dayId).toBe(testDay1.id);
-    expect(result1?.guessedUserId).toBe(guessComplete1.personName);
+    expect(result1?.guessedPersonName).toBe(guessComplete1.personName);
     expect(result1?.guessedTeaName).toBe(guessComplete1.teaName);
     expect(result1?.guessedTeaType).toBe(guessComplete1.teaType);
-    expect(result1?.guessedGuestName).toBeNull();
     const resultIngredients1 = result1?.guessedIngredients.map(ingredient => ingredient.id).sort();
     expect(resultIngredients1).toEqual(guessComplete1.ingredients?.sort());
 
     expect(result2).toBeDefined();
     expect(result2?.userId).toBe(testUser.id);
     expect(result2?.dayId).toBe(testDay2.id);
-    expect(result2?.guessedUserId).toBeNull();
-    expect(result2?.guessedGuestName).toBe(guessComplete2.personName);
+    expect(result2?.guessedPersonName).toBe(guessComplete2.personName);
     expect(result2?.guessedTeaName).toBe(guessComplete2.teaName);
     expect(result2?.guessedTeaType).toBe(guessComplete2.teaType);
     const resultIngredients2 = result2?.guessedIngredients.map(ingredient => ingredient.id).sort();
@@ -93,46 +82,33 @@ describe("Dal tea guess", async () => {
     expect(result3?.userId).toBe(testUser.id);
     expect(result3?.dayId).toBe(testDay2.id);
     expect(result3?.guessedTeaName).toBe(guessOnlyTeaName.teaName);
-    expect(result3?.guessedGuestName).toBeNull();
+    expect(result3?.guessedPersonName).toBeNull();
     expect(result3?.guessedTeaType).toBeNull();
-    expect(result3?.guessedUserId).toBeNull();
     expect(result3?.guessedIngredients).toEqual([])
 
     expect(result4).toBeDefined();
     expect(result4?.userId).toBe(testUser.id);
     expect(result4?.dayId).toBe(testDay2.id);
     expect(result4?.guessedTeaType).toBe(guessOnlyTeaType.teaType);
-    expect(result4?.guessedUserId).toBeNull();
-    expect(result4?.guessedGuestName).toBeNull();
+    expect(result4?.guessedPersonName).toBeNull();
     expect(result4?.guessedTeaName).toBeNull();
     expect(result4?.guessedIngredients).toEqual([])
     
     expect(result5).toBeDefined();
     expect(result5?.userId).toBe(testUser.id);
     expect(result5?.dayId).toBe(testDay1.id);
-    expect(result5?.guessedUserId).toBe(guessOnlyUserId.personName);
-    expect(result5?.guessedGuestName).toBeNull();
+    expect(result5?.guessedPersonName).toBe(guessOnlyUsername.personName);
     expect(result5?.guessedTeaType).toBeNull();
     expect(result5?.guessedTeaName).toBeNull();
-    expect(result5?.guessedIngredients).toEqual([])
+    expect(result5?.guessedIngredients).toEqual([]);
     
     expect(result6).toBeDefined();
     expect(result6?.userId).toBe(testUser.id);
     expect(result6?.dayId).toBe(testDay2.id);
-    expect(result6?.guessedGuestName).toBe(guessOnlyGuestName.personName);
-    expect(result6?.guessedUserId).toBeNull();
+    expect(result6?.guessedPersonName).toBeNull();
     expect(result6?.guessedTeaName).toBeNull();
     expect(result6?.guessedTeaType).toBeNull();
-    expect(result6?.guessedIngredients).toEqual([])
-    
-    expect(result7).toBeDefined();
-    expect(result7?.userId).toBe(testUser.id);
-    expect(result7?.dayId).toBe(testDay2.id);
-    expect(result7?.guessedGuestName).toBeNull();
-    expect(result7?.guessedUserId).toBeNull();
-    expect(result7?.guessedTeaName).toBeNull();
-    expect(result7?.guessedTeaType).toBeNull();
-    const resultIngredients7 = result7?.guessedIngredients.map(ingredient => ingredient.id).sort();
+    const resultIngredients7 = result6?.guessedIngredients.map(ingredient => ingredient.id).sort();
     expect(resultIngredients7).toEqual(guessOnlyIngredients.ingredients?.sort());
   });
 
@@ -154,8 +130,7 @@ describe("Dal tea guess", async () => {
     expect(result).toBeDefined();
     expect(result?.userId).toBe(testUser.id);
     expect(result?.dayId).toBe(testDay1.id);
-    expect(result?.guessedUserId).toBeNull();
-    expect(result?.guessedGuestName).toBe(guessComplete2.personName);
+    expect(result?.guessedPersonName).toBe(guessComplete2.personName);
     expect(result?.guessedTeaName).toBe(guessComplete2.teaName);
     expect(result?.guessedTeaType).toBe(guessComplete2.teaType);
     const resultIngredients = result?.guessedIngredients.map(ingredient => ingredient.id).sort();

@@ -13,7 +13,6 @@ function createMockFormData(data: TeaGuessFormData): FormData {
   const formData = new FormData();
   if (data.teaName) formData.append("teaName", data.teaName);
   if (data.personName) formData.append("personName", data.personName);
-  if (data.personType) formData.append("personType", data.personType);
   if (data.teaType) formData.append("teaType", data.teaType);
   if (Array.isArray(data.ingredients)) {
     data.ingredients.forEach((ingredient, index) => formData.append(`ingredient-${index}`, ingredient));
@@ -24,10 +23,10 @@ function createMockFormData(data: TeaGuessFormData): FormData {
 describe("Tea service", () => {
   describe("validateTeaGuess (Form validation)", () => {
     it.each([
-      { name: "Full data", data: { ingredients: ["Ingre1", "Ingredient2"], teaName: "My tea", personName: "Person", personType: "userId" as const, teaType: TeaType.BLACK } },
+      { name: "Full data", data: { ingredients: ["Ingre1", "Ingredient2"], teaName: "My tea", personName: "Person", teaType: TeaType.BLACK } },
       { name: "Only ingredients", data: { ingredients: ["Ingre1", "Ingredient2"] } },
       { name: "Only Tea Name", data: { teaName: "My tea" } },
-      { name: "Only Person Name", data: { personName: "Person", personType: "userId" as const } },
+      { name: "Only Person Name", data: { personName: "Person" } },
       { name: "Only Tea Type", data: { teaType: TeaType.BLACK } },
     ])("should return true for valid data", ({ data }) => {
       const formData = createMockFormData(data);
@@ -39,14 +38,6 @@ describe("Tea service", () => {
       { name: "Only blank spaces", data: { personName: "   " } },
       { name: "Empty array", data: { ingredients: [] } },
     ])("should return false for empty string or empty arrays", ({ data }) => {
-      const formData = createMockFormData(data);
-      expect(validateTeaGuess(formData).success).toBe(false);
-    });
-
-    it("should return false if personType field is missing", () => {
-      const data: TeaGuessFormData = {
-        personName: "user",
-      }
       const formData = createMockFormData(data);
       expect(validateTeaGuess(formData).success).toBe(false);
     });

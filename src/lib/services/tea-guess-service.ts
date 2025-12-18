@@ -10,8 +10,7 @@ const TeaGuessFormSchema = z.object({
   teaName: z.string().trim().transform(val => val === "" ? undefined : val).optional(),
   teaType: z.preprocess(val => val === "" ? undefined : val, z.enum(TeaType).optional()),
   ingredients: z.array(z.string()).optional(),
-  personName: z.string().transform(val => val === "" ? undefined : val).optional(),
-  personType: z.preprocess(val => val === "" ? undefined : val, z.enum(["userId", "guestName"]).optional()),
+  personName: z.string().trim().transform(val => val === "" ? undefined : val).optional(),
 }).refine((data) => {
   const hasTeaName = !!data.teaName;
   const hasPerson = !!data.personName;
@@ -21,21 +20,13 @@ const TeaGuessFormSchema = z.object({
 }, {
   error: "Debes intentar adivinar al menos una opción",
   path: ["root"],
-}).refine((data) => {
-  if (!!data.personName) {
-    return !!data.personType;
-  }
-  return true;
-}, {
-  error: "If the user guess a personName it should choose which type of guess",
-  path: ["personType"],
 });
 
 export function validateTeaGuess(formData: FormData) {
+  const ingredients = getFormStringsByPrefix(formData, "ingredient");
   const rawData = {
-    ingredients: getFormStringsByPrefix(formData, "ingredient"),
+    ingredients: ingredients.length > 0 ? ingredients : undefined,
     personName: getFormString(formData, "personName"),
-    personType: getFormString(formData, "personType"),
     teaName: getFormString(formData, "teaName"),
     teaType: getFormString(formData, "teaType"),
   }
