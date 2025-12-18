@@ -31,7 +31,7 @@ export default async function TeaGuessCard({ dayId }: TeaGuessCardProps) {
 
   const ingredientList: Array<SelectOption> = ingredients?.map((ingredient) => ({ id: ingredient.id, name: ingredient.name })) ?? [];
   const teaHasIngredients: boolean = Array.isArray(dayForGuessing?.tea?.ingredients) && dayForGuessing.tea.ingredients.length > 0;
-  const userList: Array<SelectOption> = users?.map((user) => ({ id: user.userId ?? "", name: user.user?.username ?? user.guestName ?? "" })) ?? [];
+  const userList: Array<SelectOption> = users?.map((user) => ({ id: user.userId ?? "", name: user.user?.username ?? user.guestName ?? "" })).toSorted((user1, user2) => user1.name.localeCompare(user2.name)) ?? [];
   const canGuessTea = await canUserGuessTea(dayId, session.user.id);
   const canGuessPerson = await canUserGuessPerson(dayId, session.user.id);
   const day = await getDay(dayId);
@@ -39,6 +39,7 @@ export default async function TeaGuessCard({ dayId }: TeaGuessCardProps) {
     notFound();
   }
   const advienteaDayState = getAdvienteaDayState(day.dayNumber, day.year, session?.user.role as Role, false);
+  const isAssignee = dayForGuessing?.assignment?.user?.id === session.user.id;
 
   return (
     <div className="card w-full max-w-xl bg-base-200 card-xl shadow-md border border-primary/20 mb-5">
@@ -48,11 +49,13 @@ export default async function TeaGuessCard({ dayId }: TeaGuessCardProps) {
           <div className="flex gap-0">Adivina<span className="italic">Té</span></div>
           <BsFillPatchQuestionFill />
         </h2>
-        {advienteaDayState.isTeaReleased ? (
-          <Link href={`/ranking/${dayId}`} className="mt-6">
-            <button className="btn btn-success">Ranking de hoy</button>
-          </Link>
-        ): (
+
+        {isAssignee ? (
+          <div className="text-center p-4">
+            <div className="text-xl font-bold mb-2">¡Gracias por aportar tu granito de té!</div>
+            <p className="text-md">Como eres le proponen<span className="italic">Té</span> de hoy, no puedes participar en el juego.</p>
+          </div>
+        ) : (
           <>
             <div className="font-[Griffy] text-lg">¡ Vamos a jugar !</div>
             <TeaGuessForm
@@ -65,6 +68,11 @@ export default async function TeaGuessCard({ dayId }: TeaGuessCardProps) {
               canUserGuessPerson={canGuessPerson}
             />
           </>
+        )}
+        {advienteaDayState.isTeaReleased && (
+          <Link href={`/ranking/${dayId}`} className="mt-6">
+            <button className="btn btn-success">Ranking de hoy</button>
+          </Link>
         )}
       </div>
     </div>

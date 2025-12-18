@@ -31,7 +31,7 @@ export default async function RankingPage({ params }: RankingPageProps) {
           <h2 className="card-title text-lg">Ranking diario</h2>
         </div>
       </div>
-      {!advienteaDayState.isTeaReleased ? (
+      {advienteaDayState.isTeaReleased ? (
         <RankingList ranking={ranking} currentUserId={session.user.id}/>
       ) : (
         <div className="bg-base-100 w-full max-w-xl p-5 rounded-2xl justify-center items-center text-center text-xl font-[Griffy]">
