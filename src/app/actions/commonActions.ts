@@ -29,3 +29,12 @@ export function getFormFilesByPrefix(formData: FormData, prefix: string): File[]
   return files;
 }
 
+export function getFormStringsByPrefix(formData: FormData, prefix: string): Array<string> {
+  const strings: Array<string> = [];
+  for (const [key, value] of formData.entries()) {
+    if (key.startsWith(prefix) && typeof value === "string" && value.trim() !== "") {
+      strings.push(value);
+    }
+  }
+  return strings;
+}

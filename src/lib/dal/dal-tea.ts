@@ -2,8 +2,9 @@ import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getDay } from "./dal-day";
 
-export type TeaWithDayAndCompleteStory = Prisma.TeaGetPayload<{ include: { day: true, story: { include: { images: true } } } }>;
-export type TeaWithDay = Prisma.TeaGetPayload<{ include: { day: true } }>;
+export type TeaWithDayAndCompleteStory = Prisma.TeaGetPayload<{ include: { day: true, ingredients: true, story: { include: { images: true } } } }>;
+export type TeaWithDay = Prisma.TeaGetPayload<{ include: { day: true, ingredients: true } }>;
+export type TeaWithIngredients = Prisma.TeaGetPayload<{ include: { ingredients: true } }>;
 
 export async function getTea(id: string): Promise<TeaWithDayAndCompleteStory>;
 export async function getTea(day: number, year?: number): Promise<TeaWithDayAndCompleteStory>;
@@ -12,7 +13,7 @@ export async function getTea(idOrDay: string | number, year: number = 2025): Pro
   if (typeof idOrDay === "string") {
     const tea = await prisma.tea.findUnique({
       where: { id: idOrDay },
-      include: { day: true, story: { include: { images: { orderBy: { order: "asc" } } } } }
+      include: { day: true, ingredients: true, story: { include: { images: { orderBy: { order: "asc" } } } } }
     });
     if (!tea) return null;
     return tea;
@@ -22,7 +23,7 @@ export async function getTea(idOrDay: string | number, year: number = 2025): Pro
   if (!dayResponse || !dayResponse.tea) return null;
   const teaResponse = await prisma.tea.findUnique({
     where: { id: dayResponse.tea.id },
-    include: { day: true, story: { include: { images: { orderBy: { order: "asc" } } } } }
+    include: { day: true, ingredients: true, story: { include: { images: { orderBy: { order: "asc" } } } } }
   });
   if (!teaResponse) return null;
   return teaResponse;
@@ -31,7 +32,7 @@ export async function getTea(idOrDay: string | number, year: number = 2025): Pro
 export async function getAllTeas(year: number): Promise<TeaWithDayAndCompleteStory[]> {
   const teas = await prisma.tea.findMany({
     where: { day: { year } },
-    include: { day: true, story: { include: { images: { orderBy: { order: "asc" } } } } },
+    include: { day: true, ingredients: true, story: { include: { images: { orderBy: { order: "asc" } } } } },
   });
   return teas;
 }
@@ -46,7 +47,7 @@ export async function getUsernameAssignedToTea(id: string): Promise<string | nul
   return assignment.guestName ?? assignment.user?.username ?? null;
 }
 
-export async function addTea(data: Prisma.TeaCreateWithoutDayInput, day?: number, year: number = 2025): Promise<TeaWithDay | null> {
+export async function addTea(data: Prisma.TeaCreateWithoutDayInput, ingredientIds: Array<string> = [], day?: number, year: number = 2025): Promise<TeaWithDay | null> {
   let dayConnection: Prisma.DayCreateNestedOneWithoutTeaInput | undefined = undefined;
 
   if (day !== undefined) {
@@ -60,18 +61,23 @@ export async function addTea(data: Prisma.TeaCreateWithoutDayInput, day?: number
   }
 
   const tea = await prisma.tea.create({
-    data: { ...data, day: dayConnection },
-    include: { day: true },
+    data: {
+      ...data,
+      day: dayConnection,
+      ingredients: { connect: ingredientIds.map(id => ({ id })) }
+    },
+    include: { day: true, ingredients: true },
   });
   return tea;
 }
 
-export async function addTeaComplete(teaData: Prisma.TeaCreateInput, storyData: Prisma.StoryTeaCreateWithoutTeaInput,  storyImagesData: Array<Prisma.StoryImageCreateWithoutStoryInput>, day: number, year: number = 2025 ): Promise<TeaWithDay | null> {
+export async function addTeaComplete(teaData: Prisma.TeaCreateInput, ingredientIds: Array<string> = [], storyData: Prisma.StoryTeaCreateWithoutTeaInput, storyImagesData: Array<Prisma.StoryImageCreateWithoutStoryInput>, day: number, year: number = 2025 ): Promise<TeaWithDay | null> {
   const dayResponse = await getDay(day, year);
   if (!dayResponse) return null;
   const tea = await prisma.tea.create({
     data: {
       ...teaData,
+      ingredients: { connect: ingredientIds.map(id => ({ id })) },
       day: { connect: { id: dayResponse.id } },
       story: {
         create: {
@@ -82,12 +88,14 @@ export async function addTeaComplete(teaData: Prisma.TeaCreateInput, storyData: 
         }
       },
     },
-    include: { day: true },
+    include: { day: true, ingredients: true },
   });
   return tea;
 }
 
-export async function editTea(data: Prisma.TeaUncheckedUpdateInput, id: string, newDayNumber?: number): Promise<TeaWithDay | null>{
+type EditTeaInput = Prisma.TeaUncheckedUpdateInput & { ingredientIds?: Array<string> };
+export async function editTea(dataWithIngredients: EditTeaInput, id: string, newDayNumber?: number): Promise<TeaWithDay | null>{
+  const { ingredientIds, ...data } = dataWithIngredients;
   const currentTea = await prisma.tea.findUnique({ where: { id }, select: { dayId: true } });
   if (!currentTea) throw new Error(`No tea found for id ${id}`);
   const result = await prisma.$transaction(async (tx) => {
@@ -111,8 +119,11 @@ export async function editTea(data: Prisma.TeaUncheckedUpdateInput, id: string, 
     }
     const teaUpdated = await tx.tea.update({
       where: { id },
-      include: { day: true },
-      data: { ...data },
+      include: { day: true, ingredients: true },
+      data: {
+        ...data,
+        ingredients: ingredientIds ? { set: ingredientIds.map(id => ({ id })) } : undefined
+      },
     });
     return teaUpdated;
   });
@@ -121,14 +132,16 @@ export async function editTea(data: Prisma.TeaUncheckedUpdateInput, id: string, 
 
 export async function editTeaComplete(
   id: string,
-  teaData: Prisma.TeaUncheckedUpdateInput,
+  dataWithIngredients: EditTeaInput,
   storyData: Prisma.StoryTeaCreateWithoutTeaInput,
   storyImagesData: Array<Prisma.StoryImageCreateWithoutStoryInput>,
 ): Promise<TeaWithDayAndCompleteStory> {
+  const { ingredientIds, ...teaData } = dataWithIngredients;
   const tea = await prisma.tea.update({
     where: { id },
     data: {
       ...teaData,
+      ingredients: ingredientIds ? { set: ingredientIds.map(id => ({ id })) } : undefined,
       story: {
         upsert: {
           create: {
@@ -147,7 +160,7 @@ export async function editTeaComplete(
         },
       },
     },
-    include: { day: true, story: { include: { images: { orderBy: { order: "asc" } } } } },
+    include: { day: true, ingredients: true, story: { include: { images: { orderBy: { order: "asc" } } } } },
   });
   return tea;
 }
@@ -155,7 +168,7 @@ export async function editTeaComplete(
 export async function deleteTea(id: string): Promise<TeaWithDay> {
   const teaDeleted = await prisma.tea.delete({
     where: { id },
-    include: { day: true },
+    include: { day: true, ingredients: true },
   });
   return teaDeleted;
 }

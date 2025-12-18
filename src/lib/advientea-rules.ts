@@ -9,18 +9,26 @@ export interface AdvienteaDayState {
   isTeaReleased: boolean;
 }
 
+function getToday(): Date {
+  const today = new Date().getTime();
+  const TIME_OFFSET_HOURS = 1;
+  return new Date(today + TIME_OFFSET_HOURS * 3600000);
+}
+
 export function isDatePast(targetDate: Date): boolean {
-  const today = new Date();
+  const today = getToday();
   today.setHours(0, 0, 0, 0);
-  targetDate.setHours(0, 0, 0, 0);
-  return today > targetDate;
+  const target = new Date(targetDate);
+  target.setHours(0, 0, 0, 0);
+  return today > target;
 }
 
 export function isDateTodayOrPast(targetDate: Date): boolean {
-  const today = new Date();
+  const today = getToday();
   today.setHours(0, 0, 0, 0);
-  targetDate.setHours(0, 0, 0, 0);
-  return today >= targetDate;
+  const target = new Date(targetDate);
+  target.setHours(0, 0, 0, 0);
+  return today >= target;
 }
 
 export function getAdvienteaDayState(dayNumber: number, year: number, userRole: Role, isSimulated = false): AdvienteaDayState {
@@ -42,8 +50,8 @@ export function getAdvienteaDayState(dayNumber: number, year: number, userRole: 
     isTeaReleased: false,
   };
 
-  const today = new Date();
-  const currentHour = (today.getUTCHours() + 1) % 24;
+  const today = getToday();
+  const currentHour = today.getHours();
   const teaDate = new Date(year, 11, dayNumber);
 
   const isExec = userRole === Role.ADMIN || userRole === Role.EXECUTEAVE;

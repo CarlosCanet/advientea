@@ -41,7 +41,7 @@ export function calculateTimeScore(timestamp: Date): number{
   return hour < START_HOUR ? 200 : score;
 }
 
-export function calculateDailyScore(teaData: TeaGuessFormData, teaGuess: TeaGuessFormData): number{
+export function calculateDailyScore(teaData: TeaGuessFormData, teaGuess: TeaGuessFormData, guessTimestamp: Date): number{
   let score = 0;
   if (teaData.teaName && teaGuess.teaName) {
     score += calculateTeaNameScore(teaData.teaName, teaGuess.teaName);
@@ -49,14 +49,14 @@ export function calculateDailyScore(teaData: TeaGuessFormData, teaGuess: TeaGues
   if (teaData.teaType && teaGuess.teaType) {
     score += calculateTeaTypeScore(teaData.teaType, teaGuess.teaType);
   }
-  if (teaGuess.timestamp) {
-    score += calculateTimeScore(teaGuess.timestamp);
+  if (guessTimestamp) {
+    score += calculateTimeScore(guessTimestamp);
   }
   if (teaData.ingredients && teaGuess.ingredients) {
     score += calculateIngredientsScore(teaData.ingredients, teaGuess.ingredients);
   }
-  if (teaData.personaName && teaGuess.personaName) {
-    score += calculatePersonNameScore(teaData.personaName, teaGuess.personaName);
+  if (teaData.personName && teaGuess.personName) {
+    score += calculatePersonNameScore(teaData.personName, teaGuess.personName);
   }
   return score;
 }

@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { createPrismaUser } from "../dal/dal-user";
-import { Role } from "@/generated/prisma/enums";
-import { add25Days, addDayAssignment, addStoryImage, addStoryTea, addTea } from "../dal";
+import { Role, TeaType } from "@/generated/prisma/enums";
+import { add25Days, addDayAssignment, addStoryImage, addStoryTea, addTea, createTeaGuess } from "../dal";
+import { seedIngredients } from "../../../prisma/seed-ingredients";
 
 export async function seedDatabase() {
   // **** CREATE USERS **** //
@@ -18,10 +19,20 @@ export async function seedDatabase() {
   // **** CREATE DAYS **** //
   await add25Days();
 
+  // **** CREATE INGREDIENTS **** //
+  await seedIngredients();
+  const apple = await prisma.teaIngredient.findUnique({ where: { name: "Manzana" } });
+  const lemon = await prisma.teaIngredient.findUniqueOrThrow({ where: { name: "Limón" } });
+  const clove = await prisma.teaIngredient.findUnique({ where: { name: "Clavo" } });
+  const cinnamon = await prisma.teaIngredient.findUniqueOrThrow({ where: { name: "Canela" } });
+  const cardamon = await prisma.teaIngredient.findUniqueOrThrow({ where: { name: "Cardamomo" } });
+  if (!apple || !lemon || !clove || !cinnamon || !cardamon) throw new Error("There was a problem adding ingredients");
+
   // **** CREATE TEAS, STORIES & IMAGES **** //
   const tea1 = await addTea(
     {
       name: "Ruta del desierto",
+      teaType: TeaType.ROOIBOS,
       infusionTime: 3,
       temperature: 95,
       hasTheine: false,
@@ -31,6 +42,7 @@ export async function seedDatabase() {
       storeName: "La tienda de las especias",
       url: "wwww.tiendadelasespecias.com/rutadeldesierto",
     },
+    [apple.id, lemon.id],
     1,
     2025
   );
@@ -53,6 +65,7 @@ export async function seedDatabase() {
   const tea2 = await addTea(
     {
       name: "Pakistaní",
+      teaType: TeaType.BLACK,
       infusionTime: 5,
       temperature: 105,
       hasTheine: true,
@@ -63,6 +76,7 @@ export async function seedDatabase() {
       storeName: "La tienda de las especias",
       url: "wwww.tiendadelasespecias.com/rutadeldesierto",
     },
+    [clove.id, cinnamon.id, cardamon.id],
     2,
     2025
   );
@@ -121,7 +135,10 @@ export async function resetDatabase() {
   await prisma.$transaction([
     prisma.storyImage.deleteMany(),
     prisma.storyTea.deleteMany(),
+    prisma.teaGuess.deleteMany(),
+    prisma.dayAssignment.deleteMany(),
     prisma.tea.deleteMany(),
+    // prisma.teaIngredient.deleteMany(),
     prisma.day.deleteMany(),
     prisma.user.deleteMany(),
   ]);

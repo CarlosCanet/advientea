@@ -142,9 +142,8 @@ export const initialUpdateProfileActionResponse: UpdateProfileActionResponse = {
 export interface TeaGuessFormData {
   teaName?: string;
   teaType?: TeaType;
-  timestamp: Date;
   ingredients?: Array<string>;
-  personaName?: string;
+  personName?: string;
 }
 
 export interface TeaGuessActionResponse {
@@ -158,5 +157,23 @@ export interface TeaGuessActionResponse {
       }
     }
   };
-  inputs?: TeaGuessFormData;
+  inputs?: Omit<TeaGuessFormData, "teaType"> & { teaType?: string };
+}
+
+export const initialTeaGuessActionResponse: TeaGuessActionResponse = {  
+  success: false,
+  message: "",
+}
+
+export type SelectOption = {
+  id: string;
+  name: string;
+}
+
+export interface RankingEntry {
+  userId: string;
+  username: string;
+  avatar: string;
+  points: number;
+  rank: number;
 }
