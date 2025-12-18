@@ -6,3 +6,4 @@ export * from "./dal-day-assignment";
 export * from "./dal-auth";
 export * from "./dal-user";
 export * from "./dal-tea-guess";
+export * from "./dal-tea-ingredient";

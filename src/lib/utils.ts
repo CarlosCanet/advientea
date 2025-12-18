@@ -17,3 +17,17 @@ export function cleanGuessName(teaName: string): string {
     .trim()
     .toLowerCase();
 }
+
+export const TEA_TYPE_LABELS: Record<string,string> = {
+  BLACK: "Té Negro",
+  GREEN: "Té Verde",
+  RED: "Té Rojo (Pu-Ehr)",
+  WHITE: "Té Blanco",
+  OOLONG: "Té Azul (Oolong)",
+  ROOIBOS: "Rooibos",
+  HERBAL: "Infusión",
+  MATE: "Mate",
+  CHAI: "Chai",
+  MATCHA: "Matcha",
+  BLEND: "Mezcla",
+};

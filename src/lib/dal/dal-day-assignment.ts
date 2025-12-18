@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 
 export type DayAssignmentWithDayTeaAndUser = Prisma.DayAssignmentGetPayload<{ include: { day: { include: { tea: true } }; user: true } }>;
 export type DayAssignmentWithDayAndUser = Prisma.DayAssignmentGetPayload<{ include: { user: true; day: true } }>;
+export type Assigners = Prisma.DayAssignmentGetPayload<{ select: { user: { select: { username: true } }, userId: true, guestName: true } }>;
 
 export async function getDayAssignment(id: string): Promise<DayAssignmentWithDayTeaAndUser | null>;
 export async function getDayAssignment(year: number, email: string): Promise<DayAssignmentWithDayTeaAndUser | null>;
@@ -47,6 +48,13 @@ export async function getAllDayAssignment(year: number = 2025): Promise<Array<Da
     console.error(error);
     throw error;
   }
+}
+
+export async function getAllAssigners(): Promise<Array<Assigners> | null>{
+  const result = await prisma.dayAssignment.findMany({
+    select: { user: { select: { username: true } }, userId: true, guestName: true }
+  });
+  return result;
 }
 
 interface AssigneeInput {
