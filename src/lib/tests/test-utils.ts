@@ -133,10 +133,12 @@ export async function seedDatabase() {
 
 export async function resetDatabase() {
   await prisma.$transaction([
-    prisma.teaIngredient.deleteMany(),
     prisma.storyImage.deleteMany(),
     prisma.storyTea.deleteMany(),
+    prisma.teaGuess.deleteMany(),
+    prisma.dayAssignment.deleteMany(),
     prisma.tea.deleteMany(),
+    // prisma.teaIngredient.deleteMany(),
     prisma.day.deleteMany(),
     prisma.user.deleteMany(),
   ]);
