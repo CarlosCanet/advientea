@@ -1,12 +1,15 @@
 import { SelectOption } from "@/lib/types";
-import { getAllAssigners, getAllIngredients, getDayForGuessing } from "../lib/dal";
+import { getAllAssigners, getAllIngredients, getDay, getDayForGuessing } from "../lib/dal";
 import TeaGuessForm from "./TeaGuessForm";
 import { canUserGuessPerson, canUserGuessTea } from "@/lib/services/tea-guess-service";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
-import { TeaType } from "@/generated/prisma/enums";
+import { Role, TeaType } from "@/generated/prisma/enums";
 import { TEA_TYPE_LABELS } from "@/lib/utils";
 import { BsFillPatchQuestionFill } from "react-icons/bs";
+import { getAdvienteaDayState } from "@/lib/advientea-rules";
+import { notFound } from "next/navigation";
+import Link from "next/link";
 
 interface TeaGuessCardProps {
   dayId: string;
@@ -31,6 +34,11 @@ export default async function TeaGuessCard({ dayId }: TeaGuessCardProps) {
   const userList: Array<SelectOption> = users?.map((user) => ({ id: user.userId ?? "", name: user.user?.username ?? user.guestName ?? "" })) ?? [];
   const canGuessTea = await canUserGuessTea(dayId, session.user.id);
   const canGuessPerson = await canUserGuessPerson(dayId, session.user.id);
+  const day = await getDay(dayId);
+  if (!day) {
+    notFound();
+  }
+  const advienteaDayState = getAdvienteaDayState(day.dayNumber, day.year, session?.user.role as Role, false);
 
   return (
     <div className="card w-full max-w-xl bg-base-200 card-xl shadow-md border border-primary/20 mb-5">
@@ -40,16 +48,24 @@ export default async function TeaGuessCard({ dayId }: TeaGuessCardProps) {
           <div className="flex gap-0">Adivina<span className="italic">Té</span></div>
           <BsFillPatchQuestionFill />
         </h2>
-        <div className="font-[Griffy] text-lg">¡ Vamos a jugar !</div>
-        <TeaGuessForm
-          dayId={dayId}
-          users={userList}
-          teaHasIngredients={teaHasIngredients}
-          ingredients={ingredientList}
-          teaTypeOptions={teaTypeOptions}
-          canUserGuessTea={canGuessTea}
-          canUserGuessPerson={canGuessPerson}
-        />
+        {advienteaDayState.isTeaReleased ? (
+          <Link href={`/ranking/${dayId}`} className="mt-6">
+            <button className="btn btn-success">Ranking de hoy</button>
+          </Link>
+        ): (
+          <>
+            <div className="font-[Griffy] text-lg">¡ Vamos a jugar !</div>
+            <TeaGuessForm
+              dayId={dayId}
+              users={userList}
+              teaHasIngredients={teaHasIngredients}
+              ingredients={ingredientList}
+              teaTypeOptions={teaTypeOptions}
+              canUserGuessTea={canGuessTea}
+              canUserGuessPerson={canGuessPerson}
+            />
+          </>
+        )}
       </div>
     </div>
   );
