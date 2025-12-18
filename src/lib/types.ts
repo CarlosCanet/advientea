@@ -169,3 +169,11 @@ export type SelectOption = {
   id: string;
   name: string;
 }
+
+export interface RankingEntry {
+  userId: string;
+  username: string;
+  avatar: string;
+  points: number;
+  rank: number;
+}

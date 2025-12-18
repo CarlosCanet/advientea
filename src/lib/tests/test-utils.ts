@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { createPrismaUser } from "../dal/dal-user";
 import { Role, TeaType } from "@/generated/prisma/enums";
-import { add25Days, addDayAssignment, addStoryImage, addStoryTea, addTea } from "../dal";
+import { add25Days, addDayAssignment, addStoryImage, addStoryTea, addTea, createTeaGuess } from "../dal";
 import { seedIngredients } from "../../../prisma/seed-ingredients";
 
 export async function seedDatabase() {
