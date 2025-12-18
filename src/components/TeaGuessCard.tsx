@@ -39,6 +39,7 @@ export default async function TeaGuessCard({ dayId }: TeaGuessCardProps) {
     notFound();
   }
   const advienteaDayState = getAdvienteaDayState(day.dayNumber, day.year, session?.user.role as Role, false);
+  const isAssignee = dayForGuessing?.assignment?.user?.id === session.user.id;
 
   return (
     <div className="card w-full max-w-xl bg-base-200 card-xl shadow-md border border-primary/20 mb-5">
@@ -48,11 +49,13 @@ export default async function TeaGuessCard({ dayId }: TeaGuessCardProps) {
           <div className="flex gap-0">Adivina<span className="italic">Té</span></div>
           <BsFillPatchQuestionFill />
         </h2>
-        {advienteaDayState.isTeaReleased ? (
-          <Link href={`/ranking/${dayId}`} className="mt-6">
-            <button className="btn btn-success">Ranking de hoy</button>
-          </Link>
-        ): (
+
+        {isAssignee ? (
+          <div className="text-center p-4">
+            <div className="text-xl font-bold mb-2">¡Gracias por tu aportar tu granito de té!</div>
+            <p className="text-md">Como eres le proponen<span className="italic">Té</span> de hoy, no puedes participar en el juego.</p>
+          </div>
+        ) : (
           <>
             <div className="font-[Griffy] text-lg">¡ Vamos a jugar !</div>
             <TeaGuessForm
@@ -65,6 +68,11 @@ export default async function TeaGuessCard({ dayId }: TeaGuessCardProps) {
               canUserGuessPerson={canGuessPerson}
             />
           </>
+        )}
+        {advienteaDayState.isTeaReleased && (
+          <Link href={`/ranking/${dayId}`} className="mt-6">
+            <button className="btn btn-success">Ranking de hoy</button>
+          </Link>
         )}
       </div>
     </div>
