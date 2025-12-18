@@ -24,7 +24,7 @@ export default function RankingList({ ranking, currentUserId }: RankingListProps
               <div className="list-col-grow">
                 <div className="font-semibold opacity-75">{user.username}</div>
               </div>
-              <div className="text-xs uppercase font-bold opacity-80">{user.points} puntos</div>
+              <div className="text-xs uppercase font-bold opacity-80">{user.points < 0 ? "Próximamente" : `${user.points} puntos`}</div>
             </li>
           );
         })}

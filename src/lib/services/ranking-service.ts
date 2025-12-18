@@ -1,7 +1,14 @@
 import { prisma } from "@/lib/prisma";
 import { DEFAULT_IMAGE_PROFILE, RankingEntry } from "@/lib/types";
+import { getAdvienteaDayState } from "../advientea-rules";
+import { getDay } from "../dal";
+import { Role } from "@/generated/prisma/enums";
 
-export async function getDailyRanking(dayId: string): Promise<Array<RankingEntry>> {
+export async function getDailyRanking(dayId: string): Promise<Array<RankingEntry> | null> {
+  const day = await getDay(dayId);
+  if (!day) return null;
+  const advienteaDayState = getAdvienteaDayState(day.dayNumber, day.year, Role.USER, false);
+  const isPersonNameReleased = advienteaDayState.isPersonNameReleased;
   const allGuesses = await prisma.teaGuess.findMany({
     where: { dayId },
     include: { user: { select: { username: true, image: true } } },
@@ -21,13 +28,25 @@ export async function getDailyRanking(dayId: string): Promise<Array<RankingEntry
         return pos1.createdAt.getTime() - pos2.createdAt.getTime();
       }
     })
-    .map((guess, index) => ({
-      userId: guess.userId,
-      avatar: guess.user.image ?? DEFAULT_IMAGE_PROFILE,
-      username: guess.user.username,
-      points: guess.points,
-      rank: index + 1,
-    }));
+    .map((guess, index) => {
+      if (!isPersonNameReleased && guess.guessedPersonName && !guess.guessedTeaName && !guess.guessedTeaType) {
+        return ({
+          userId: guess.userId,
+          avatar: guess.user.image ?? DEFAULT_IMAGE_PROFILE,
+          username: guess.user.username,
+          points: -1,
+          rank: index + 1,
+        })
+      } else {
+        return ({
+          userId: guess.userId,
+          avatar: guess.user.image ?? DEFAULT_IMAGE_PROFILE,
+          username: guess.user.username,
+          points: guess.points,
+          rank: index + 1,
+        })
+      }
+    });
   return rankingList;
 }
 

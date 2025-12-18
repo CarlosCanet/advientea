@@ -20,6 +20,9 @@ export default async function RankingPage({ params }: RankingPageProps) {
   }
   const advienteaDayState = getAdvienteaDayState(day.dayNumber, day.year, session?.user.role as Role, false);
   const ranking = await getDailyRanking(dayId);
+  if (!ranking) {
+    notFound();
+  }
   return (
     <div className="flex flex-col justify-center items-center mx-5 mt-5 gap-3">
       <div className="card w-full max-w-xl bg-neutral text-neutral-content card-xl shadow-sm">
@@ -28,7 +31,7 @@ export default async function RankingPage({ params }: RankingPageProps) {
           <h2 className="card-title text-lg">Ranking diario</h2>
         </div>
       </div>
-      {advienteaDayState.isTeaReleased ? (
+      {!advienteaDayState.isTeaReleased ? (
         <RankingList ranking={ranking} currentUserId={session.user.id}/>
       ) : (
         <div className="bg-base-100 w-full max-w-xl p-5 rounded-2xl justify-center items-center text-center text-xl font-[Griffy]">
