@@ -50,6 +50,7 @@ async function Navbar() {
             {/* <li><Link href="/teaDay">Té del día</Link></li> */}
             <li><Link href="/add-tea-info">Añadir tu té</Link></li>
             {session && session.user.role !== Role.USER && <li><Link href="/edit-tea-info">Editar tu té</Link></li>}
+            <li><Link href="/timer">Temporizador</Link></li>
             {session && <li><form action={signout}><button type="submit">Cerrar sesión</button></form></li>}
           </ul>
         </div>

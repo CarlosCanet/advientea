@@ -76,7 +76,7 @@ export default async function TeaDayPage({ params, searchParams }: TeaDayPagePro
                     </div>
                     <TeaInfusionInfo tea={tea} />
                     <div className="mt-2">
-                      <Timer minutes={tea?.infusionTime ?? 0} />
+                      <Timer seconds={(tea?.infusionTime ?? 0) * 60} />
                     </div>
                     
                     {advienteaDayState.isTeaReleased && (tea?.storeName || tea?.url) && 
