@@ -3,12 +3,13 @@
 import { useState, useEffect, useRef } from "react";
 
 interface TimerProps {
-  minutes: number;
+  seconds: number;
+  isPlayingSound?: boolean
 }
 
-export default function Timer({ minutes }: TimerProps) {
+export default function Timer({ seconds, isPlayingSound = true }: TimerProps) {
   const [isRunning, setIsRunning] = useState(false);
-  const [timeLeft, setTimeLeft] = useState<number>(minutes * 60);
+  const [timeLeft, setTimeLeft] = useState<number>(seconds);
   const endTimeRef = useRef<number | null>(null);
   const modalRef = useRef<HTMLDialogElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -23,7 +24,7 @@ export default function Timer({ minutes }: TimerProps) {
 
   const resetTimer = () => {
     setIsRunning(false);
-    setTimeLeft(minutes * 60);
+    setTimeLeft(seconds);
     endTimeRef.current = null;
   };
 
@@ -46,8 +47,10 @@ export default function Timer({ minutes }: TimerProps) {
 
       if (difference <= 0) {
         openModal();
-        audioRef.current?.play();
-        setTimeLeft(minutes * 60);
+        if (isPlayingSound) {
+          audioRef.current?.play();
+        }
+        setTimeLeft(seconds);
         setIsRunning(false);
         clearInterval(intervalId);
       } else {
@@ -56,7 +59,7 @@ export default function Timer({ minutes }: TimerProps) {
     }, 200);
 
     return () => clearInterval(intervalId);
-  }, [isRunning, minutes]);
+  }, [isRunning, seconds]);
 
   return (
     <>

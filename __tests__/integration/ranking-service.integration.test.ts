@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { prisma } from "@/lib/prisma";
-import { getDailyRanking } from "@/lib/services/ranking-service";
+import { getDailyRanking, getOverallRanking } from "@/lib/services/ranking-service";
 import { Day, TeaIngredient, TeaType, User } from "@/generated/prisma/client";
 import { createTeaGuess } from "@/lib/dal";
 
@@ -36,9 +36,10 @@ describe("Ranking service", () => {
 
       const ranking = await getDailyRanking(day1.id);
 
-      expect(ranking[0].points).toBe(1000);
-      expect(ranking[1].points).toBe(740);
-      expect(ranking[2].points).toBe(580);
+      expect(ranking).not.toBeNull();
+      expect(ranking![0].points).toBe(1000);
+      expect(ranking![1].points).toBe(740);
+      expect(ranking![2].points).toBe(580);
     });
 
     it("should break ties base on who guessed EARLIER", async () => {
@@ -60,12 +61,13 @@ describe("Ranking service", () => {
 
       const ranking = await getDailyRanking(day2.id);
 
-      expect(ranking[0].points).toBe(780);
-      expect(ranking[0].userId).toBe(user3.id);
-      expect(ranking[1].points).toBe(780);
-      expect(ranking[1].userId).toBe(user2.id);
-      expect(ranking[2].points).toBe(390);
-      expect(ranking[2].userId).toBe(user1.id);
+      expect(ranking).not.toBeNull();
+      expect(ranking![0].points).toBe(780);
+      expect(ranking![0].userId).toBe(user3.id);
+      expect(ranking![1].points).toBe(780);
+      expect(ranking![1].userId).toBe(user2.id);
+      expect(ranking![2].points).toBe(390);
+      expect(ranking![2].userId).toBe(user1.id);
     });
 
     it("should only count the LAST guess of a user for that day", async () => {
@@ -90,10 +92,63 @@ describe("Ranking service", () => {
 
       const ranking = await getDailyRanking(day2.id);
 
-      expect(ranking[0].points).toBe(716);
-      expect(ranking[0].userId).toBe(user1.id);
-      expect(ranking[1].points).toBe(446);
-      expect(ranking[1].userId).toBe(user2.id);
+      expect(ranking).not.toBeNull();
+      expect(ranking![0].points).toBe(716);
+      expect(ranking![0].userId).toBe(user1.id);
+      expect(ranking![1].points).toBe(446);
+      expect(ranking![1].userId).toBe(user2.id);
     });
   });
+  describe("getOverallRanking", () => {
+    it("should order users by points", async () => { 
+      // User1 940 points: day1 -> 740 points, day2 -> 200 points
+      await createTeaGuess(user1.id, day1.id, { teaName: "Ruta del desierto", teaType: TeaType.ROOIBOS, ingredients: [apple.id], personName: "Dein" }, 740);
+      await createTeaGuess(user1.id, day2.id, { teaName: "Té Pakistaní", teaType: TeaType.ROOIBOS, ingredients: [apple.id, lemon.id], personName: "Deinos" }, 200);
+
+      // User2 1500 points: day1 -> 900 points, day2 -> 600 points
+      await createTeaGuess(user2.id, day1.id, { teaName: "Ruta desierto", teaType: TeaType.HERBAL, ingredients: [apple.id], personName: "Deino" }, 900);
+      await createTeaGuess(user2.id, day2.id, { teaName: "Té Pakistaní", teaType: TeaType.BLACK, ingredients: [apple.id], personName: "miko" }, 600);
+      
+      // User3 1000 points: day1-> 1000 points
+      await createTeaGuess(user3.id, day1.id, { teaName: "Ruta del desierto", teaType: TeaType.ROOIBOS, ingredients: [], personName: "David" }, 1000);
+
+      const ranking = await getOverallRanking();
+
+      expect(ranking).not.toBeNull();
+      expect(ranking![0].points).toBe(1500);
+      expect(ranking![0].userId).toBe(user2.id);
+      expect(ranking![1].points).toBe(1000);
+      expect(ranking![1].userId).toBe(user3.id);
+      expect(ranking![2].points).toBe(940);
+      expect(ranking![2].userId).toBe(user1.id);
+    });
+
+    it("should only count the LAST guess of a user for every day", async () => { 
+      // User1 940 points: day1 -> 740 points, day2 -> 200 points
+      const guess111 = await createTeaGuess(user1.id, day1.id, { teaName: "Té especial", teaType: TeaType.ROOIBOS, ingredients: [apple.id], personName: "Adcc" }, 150);
+      const guess112 = await createTeaGuess(user1.id, day1.id, { teaName: "Ruta del desierto", teaType: TeaType.ROOIBOS, ingredients: [apple.id], personName: "Dein" }, 740);
+      await createTeaGuess(user1.id, day2.id, { teaName: "Té Pakistaní", teaType: TeaType.ROOIBOS, ingredients: [apple.id, lemon.id], personName: "Deinos" }, 200);
+
+      // User2 1500 points: day1 -> 900 points, day2 -> 600 points
+      const guess211 = await createTeaGuess(user2.id, day1.id, { teaName: "Ascae té", teaType: TeaType.BLACK, ingredients: [cinnamon.id], personName: "Deino" }, 300);
+      const guess212 = await createTeaGuess(user2.id, day1.id, { teaName: "Ruta desierto", teaType: TeaType.HERBAL, ingredients: [apple.id], personName: "Deino" }, 900);
+      await createTeaGuess(user2.id, day2.id, { teaName: "Té Pakistaní", teaType: TeaType.BLACK, ingredients: [apple.id], personName: "miko" }, 600);
+
+      const date = new Date();
+      await Promise.all([
+        prisma.teaGuess.update({ where: { id: guess111!.id }, data: { createdAt: date } }),
+        prisma.teaGuess.update({ where: { id: guess211!.id }, data: { createdAt: new Date(date.getTime() + 5000) } }),
+        prisma.teaGuess.update({ where: { id: guess112!.id }, data: { createdAt: new Date(date.getTime() + 10000) } }),
+        prisma.teaGuess.update({ where: { id: guess212!.id }, data: { createdAt: new Date(date.getTime() + 20000) } }),
+      ]);
+
+      const ranking = await getOverallRanking();
+
+      expect(ranking).not.toBeNull();
+      expect(ranking![0].points).toBe(1500);
+      expect(ranking![0].userId).toBe(user2.id);
+      expect(ranking![1].points).toBe(940);
+      expect(ranking![1].userId).toBe(user1.id);
+    })
+  })
 });

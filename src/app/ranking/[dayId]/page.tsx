@@ -6,6 +6,7 @@ import { getDay } from "@/lib/dal";
 import { getDailyRanking } from "@/lib/services/ranking-service";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
+import { FaAward } from "react-icons/fa6";
 
 interface RankingPageProps {
   params: Promise<{ dayId: string }>;
@@ -27,7 +28,7 @@ export default async function RankingPage({ params }: RankingPageProps) {
     <div className="flex flex-col justify-center items-center mx-5 mt-5 gap-3">
       <div className="card w-full max-w-xl bg-neutral text-neutral-content card-xl shadow-sm">
         <div className="card-body items-center">
-          <h2 className="card-title text-4xl">Día {day.dayNumber}</h2>
+          <h2 className="card-title text-4xl"><FaAward />Día {day.dayNumber}<FaAward /></h2>
           <h2 className="card-title text-lg">Ranking diario</h2>
         </div>
       </div>

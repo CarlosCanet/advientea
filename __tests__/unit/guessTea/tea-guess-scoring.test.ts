@@ -1,7 +1,7 @@
 import { TeaType } from "@/generated/prisma/enums";
 import { calculateDailyScore, calculateIngredientsScore, calculatePersonNameScore, calculateTeaNameScore, calculateTeaTypeScore, calculateTimeScore, } from "@/lib/tea-guess-scoring";
 import { TeaGuessFormData } from "@/lib/types";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 describe("Tea guess scoring", () => {
   describe("TeaName scoring", () => {
@@ -163,7 +163,6 @@ describe("Tea guess scoring", () => {
       teaType: TeaType.GREEN,
       ingredients: ["i1-id", "i2-id", "i3-id"],
       personName: "user1-id",
-      personType: "userId"
     }
     it("should give 1000 if you answer correctly every field and before 10:00 h", () => {
       const guess: TeaGuessFormData = {
@@ -171,7 +170,6 @@ describe("Tea guess scoring", () => {
         teaType: TeaType.GREEN,
         ingredients: ["i1-id", "i3-id", "i2-id"],
         personName: "user1-id",
-        personType: "userId"
       }
       const timestamp = new Date();
       timestamp.setHours(9, 58, 0, 0);
@@ -189,7 +187,6 @@ describe("Tea guess scoring", () => {
         teaType: TeaType.BLACK,
         ingredients: ["i4-id", "i5-id", "i6-id"],
         personName: "zsr1awbxM125Aczsr1awbxM125Ac",
-        personType: "userId"
       }
       const timestamp = new Date();
       timestamp.setHours(20, 8, 0, 0);
@@ -203,7 +200,6 @@ describe("Tea guess scoring", () => {
         teaType: TeaType.BLACK,
         ingredients: ["i4-id", "i5-id", "i6-id"],
         personName: "user1-id",
-        personType: "userId"
       }
       const timestamp = new Date();
       timestamp.setHours(15, 0, 0, 0);
@@ -220,7 +216,6 @@ describe("Tea guess scoring", () => {
       const guess: TeaGuessFormData = {
         teaName: "tea-name",
         personName: "zsr1awbxM125Ac",
-        personType: "userId"
       }
       const timestamp = new Date();
       timestamp.setHours(15, 0, 0, 0);
@@ -233,19 +228,16 @@ describe("Tea guess scoring", () => {
       const incompleteTea: TeaGuessFormData = {
         teaName: "tea-name",
         personName: "user1-id",
-        personType: "userId"
       }
       const guess1: TeaGuessFormData = {
         teaName: "tea-name",
         personName: "zsr1awbxM125Ac",
-        personType: "userId"
       }
       const guess2: TeaGuessFormData = {
         teaName: "tea-name",
         teaType: TeaType.BLACK,
         ingredients: ["i1-id"],
         personName: "zsr1awbxM125Ac",
-        personType: "userId"
       }
       const timestamp = new Date();
       timestamp.setHours(15, 0, 0, 0);

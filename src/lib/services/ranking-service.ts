@@ -50,6 +50,36 @@ export async function getDailyRanking(dayId: string): Promise<Array<RankingEntry
   return rankingList;
 }
 
-export async function getOverallRanking(year: number): Promise<Array<RankingEntry>> {
-  return [{ userId: "", username: "", avatar: "", points: 0, rank: 1 }];
+export async function getOverallRanking(year: number = 2025): Promise<Array<RankingEntry>> {
+  // TODO better handle year
+  const allGuesses = await prisma.teaGuess.findMany({
+    where: { day: { year } },
+    include: { user: { select: { username: true, image: true } } },
+    orderBy: { createdAt: "desc" },
+  });
+  const uniqueGuesses = new Map<string, (typeof allGuesses)[0]>();
+  for (const guess of allGuesses) {
+    const compositeKey = `${guess.userId}_${guess.dayId}`
+    if (!uniqueGuesses.has(compositeKey)) {
+      uniqueGuesses.set(compositeKey, guess);
+    }
+  }
+  const uniqueUserGuesses = new Map<string, (typeof allGuesses)[0]>();
+  uniqueGuesses.forEach(guess => {
+    const currentPoints = uniqueUserGuesses.get(guess.userId)?.points ?? 0;
+    uniqueUserGuesses.set(guess.userId, { ...guess, points: currentPoints + guess.points });
+  })
+
+  const rankingList: Array<RankingEntry> = Array.from(uniqueUserGuesses.values())
+    .toSorted((pos1, pos2) => {
+      return pos2.points - pos1.points;
+    })
+    .map((guess, index) => ({
+      userId: guess.userId,
+      avatar: guess.user.image ?? DEFAULT_IMAGE_PROFILE,
+      username: guess.user.username,
+      points: guess.points,
+      rank: index + 1,
+    }));
+  return rankingList;
 }
