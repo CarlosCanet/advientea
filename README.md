@@ -1,7 +1,6 @@
 # Adviente - Tea Advent Calendar 🍵
 
-![GitHub deployments](https://img.shields.io/github/deployments/CarlosCanet/advientea/production?logo=vercel&label=vercel) ![Static Badge](https://img.shields.io/badge/project-real-orange)
-
+![Project Type](https://img.shields.io/badge/project_type-field_tested-10b981) ![GitHub deployments](https://img.shields.io/github/deployments/CarlosCanet/advientea/production?logo=vercel&label=vercel) ![Tech Stack](https://img.shields.io/badge/stack-Next.js_16_%7C_Tailwind_v4-000000?logo=next.js&logoColor=white) ![License](https://img.shields.io/badge/license-MIT-blue)
 
 A gamified advent calendar web application for tea lovers, built with Next.js 16, featuring daily challenges, user authentication, and a ranking system. This app is designed for the community participating in this special event.
 
