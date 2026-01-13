@@ -23,7 +23,7 @@ This is a Next.js 16.0 project using the App Router pattern with TypeScript, fea
 - Cloudinary for image management
 - bcryptjs for password hashing
 - fastest-levenshtein for string similarity scoring
-- Jest + React Testing Library for TDD
+- Vitest + React Testing Library for TDD
 
 **Critical Next.js 16 Changes:**
 - ⚠️ Dynamic route params are now async: `const { id } = await params`
@@ -38,7 +38,7 @@ npm run dev    # Uses --turbopack flag for faster development
 npm run build  # Production build with --turbopack
 npm run start  # Production server
 npm run lint   # ESLint with Next.js config
-npm run test   # Run tests with Jest
+npm run test   # Run tests with Vitest
 ```
 
 **Critical:** This project uses Turbopack by default - always include `--turbopack` flag in build commands.
@@ -105,7 +105,7 @@ src/app/
 - Keep state as close to components that need it as possible
 
 ### Testing
-- The project uses Jest for unit and integration testing.
+- The project uses Vitest for unit and integration testing.
 - Run tests using the `npm run test` command.
 - Write tests for new components and logic to ensure they are working as expected.
 - Use React Testing Library for testing components.
@@ -211,19 +211,16 @@ Minimal setup in `postcss.config.mjs` using only `@tailwindcss/postcss` plugin f
 7. **Add loading states** - Use `loading.tsx` files and Suspense boundaries
 8. **Optimize performance** - Check bundle size and implement code splitting
 
-## File Structure Best Practices
+## Canonical File Structure Strategy
 
-```
-src/app/
-├── (dashboard)/          # Route groups for organization
-├── api/                  # API routes
-├── globals.css          # Global styles with Tailwind v4
-├── layout.tsx           # Root layout with font optimization
-├── loading.tsx          # Global loading UI
-├── error.tsx            # Global error boundary
-├── not-found.tsx        # 404 page
-└── page.tsx             # Home page
-```
+Instead of maintaining a rigid file tree, follow these architectural patterns:
+
+- **Global Config**: `src/lib/` for shared logic (auth, scoring, rules), `prisma/` for DB schema.
+- **Routing**: `src/app/[feature-domain]/` pattern (e.g., `teaDay/`, `ranking/`, `admin-dashboard/`).
+- **Auth Pages**: Flat structure `src/app/sign-in`, `src/app/sign-up`, etc.
+- **API**: `src/app/api/[resource]/route.ts` for endpoints.
+- **Generated Code**: `src/generated/` (do not edit manually).
+- **Public Assets**: `/public` for static images/icons.
 
 ## Deployment Considerations
 
@@ -238,10 +235,10 @@ src/app/
 
 ### Required Pages
 
-#### Authentication Pages (`src/app/(auth)/`)
-- **Registration (`/register`)**: Secure form with email, username, password validation
-- **Login (`/login`)**: Email/username + password authentication
-- **Password Recovery (`/forgot-password`)**: Email-based password reset flow
+#### Authentication Pages
+- **Registration (`/sign-up`)**: Secure form with email, username, password validation
+- **Login (`/sign-in`)**: Email/username + password authentication
+- **Password Recovery (`/reset-password`)**: Email-based password reset flow
 
 #### User Pages
 - **Profile (`/profile`)**: 
@@ -250,13 +247,13 @@ src/app/
   - Display earned badges
   - Show user statistics
 
-- **Calendar (`/calendar`)**: 
+- **Calendar (`/teaDay`)**: 
   - Grid layout showing all 25 days
   - Visual indicators for current day, past days, future days
   - Click on past days to view their content
   - Highlight user's assigned day
 
-- **Tea Day Detail (`/teaDay/[day]`)**: 
+- **Tea Day Detail (`/teaDay/[dayId]`)**: 
   - Progressive story reveal (storyPart1, storyPart2, storyPart3)
   - Tea information (name revealed at 21:00 UTC, brewing instructions)
   - Guess form (input for tea name)
@@ -271,13 +268,13 @@ src/app/
   - Show badges earned
   - Real-time updates after 21:00 UTC reveals
 
-#### Admin Pages (`src/app/admin/`)
-- **Day Management (`/admin/days`)**: 
+#### Admin Pages (`src/app/admin-dashboard/`)
+- **Day Management (`/admin-dashboard/days`)**: 
   - CRUD operations for all days
   - Edit tea information and story content
   - Upload images for any day
 
-- **User Management (`/admin/users`)**: 
+- **User Management (`/admin-dashboard/users`)**: 
   - Assign users to specific days (one-to-one)
   - View user statistics
   - Manage user roles
@@ -293,7 +290,7 @@ src/app/
 6. Only last guess per user/day counts for scoring
 
 #### Scoring Algorithm
-- Located in `src/lib/scoring.ts`
+- Located in `src/lib/tea-guess-scoring.ts`
 - Levenshtein distance comparison using `fastest-levenshtein` library
 - Normalized string matching (lowercase, trimmed)
 - Time-based bonuses (earlier guesses may earn more)
@@ -310,7 +307,7 @@ src/app/
 - Displayed on user profile and rankings
 
 #### Daily Reveal Cycle
-- Constant: `REVEAL_HOUR` (in `src/lib/constants.ts`)
+- Constant: `REVEAL_HOUR` (in `src/lib/advientea-rules.ts`)
 - At 21:00 UTC daily:
   - Tea name revealed
   - User points displayed

@@ -15,7 +15,7 @@ This project is an Advent Tea Calendar built with Next.js 16.0 (App Router), Rea
 - **Ranking System:** Daily and overall leaderboards highlighting top 3 users with avatars
 - **Badges:** Achievement system for special accomplishments (first correct guess, most guessed tea, etc.)
 - **Image Management:** Cloudinary integration for user avatars and tea day images
-- **TDD Approach:** Test-Driven Development using Jest and React Testing Library
+- **TDD Approach:** Test-Driven Development using Vitest and React Testing Library
 - **Form Handling:** Server Actions (native Next.js 16) with progressive enhancement
 - **Scoring Algorithm:** Levenshtein distance using fastest-levenshtein library
 
@@ -84,7 +84,7 @@ The project emphasizes server components, performance, security, and maintainabi
 
 ### 10. Testing Agent
 - Implements Test-Driven Development (TDD) approach
-- Writes and maintains unit and integration tests using Jest and React Testing Library
+- Writes and maintains unit and integration tests using Vitest and React Testing Library
 - Tests business logic: scoring algorithm, string similarity, badge awarding
 - Tests React components and API routes
 - Ensures new features have adequate test coverage
@@ -139,41 +139,16 @@ The project emphasizes server components, performance, security, and maintainabi
 - Issue Management Agent must be consulted before starting work on any issue
 
 ## File Structure Reference
-```
-src/app/
-  (auth)/
-    login/page.tsx
-    register/page.tsx
-    forgot-password/page.tsx
-  profile/page.tsx         # User profile with avatar upload
-  calendar/page.tsx        # Grid view of all days
-  teaDay/[day]/
-    page.tsx               # Tea day detail with story and guess form
-  ranking/
-    page.tsx               # Daily and overall rankings
-  admin/
-    days/page.tsx          # Admin: manage all days
-    users/page.tsx         # Admin: assign users to days
-  api/
-    auth/[...]/route.ts    # BetterAuth endpoints
-    guess/route.ts         # Submit tea guess
-    upload/route.ts        # Cloudinary image upload
-  globals.css
-  layout.tsx
-  page.tsx                 # Home/landing page
-prisma/
-  schema.prisma            # Database schema
-  migrations/              # Database migrations
-src/generated/prisma/      # Generated Prisma Client
-src/lib/
-  auth.ts                  # BetterAuth configuration
-  cloudinary.ts            # Cloudinary setup
-  scoring.ts               # Scoring algorithm logic
-  constants.ts             # REVEAL_HOUR and other constants
-public/
-  (static assets)
-.env                       # Environment variables (gitignored)
-```
+## Canonical File Structure Strategy
+
+Instead of maintaining a rigid file tree, follow these architectural patterns:
+
+- **Global Config**: `src/lib/` for shared logic (auth, scoring, rules), `prisma/` for DB schema.
+- **Routing**: `src/app/[feature-domain]/` pattern (e.g., `teaDay/`, `ranking/`, `admin-dashboard/`).
+- **Auth Pages**: Flat structure `src/app/sign-in`, `src/app/sign-up`, etc.
+- **API**: `src/app/api/[resource]/route.ts` for endpoints.
+- **Generated Code**: `src/generated/` (do not edit manually).
+- **Public Assets**: `/public` for static images/icons.
 
 ## Database Schema
 
