@@ -1,10 +1,8 @@
 "use client";
 import { FaImages } from "react-icons/fa"
 import { Dispatch, SetStateAction, useState } from "react";
-import { ImageStoryForm } from "@/lib/types";
+import { ALLOWED_IMAGE_TYPES, ImageStoryForm } from "@/lib/types";
 import TeaImageForm from "./TeaImageForm";
-
-const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/svg+xml", "image/webp"];
 
 interface TeaListImageFormProps {
   images: Array<ImageStoryForm>,

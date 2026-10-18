@@ -1,44 +1,27 @@
 "use server";
 import { uploadImageCloudinary } from "./uploadActions";
 import { auth } from "@/lib/auth";
-import { SignInActionResponse, SignInFormData, SignUpActionResponse, SignUpFormData, UpdateProfileActionResponse, UpdateProfileFormData } from "@/lib/types";
+import { APIError } from "better-auth/api";
+import {
+  ActionResponse,
+  SignInActionResponse,
+  SignInFormData,
+  SignUpActionResponse,
+  SignUpFormData,
+  UpdateProfileActionResponse,
+  UpdateProfileFormData,
+} from "@/lib/types";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getFormFiles, getFormString } from "./commonActions";
 import { Role } from "@/generated/prisma/enums";
 import { revalidatePath } from "next/cache";
-import { prisma } from "@/lib/prisma";
 import { deleteAsset } from "@/lib/cloudinary";
 import { createUser } from "@/lib/services/user-service";
-import { changeUserRole } from "@/lib/dal";
-
-const SignupFormSchema = z
-  .object({
-    username: z.string().min(2, { error: "Name must be at least 2 characters long." }).trim(),
-    email: z.email({ error: "Introduce un email correcto." }).trim(),
-    password: z
-      .string()
-      .min(8, { error: "La contraseña debe ser de al menos 8 caracteres." })
-      .regex(/[a-zA-Z]/, { error: "La contraseña debe contener al menos una letra." })
-      .regex(/[0-9]/, { error: "La contraseña debe contener al menos un número." })
-      .regex(/[^a-zA-Z0-9]/, {
-        error: "Debe contener al menos un caracter especial.",
-      })
-      .trim(),
-    passwordConfirmation: z.string(),
-    image: z
-      .file()
-      .max(2 * 1024 * 1024, { error: "Tamaño de imagen demasiado grande (max 2 MB)." })
-      .mime(["image/jpeg", "image/png", "image/gif", "image/svg+xml", "image/webp"], {
-        error: "Formato de archivo no permitido.",
-      })
-      .optional(),
-  })
-  .refine((data) => data.password === data.passwordConfirmation, {
-    error: "Las contraseñas no coinciden.",
-    path: ["passwordConfirmation"],
-  });
+import { changeUserRole, editUser, requireRole, requireSession } from "@/lib/dal";
+import { ForbiddenError, UnauthenticatedError } from "@/lib/errors";
+import { signupFormSchema, updateProfileFormSchema } from "@/lib/schemas/auth";
 
 export async function signup(prevState: SignUpActionResponse | null, formData: FormData): Promise<SignUpActionResponse> {
   try {
@@ -49,7 +32,7 @@ export async function signup(prevState: SignUpActionResponse | null, formData: F
       passwordConfirmation: getFormString(formData, "passwordConfirmation"),
       image: getFormFiles(formData, "image")[0],
     };
-    const validatedFields = SignupFormSchema.safeParse(rawData);
+    const validatedFields = signupFormSchema.safeParse(rawData);
 
     if (!validatedFields.success) {
       return {
@@ -59,29 +42,27 @@ export async function signup(prevState: SignUpActionResponse | null, formData: F
         inputs: rawData,
       };
     }
-    const imgPublicId = validatedFields.data.image
-      ? await uploadImageCloudinary(validatedFields.data.image, "avatars")
-      : null;
+    const imgPublicId = validatedFields.data.image ? await uploadImageCloudinary(validatedFields.data.image, "avatars") : null;
 
-    const result = await createUser({
+    await createUser({
       email: validatedFields.data.email,
       password: validatedFields.data.password,
       username: validatedFields.data.username,
-      ...(imgPublicId ? {image : imgPublicId} : {}),
+      ...(imgPublicId ? { image: imgPublicId } : {}),
     });
-    console.log("Validation success:", result);
   } catch (error) {
-    console.error("Validation error:", error);
-    let errorMsg = "";
-    if (error && typeof error === "object" && "message" in error) {
-      errorMsg = error.message === "User already exists. Use another email." ? "Ya existe un usuario con ese email" : (error.message as string);
+    // Match the stable error code, not the message; startsWith covers both USER_ALREADY_EXISTS variants.
+    const isDuplicateUser = error instanceof APIError && typeof error.body?.code === "string" && error.body.code.startsWith("USER_ALREADY_EXISTS");
+    if (isDuplicateUser) {
+      console.warn("[signup] rechazado: el email ya está registrado");
+    } else {
+      console.error("[signup] error inesperado", error);
     }
+    const message = isDuplicateUser ? "Ya existe una cuenta con ese email" : "No se pudo crear la cuenta. Inténtalo de nuevo.";
     return {
       success: false,
-      message: "An error has ocurred",
-      errors: {
-        errors: [errorMsg ? errorMsg : "An error has ocurred"],
-      },
+      message,
+      errors: { errors: [message] },
     };
   }
 
@@ -91,8 +72,8 @@ export async function signup(prevState: SignUpActionResponse | null, formData: F
 export async function signin(prevState: SignInActionResponse | null, formData: FormData): Promise<SignInActionResponse> {
   try {
     const rawData: SignInFormData = {
-      email: formData.get("email") as string,
-      password: formData.get("password") as string,
+      email: getFormString(formData, "email"),
+      password: getFormString(formData, "password"),
     };
     await auth.api.signInEmail({
       body: {
@@ -119,70 +100,45 @@ export async function signout() {
   await auth.api.signOut({
     headers: await headers(),
   });
+
   redirect("/");
 }
 
-export async function changeRoleAction(id: string, role: Role) {
+export async function changeRoleAction(id: string, role: Role): Promise<ActionResponse> {
   try {
+    const session = await requireRole(Role.ADMIN);
+    if (!Object.values(Role).includes(role)) {
+      throw new ForbiddenError("Rol no válido");
+    }
+    // An admin cannot change their own role: the last admin would lock themselves out.
+    if (session.userId === id) {
+      throw new ForbiddenError("No puedes cambiar tu propio rol");
+    }
     await changeUserRole(id, role);
-    revalidatePath("/users")
-    return { success: true };
-  } catch (error) {
-    console.error(error);
+    revalidatePath("/users");
+    return { success: true, message: "Rol actualizado" };
+  } catch (error: unknown) {
+    const isGuardError = error instanceof UnauthenticatedError || error instanceof ForbiddenError;
+    if (isGuardError) {
+      console.warn(`[changeRoleAction] rechazado: ${error.name} — target=${id} role=${role} — ${error.message}`);
+    } else {
+      console.error("[changeRoleAction] error inesperado", error);
+    }
     return {
       success: false,
-      error: `Error changing role to user with id ${id}`,
+      message: isGuardError ? error.message : "No se pudo cambiar el rol. Inténtalo de nuevo.",
     };
   }
 }
 
-const updateProfileFormSchema = z
-  .object({
-    username: z.string().min(2, { error: "Name must be at least 2 characters long." }).trim(),
-    // email: z.email({ error: "Introduce un email correcto." }).trim(),
-    currentPassword: z.string().optional(),
-    newPassword: z
-      .string()
-      .trim()
-      .transform((value) => (value === "" ? undefined : value))
-      .pipe(
-        z.string()
-        .min(8, { error: "La contraseña debe ser de al menos 8 caracteres." })
-        .regex(/[a-zA-Z]/, { error: "La contraseña debe contener al menos una letra." })
-        .regex(/[0-9]/, { error: "La contraseña debe contener al menos un número." })
-        .regex(/[^a-zA-Z0-9]/, {
-          error: "Debe contener al menos un caracter especial.",
-        }).optional()
-    ),      
-    newPasswordConfirmation: z
-      .string()
-      .transform((value) => (value === "" ? undefined : value))
-      .optional(),
-    image: z
-      .file()
-      .max(2 * 1024 * 1024, { error: "Tamaño de imagen demasiado grande (max 2 MB)." })
-      .mime(["image/jpeg", "image/png", "image/gif", "image/svg+xml", "image/webp"], {
-        error: "Formato de archivo no permitido.",
-      })
-      .optional(),
-  })
-  .refine((data) => data.newPassword === data.newPasswordConfirmation, {
-    error: "Las contraseñas no coinciden.",
-    path: ["newPasswordConfirmation"],
-  });
-
 export async function updateUserProfile(prevState: UpdateProfileActionResponse | null, formData: FormData): Promise<UpdateProfileActionResponse> {
   let newImageId: string | null = null;
   try {
-    const session = await auth.api.getSession({ headers: await headers() });
-    if (!session || !session.user) {
-      return { success: false, message: "User is not login" };
-    }
+    const session = await requireSession();
 
     const user = session.user;
     const currentImageId: string | null = user.image ?? null;
-    let shouldLogout: boolean = false;
-    
+
     const rawData: UpdateProfileFormData = {
       username: getFormString(formData, "username"),
       // email: getFormString(formData, "email"),
@@ -205,15 +161,14 @@ export async function updateUserProfile(prevState: UpdateProfileActionResponse |
     if (validatedFields.data.currentPassword && validatedFields.data.newPassword) {
       await auth.api.changePassword({
         body: {
-            newPassword: validatedFields.data.newPassword,
-            currentPassword: validatedFields.data.currentPassword,
-            revokeOtherSessions: true,
+          newPassword: validatedFields.data.newPassword,
+          currentPassword: validatedFields.data.currentPassword,
+          revokeOtherSessions: true,
         },
         headers: await headers(),
       });
-      shouldLogout = true;
     }
-    
+
     if (validatedFields.data.image) {
       const result = await uploadImageCloudinary(validatedFields.data.image, "avatars");
       if (result) {
@@ -223,28 +178,20 @@ export async function updateUserProfile(prevState: UpdateProfileActionResponse |
         }
       }
     }
-    
-    await prisma.user.update({
-      where: { id: session.user.id },
-      data: {
-        username: validatedFields.data.username,
-        ...(newImageId ? { image: newImageId } : {})
-      }
-    })
+    await editUser(session.userId, {
+      username: validatedFields.data.username,
+      ...(newImageId ? { image: newImageId } : {}),
+    });
     revalidatePath("/profile");
-    if (shouldLogout) {
-      await signout()
-    }
-    return { success: true, message: "Profile updated" };
+    return { success: true, message: "Perfil actualizado" };
   } catch (error) {
-    console.error("Validation error:", error);
+    console.error("[updateUserProfile] error inesperado", error);
     if (newImageId) {
       await deleteAsset(newImageId);
     }
     return {
       success: false,
-      message: "An error has ocurred",
+      message: "No se pudo actualizar el perfil. Inténtalo de nuevo.",
     };
   }
-
 }

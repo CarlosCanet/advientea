@@ -9,12 +9,12 @@ export const verifySession = cache(async function verifySession() {
     headers: await headers(),
   });
   if (!session?.user) {
-    return { isAuth: false as const, userId: null, role: null };
+    return { isAuth: false as const, userId: null, role: null, user: null };
   }
-  return { isAuth: true as const, userId: session.user.id, role: session.user.role };
+  return { isAuth: true as const, userId: session.user.id, role: session.user.role, user: session.user };
 });
 
-export async function requireSession(){
+export async function requireSession() {
   const session = await verifySession();
   if (!session.isAuth) {
     throw new UnauthenticatedError();
@@ -22,7 +22,7 @@ export async function requireSession(){
   return session;
 }
 
-export async function requireRole(...roles: Role[]){
+export async function requireRole(...roles: Role[]) {
   const session = await requireSession();
   if (!roles.includes(session.role)) {
     throw new ForbiddenError();
@@ -33,9 +33,9 @@ export async function requireRole(...roles: Role[]){
 export async function changePassword(currentPassword: string, newPassword: string, revokeOtherSessions: boolean) {
   const data = await auth.api.changePassword({
     body: {
-        newPassword,
-        currentPassword,
-        revokeOtherSessions,
+      newPassword,
+      currentPassword,
+      revokeOtherSessions,
     },
     headers: await headers(),
   });
