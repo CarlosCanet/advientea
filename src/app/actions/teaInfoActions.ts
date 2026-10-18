@@ -1,5 +1,6 @@
 "use server";
 import { Role } from "@/generated/prisma/enums";
+import { Prisma } from "@/generated/prisma/client";
 import { add25Days, addDay, addDayAssignment, addStoryImage, addStoryTea, addTea, deleteDay, deleteDayAssignmentByDay, editStoryTea, editTea, getDayAssignmentByUserId, getTea, replaceStoryImages, requireRole, requireSession, StoryImageSlot, upsertDayAssignment, verifySession } from "@/lib/dal";
 import { deleteAsset } from "@/lib/cloudinary";
 import { ForbiddenError, UnauthenticatedError } from "@/lib/errors";
@@ -275,21 +276,22 @@ export async function assignUserToDay(dayId: string, userId: string, year: numbe
     return { success: true, message: "Asignación actualizada" };
   } catch (error: unknown) {
     const isGuardError = error instanceof UnauthenticatedError || error instanceof ForbiddenError;
-    if (isGuardError) {
+    const isAlreadyAssigned = error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
+    if (isGuardError || isAlreadyAssigned) {
       console.warn(`[assignUserToDay] rejected: ${error.name} — dayId=${dayId} — ${error.message}`);
     } else {
       console.error("[assignUserToDay] unexpected error", error);
     }
-    return {
-      success: false,
-      message: isGuardError ? error.message : "No se pudo guardar la asignación. Inténtalo de nuevo.",
-    };
+    let message = "No se pudo guardar la asignación. Inténtalo de nuevo.";
+    if (isGuardError) message = error.message;
+    else if (isAlreadyAssigned) message = "Esa persona ya tiene un día asignado este año.";
+    return { success: false, message };
   }
 }
 
 export async function addDaysAction(year: number = 2025): Promise<ActionResponse> {
   try {
-    await requireRole(Role.ADMIN, Role.EXECUTEAVE);
+    await requireRole(Role.ADMIN);
     await add25Days(year);
     revalidatePath("/edit-tea-info");
     return { success: true, message: "Días creados" };
