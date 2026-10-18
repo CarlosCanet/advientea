@@ -7,7 +7,7 @@ import { ActionResponse, TeaInfoActionResponse, TeaInfoFormData } from "@/lib/ty
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getFormBoolean, getFormFilesByPrefix, getFormNumber, getFormString } from "./commonActions";
-import { uploadImageCloudinary } from "./uploadActions";
+import { uploadImageFile } from "@/lib/cloudinary";
 
 export async function addTeaInfo(prevState: TeaInfoActionResponse | null, formData: FormData): Promise<TeaInfoActionResponse> {
   try {
@@ -83,7 +83,7 @@ export async function addTeaInfo(prevState: TeaInfoActionResponse | null, formDa
         throw new Error("Cannot create story tea");
       }
       if (data.images) {
-        const publicIds = await Promise.all(data.images.map(async (image) => await uploadImageCloudinary(image, "teaDay")));
+        const publicIds = await Promise.all(data.images.map(async (image) => await uploadImageFile(image, "teaDay")));
         for (const [i, publicId] of publicIds.entries()) {
           if (publicId) {
             await addStoryImage(publicId, i, storyCreated.id);
@@ -215,7 +215,7 @@ export async function editTeaInfoAction(prevState: TeaInfoActionResponse | null,
         const addedStory = await addStoryTea({}, currentTea.id);
         storyId = addedStory.id;
       }
-      const publicIds = await Promise.all(data.images.map(async (image) => await uploadImageCloudinary(image, "teaDay")));
+      const publicIds = await Promise.all(data.images.map(async (image) => await uploadImageFile(image, "teaDay")));
       for (const [i, publicId] of publicIds.entries()) {
         if (publicId) {
           await addStoryImage(publicId, data.imagesOrder[i], storyId);

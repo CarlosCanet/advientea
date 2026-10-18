@@ -1,5 +1,4 @@
 "use server";
-import { uploadImageCloudinary } from "./uploadActions";
 import { auth } from "@/lib/auth";
 import { APIError } from "better-auth/api";
 import {
@@ -17,7 +16,7 @@ import { z } from "zod";
 import { getFormFiles, getFormString } from "./commonActions";
 import { Role } from "@/generated/prisma/enums";
 import { revalidatePath } from "next/cache";
-import { deleteAsset } from "@/lib/cloudinary";
+import { deleteAsset, uploadImageFile } from "@/lib/cloudinary";
 import { createUser } from "@/lib/services/user-service";
 import { changeUserRole, editUser, requireRole, requireSession } from "@/lib/dal";
 import { ForbiddenError, UnauthenticatedError } from "@/lib/errors";
@@ -42,7 +41,7 @@ export async function signup(prevState: SignUpActionResponse | null, formData: F
         inputs: rawData,
       };
     }
-    const imgPublicId = validatedFields.data.image ? await uploadImageCloudinary(validatedFields.data.image, "avatars") : null;
+    const imgPublicId = validatedFields.data.image ? await uploadImageFile(validatedFields.data.image, "avatars") : null;
 
     await createUser({
       email: validatedFields.data.email,
@@ -170,7 +169,7 @@ export async function updateUserProfile(prevState: UpdateProfileActionResponse |
     }
 
     if (validatedFields.data.image) {
-      const result = await uploadImageCloudinary(validatedFields.data.image, "avatars");
+      const result = await uploadImageFile(validatedFields.data.image, "avatars");
       if (result) {
         newImageId = result;
         if (currentImageId) {

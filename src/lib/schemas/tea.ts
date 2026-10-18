@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ALLOWED_IMAGE_TYPES } from "../types";
+import { ALLOWED_IMAGE_TYPES } from "@/lib/types";
 
 export const teaInfoFormSchema = z
   .object({
