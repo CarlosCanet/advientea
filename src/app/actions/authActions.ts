@@ -54,9 +54,9 @@ export async function signup(prevState: SignUpActionResponse | null, formData: F
     // Match the stable error code, not the message; startsWith covers both USER_ALREADY_EXISTS variants.
     const isDuplicateUser = error instanceof APIError && typeof error.body?.code === "string" && error.body.code.startsWith("USER_ALREADY_EXISTS");
     if (isDuplicateUser) {
-      console.warn("[signup] rechazado: el email ya está registrado");
+      console.warn("[signup] rejected: email already registered");
     } else {
-      console.error("[signup] error inesperado", error);
+      console.error("[signup] unexpected error", error);
     }
     const message = isDuplicateUser ? "Ya existe una cuenta con ese email" : "No se pudo crear la cuenta. Inténtalo de nuevo.";
     return {
@@ -120,9 +120,9 @@ export async function changeRoleAction(id: string, role: Role): Promise<ActionRe
   } catch (error: unknown) {
     const isGuardError = error instanceof UnauthenticatedError || error instanceof ForbiddenError;
     if (isGuardError) {
-      console.warn(`[changeRoleAction] rechazado: ${error.name} — target=${id} role=${role} — ${error.message}`);
+      console.warn(`[changeRoleAction] rejected: ${error.name} — target=${id} role=${role} — ${error.message}`);
     } else {
-      console.error("[changeRoleAction] error inesperado", error);
+      console.error("[changeRoleAction] unexpected error", error);
     }
     return {
       success: false,
@@ -185,7 +185,7 @@ export async function updateUserProfile(prevState: UpdateProfileActionResponse |
     revalidatePath("/profile");
     return { success: true, message: "Perfil actualizado" };
   } catch (error) {
-    console.error("[updateUserProfile] error inesperado", error);
+    console.error("[updateUserProfile] unexpected error", error);
     if (newImageId) {
       await deleteAsset(newImageId);
     }

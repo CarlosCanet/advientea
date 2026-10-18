@@ -73,3 +73,14 @@ export async function deleteStoryImage(id: string): Promise<StoryImage> {
   await deleteAsset(imageDeleted.publicId);
   return imageDeleted;
 }
+
+export async function reorderStoryImages(images: string[], order: number[]): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    for (const [i, id] of images.entries()) {
+      await tx.storyImage.update({ where: { id }, data: { order: -i - 100 } });
+    }
+    for (const [i, id] of images.entries()) {
+      await tx.storyImage.update({ where: { id }, data: { order: order[i] } });
+    }
+  });
+}
