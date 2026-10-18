@@ -73,7 +73,6 @@ export interface TeaInfoFormData {
   imagesOrder?: Array<string>;
   keptImages?: Array<string>;
   keptImagesOrder?: Array<string>;
-  deleteImages?: Array<string>;
 }
 
 export interface TeaInfoActionResponse {

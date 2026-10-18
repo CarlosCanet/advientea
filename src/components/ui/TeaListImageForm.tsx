@@ -6,11 +6,10 @@ import TeaImageForm from "./TeaImageForm";
 
 interface TeaListImageFormProps {
   images: Array<ImageStoryForm>,
-  setImages: Dispatch<SetStateAction<Array<ImageStoryForm>>>,
-  setStoryImageIdsToDelete?: Dispatch<SetStateAction<Array<string>>>
+  setImages: Dispatch<SetStateAction<Array<ImageStoryForm>>>
 }
 
-function TeaListImageForm({ images, setImages, setStoryImageIdsToDelete }: TeaListImageFormProps) {
+function TeaListImageForm({ images, setImages }: TeaListImageFormProps) {
   const [imageErrorMsg, setImageErrorMsg] = useState<string>("");
   
   const onAddFile = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -47,10 +46,9 @@ function TeaListImageForm({ images, setImages, setStoryImageIdsToDelete }: TeaLi
     const imageToDelete = images.find(img => img.id === idToDelete);
     if (!imageToDelete) return;
     
+    // Removed existing images are simply left out of the submitted list; the server deletes what it no longer receives.
     if (imageToDelete.isNew) {
       URL.revokeObjectURL(imageToDelete.previewURL);
-    } else {
-      setStoryImageIdsToDelete?.((prevState) => [...prevState, imageToDelete.id]);
     }
 
     setImages((prevState) => prevState.filter((img) => img.id !== imageToDelete.id).map((img, i) => ({ ...img, order: i })));

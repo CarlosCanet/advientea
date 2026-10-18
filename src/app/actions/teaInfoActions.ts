@@ -1,6 +1,7 @@
 "use server";
 import { Role } from "@/generated/prisma/enums";
-import { add25Days, addDay, addDayAssignment, addStoryImage, addStoryTea, addTea, deleteDay, deleteDayAssignmentByDay, deleteStoryImage, editStoryTea, editTea, getDayAssignmentByUserId, getTea, reorderStoryImages, requireRole, requireSession, upsertDayAssignment, verifySession } from "@/lib/dal";
+import { add25Days, addDay, addDayAssignment, addStoryImage, addStoryTea, addTea, deleteDay, deleteDayAssignmentByDay, editStoryTea, editTea, getDayAssignmentByUserId, getTea, replaceStoryImages, requireRole, requireSession, StoryImageSlot, upsertDayAssignment, verifySession } from "@/lib/dal";
+import { deleteAsset } from "@/lib/cloudinary";
 import { ForbiddenError, UnauthenticatedError } from "@/lib/errors";
 import { teaInfoFormSchema } from "@/lib/schemas/tea";
 import { ActionResponse, TeaInfoActionResponse, TeaInfoFormData } from "@/lib/types";
@@ -144,7 +145,6 @@ export async function editTeaInfoAction(prevState: TeaInfoActionResponse | null,
       imagesOrder: (formData.getAll("images_order") as Array<string>) || undefined,
       keptImages: (formData.getAll("kept_images") as Array<string>) || undefined,
       keptImagesOrder: (formData.getAll("kept_images_order") as Array<string>) || undefined,
-      deleteImages: (formData.getAll("delete_images") as Array<string>) || undefined,
       teaId: getFormString(formData, "tea_id"),
     };
     const validatedFields = teaInfoFormSchema.safeParse(rawData);
@@ -163,18 +163,19 @@ export async function editTeaInfoAction(prevState: TeaInfoActionResponse | null,
     const day = data.dayNumber;
     const currentTea = await getTea(data.teaId);
     if (!currentTea) throw new Error(`Cannot find tea with id ${data.teaId}`);
-    if(role === Role.USER){
-      if (!currentTea.day) throw new Error(`Cannot find day for tea with id ${data.teaId}`);
+    const isPrivileged = role === Role.ADMIN || role === Role.EXECUTEAVE;
+    if (!isPrivileged) {
+      if (!currentTea.day) throw new ForbiddenError("Sólo puedes editar tu día asignado.");
       const assignment = await getDayAssignmentByUserId(userId, currentTea.day.year);
       if (!assignment) throw new ForbiddenError("No tienes un día asignado para este año.");
-      if(currentTea.dayId !== assignment.dayId){
+      if (currentTea.dayId !== assignment.dayId) {
         throw new ForbiddenError("Sólo puedes editar tu día asignado.");
       }
     }
 
     let storyId = currentTea.story?.id || null;
     let newDayNumber: number | undefined = undefined;
-    if(role !== Role.USER){
+    if (isPrivileged) {
       newDayNumber = currentTea.day?.dayNumber === day ? undefined : day;
     }
     const editedTea = await editTea({
@@ -210,28 +211,29 @@ export async function editTeaInfoAction(prevState: TeaInfoActionResponse | null,
         storyId = addedStory.id;
       }
     }
-    if (data.images && data.imagesOrder) {
+    // The form sends the final image list split in two channels (kept ids + new files), each with its
+    // absolute position. Rebuild that list; anything not in it is deleted by replaceStoryImages.
+    const newImages = data.images ?? [];
+    const slotsByPosition: Array<StoryImageSlot | undefined> = [];
+    (data.keptImages ?? []).forEach((id, i) => {
+      slotsByPosition[data.keptImagesOrder?.[i] ?? i] = { kind: "existing", id };
+    });
+    if (newImages.length > 0) {
+      const publicIds = await Promise.all(newImages.map((image) => uploadImageFile(image, "teaDay")));
+      publicIds.forEach((publicId, i) => {
+        if (publicId) slotsByPosition[data.imagesOrder?.[i] ?? slotsByPosition.length] = { kind: "new", publicId };
+      });
+    }
+    const slots = slotsByPosition.filter((slot): slot is StoryImageSlot => slot !== undefined);
+
+    if (storyId || slots.length > 0) {
       if (!storyId) {
         const addedStory = await addStoryTea({}, currentTea.id);
         storyId = addedStory.id;
       }
-      const publicIds = await Promise.all(data.images.map(async (image) => await uploadImageFile(image, "teaDay")));
-      for (const [i, publicId] of publicIds.entries()) {
-        if (publicId) {
-          await addStoryImage(publicId, data.imagesOrder[i], storyId);
-        }
-      }
-    }
-    if (data.keptImages && data.keptImagesOrder) {
-      const images = data.keptImages;
-      const order = data.keptImagesOrder;
-      await reorderStoryImages(images, order);
-    }
-
-    if (data.deleteImages) {
-      for (const id of data.deleteImages) {
-        await deleteStoryImage(id);
-      }
+      const removedPublicIds = await replaceStoryImages(storyId, slots);
+      // Best effort, after the transaction has committed: a failed asset deletion must not undo the edit.
+      await Promise.all(removedPublicIds.map((publicId) => deleteAsset(publicId)));
     }
 
     return {

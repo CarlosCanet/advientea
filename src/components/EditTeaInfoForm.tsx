@@ -31,7 +31,6 @@ function initImages(teaCompleteInfo : Prisma.TeaGetPayload<{ include: { story: {
 function EditTeaInfoForm({ teaId, username, isExecuTEAve, dayNumber, teaCompleteInfo }: EditTeaInfoFormProps) {
   const [state, action, isPending] = useActionState(editTeaInfoAction, initialTeaInfoActionResponse);
   const [images, setImages] = useState<Array<ImageStoryForm>>(() => initImages(teaCompleteInfo));
-  const [storyImageIdsToDelete, setStoryImageIdsToDelete] = useState<Array<string>>([]);
   const [imageSizeError, setImageSizeError] = useState<string>("");
   const router = useRouter();
 
@@ -67,9 +66,6 @@ function EditTeaInfoForm({ teaId, username, isExecuTEAve, dayNumber, teaComplete
         formData.append("kept_images_order", img.order.toString());
       }
     })
-    storyImageIdsToDelete.forEach(img => {
-      formData.append("delete_images", img);
-    });
     formData.append("tea_id", teaId)
     action(formData);
   }
@@ -181,7 +177,7 @@ function EditTeaInfoForm({ teaId, username, isExecuTEAve, dayNumber, teaComplete
           {errors?.youtubeURL && <p className="text-xs text-error font-bold mt-2 mb-2">{errors.youtubeURL.errors.join(", ")}</p>}
           {errors?.onlyMusic && <p className="text-xs text-error font-bold mt-2 mb-2">{errors.onlyMusic.errors.join(", ")}</p>}
         </fieldset>
-        <TeaListImageForm images={images} setImages={setImages} setStoryImageIdsToDelete={setStoryImageIdsToDelete} />
+        <TeaListImageForm images={images} setImages={setImages} />
         {imagesError && <p className="text-xs text-error font-bold self-center -mt-2 mb-2">{imagesError}</p>}
 
         <div className="card-actions justify-center mt-4 gap-2">

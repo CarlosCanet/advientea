@@ -57,7 +57,6 @@ export const teaInfoFormSchema = z
     imagesOrder: z.array(z.coerce.number()).optional(),
     keptImages: z.array(z.string()).optional(),
     keptImagesOrder: z.array(z.coerce.number()).optional(),
-    deleteImages: z.array(z.string()).optional(),
     teaId: z.string().optional(),
   })
   .refine(
