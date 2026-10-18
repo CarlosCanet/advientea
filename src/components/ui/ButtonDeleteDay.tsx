@@ -2,6 +2,7 @@
 import { deleteDayAction } from "@/app/actions/teaInfoActions";
 import { useRef, useTransition } from "react";
 import { FaTrashAlt } from "react-icons/fa";
+import ActionToast, { useActionToast } from "./ActionToast";
 
 interface ButtonDeleteDayProps {
   dayId: string;
@@ -10,10 +11,13 @@ interface ButtonDeleteDayProps {
 export default function ButtonDeleteDay({ dayId }: ButtonDeleteDayProps) {
   const modalRef = useRef<HTMLDialogElement>(null);
   const [isPending, startTransition] = useTransition();
+  const { toast, showToast } = useActionToast();
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     startTransition(async () => {
-      await deleteDayAction(dayId);
+      const result = await deleteDayAction(dayId);
+      modalRef.current?.close();
+      showToast(result);
     });
   };
 
@@ -43,6 +47,7 @@ export default function ButtonDeleteDay({ dayId }: ButtonDeleteDayProps) {
           </div>
         </div>
       </dialog>
+      <ActionToast toast={toast} />
     </>
   );
 }
