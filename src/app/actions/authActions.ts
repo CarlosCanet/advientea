@@ -15,6 +15,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getFormFiles, getFormString } from "./commonActions";
 import { Role } from "@/generated/prisma/enums";
+import { Prisma } from "@/generated/prisma/client";
 import { revalidatePath } from "next/cache";
 import { deleteAsset, uploadImageFile } from "@/lib/cloudinary";
 import { createUser } from "@/lib/services/user-service";
@@ -41,14 +42,23 @@ export async function signup(prevState: SignUpActionResponse | null, formData: F
         inputs: rawData,
       };
     }
-    const imgPublicId = validatedFields.data.image ? await uploadImageFile(validatedFields.data.image, "avatars") : null;
-
-    await createUser({
+    // Create the account first: uploading before it exists lets anonymous retries pile up orphan assets.
+    const user = await createUser({
       email: validatedFields.data.email,
       password: validatedFields.data.password,
       username: validatedFields.data.username,
-      ...(imgPublicId ? { image: imgPublicId } : {}),
     });
+    if (validatedFields.data.image) {
+      const imgPublicId = await uploadImageFile(validatedFields.data.image, "avatars");
+      if (imgPublicId) {
+        try {
+          await editUser(user.id, { image: imgPublicId });
+        } catch (error) {
+          await deleteAsset(imgPublicId);
+          throw error;
+        }
+      }
+    }
   } catch (error) {
     // Match the stable error code, not the message; startsWith covers both USER_ALREADY_EXISTS variants.
     const isDuplicateUser = error instanceof APIError && typeof error.body?.code === "string" && error.body.code.startsWith("USER_ALREADY_EXISTS");
@@ -119,7 +129,7 @@ export async function changeRoleAction(id: string, role: Role): Promise<ActionRe
   } catch (error: unknown) {
     const isGuardError = error instanceof UnauthenticatedError || error instanceof ForbiddenError;
     if (isGuardError) {
-      console.warn(`[changeRoleAction] rejected: ${error.name} — target=${id} role=${role} — ${error.message}`);
+      console.warn(`[changeRoleAction] rejected: ${error.name} — target=${JSON.stringify(id)} role=${JSON.stringify(role)} — ${error.message}`);
     } else {
       console.error("[changeRoleAction] unexpected error", error);
     }
@@ -132,6 +142,8 @@ export async function changeRoleAction(id: string, role: Role): Promise<ActionRe
 
 export async function updateUserProfile(prevState: UpdateProfileActionResponse | null, formData: FormData): Promise<UpdateProfileActionResponse> {
   let newImageId: string | null = null;
+  let passwordChanged = false;
+  let profilePersisted = false;
   try {
     const session = await requireSession();
 
@@ -166,31 +178,40 @@ export async function updateUserProfile(prevState: UpdateProfileActionResponse |
         },
         headers: await headers(),
       });
+      passwordChanged = true;
     }
 
     if (validatedFields.data.image) {
-      const result = await uploadImageFile(validatedFields.data.image, "avatars");
-      if (result) {
-        newImageId = result;
-        if (currentImageId) {
-          await deleteAsset(currentImageId);
-        }
-      }
+      newImageId = (await uploadImageFile(validatedFields.data.image, "avatars")) ?? null;
     }
     await editUser(session.userId, {
       username: validatedFields.data.username,
       ...(newImageId ? { image: newImageId } : {}),
     });
+    profilePersisted = true;
+    // Only now is the old avatar unreferenced; deleting it earlier would leave a broken image if editUser failed.
+    if (newImageId && currentImageId) {
+      await deleteAsset(currentImageId);
+    }
     revalidatePath("/profile");
     return { success: true, message: "Perfil actualizado" };
-  } catch (error) {
-    console.error("[updateUserProfile] unexpected error", error);
-    if (newImageId) {
+  } catch (error: unknown) {
+    const isGuardError = error instanceof UnauthenticatedError || error instanceof ForbiddenError;
+    const isWrongPassword = error instanceof APIError && typeof error.body?.code === "string" && error.body.code.startsWith("INVALID_PASSWORD");
+    const isDuplicateUsername = error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
+    if (isGuardError || isWrongPassword || isDuplicateUsername) {
+      console.warn(`[updateUserProfile] rejected: ${error.name} — ${error.message}`);
+    } else {
+      console.error("[updateUserProfile] unexpected error", error);
+    }
+    if (newImageId && !profilePersisted) {
       await deleteAsset(newImageId);
     }
-    return {
-      success: false,
-      message: "No se pudo actualizar el perfil. Inténtalo de nuevo.",
-    };
+    let message = "No se pudo actualizar el perfil. Inténtalo de nuevo.";
+    if (isGuardError) message = error.message;
+    else if (isWrongPassword) message = "La contraseña actual no es correcta.";
+    else if (isDuplicateUsername) message = "Ese nombre de usuario ya está en uso.";
+    if (passwordChanged) message = `Contraseña actualizada, pero el resto del perfil no se pudo guardar: ${message}`;
+    return { success: false, message };
   }
 }
