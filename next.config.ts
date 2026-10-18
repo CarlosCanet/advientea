@@ -1,12 +1,44 @@
 import {withSentryConfig} from "@sentry/nextjs";
 import type { NextConfig } from "next";
 
+// Report-Only on purpose: the browser logs violations to the console instead of blocking.
+// Click through staging with devtools open, add any missing origin, then rename the header to
+// Content-Security-Policy to enforce it. The nonce-based version Next recommends lives in proxy.ts
+// and replaces 'unsafe-inline' for scripts when the proxy is rewritten.
+const isDev = process.env.NODE_ENV === "development";
+const contentSecurityPolicy = [
+  "default-src 'self'",
+  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`, // React needs eval in dev for error stacks
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' data: https://fonts.gstatic.com",
+  "img-src 'self' data: blob: https://res.cloudinary.com",
+  "media-src 'self'",
+  "connect-src 'self'",
+  "frame-src https://www.youtube.com https://www.youtube-nocookie.com",
+  "worker-src 'self' blob:",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+].join("; ");
+
+// HSTS is set by Vercel.
+const securityHeaders = [
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "X-Frame-Options", value: "DENY" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+  { key: "Content-Security-Policy-Report-Only", value: contentSecurityPolicy },
+];
+
 const nextConfig: NextConfig = {
-  /* config options here */
   experimental: {
     serverActions: {
       bodySizeLimit: "3mb",
     },
+  },
+  async headers() {
+    return [{ source: "/:path*", headers: securityHeaders }];
   },
 };
 
