@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { prisma } from "@/lib/prisma";
-import { addTea, editTea } from "@/lib/dal";
+
 import { TeaType } from "@/generated/prisma/enums";
+import { addTea, editTea } from "@/lib/dal";
+import { prisma } from "@/lib/prisma";
 
 describe("dal Tea", () => {
   describe("addTea", () => {
@@ -10,25 +11,25 @@ describe("dal Tea", () => {
       const lemon = await prisma.teaIngredient.findUniqueOrThrow({ where: { name: "Limón" } });
       const newTea = await addTea(
         {
+          addMilk: false,
+          canReinfuse: false,
+          hasTheine: true,
+          infusionTime: 3,
           name: "Integration Tea",
           teaType: TeaType.GREEN,
-          infusionTime: 3,
           temperature: 80,
-          hasTheine: true,
-          canReinfuse: false,
-          addMilk: false,
         },
         [apple.id, lemon.id],
         20,
-        2025
+        2025,
       );
 
       expect(newTea).not.toBeNull();
       expect(newTea?.day?.dayNumber).toBe(20);
 
-      const savedInDb = await prisma.tea.findUnique({ where: { id: newTea!.id }, include: { ingredients: true } });
+      const savedInDb = await prisma.tea.findUnique({ include: { ingredients: true }, where: { id: newTea!.id } });
       expect(savedInDb?.name).toBe("Integration Tea");
-      const ingredientsName = savedInDb!.ingredients.map(ingredient => ingredient.name);
+      const ingredientsName = savedInDb!.ingredients.map((ingredient) => ingredient.name);
       expect(ingredientsName).toHaveLength(2);
       expect(ingredientsName).toContain("Manzana");
       expect(ingredientsName).toContain("Limón");
@@ -36,24 +37,53 @@ describe("dal Tea", () => {
 
     it("should enforce Unique Constraint on DayId", async () => {
       await addTea(
-        { name: "Tea 21", teaType: TeaType.BLACK, infusionTime: 1, temperature: 1, hasTheine: true, canReinfuse: true, addMilk: true },
+        {
+          addMilk: true,
+          canReinfuse: true,
+          hasTheine: true,
+          infusionTime: 1,
+          name: "Tea 21",
+          teaType: TeaType.BLACK,
+          temperature: 1,
+        },
         [],
         21,
-        2025
+        2025,
       );
       await expect(
-        addTea({ name: "Tea 21", teaType: TeaType.WHITE, infusionTime: 1, temperature: 1, hasTheine: true, canReinfuse: true, addMilk: true }, [], 21, 2025)
+        addTea(
+          {
+            addMilk: true,
+            canReinfuse: true,
+            hasTheine: true,
+            infusionTime: 1,
+            name: "Tea 21",
+            teaType: TeaType.WHITE,
+            temperature: 1,
+          },
+          [],
+          21,
+          2025,
+        ),
       ).rejects.toThrow();
     });
-  })
+  });
 
   describe("editTea", () => {
     it("should update basic fields correctly", async () => {
       const result = await addTea(
-        { name: "Tea 21", teaType: TeaType.BLACK, infusionTime: 1, temperature: 1, hasTheine: true, canReinfuse: true, addMilk: true },
+        {
+          addMilk: true,
+          canReinfuse: true,
+          hasTheine: true,
+          infusionTime: 1,
+          name: "Tea 21",
+          teaType: TeaType.BLACK,
+          temperature: 1,
+        },
         [],
         21,
-        2025
+        2025,
       );
       await editTea({ teaType: TeaType.GREEN }, result!.id);
       const editedTea = await prisma.tea.findUnique({ where: { id: result!.id } });
@@ -66,15 +96,23 @@ describe("dal Tea", () => {
       const lemon = await prisma.teaIngredient.findUniqueOrThrow({ where: { name: "Limón" } });
       const orange = await prisma.teaIngredient.findUniqueOrThrow({ where: { name: "Naranja" } });
       const result = await addTea(
-        { name: "Tea 21", teaType: TeaType.BLACK, infusionTime: 1, temperature: 1, hasTheine: true, canReinfuse: true, addMilk: true },
+        {
+          addMilk: true,
+          canReinfuse: true,
+          hasTheine: true,
+          infusionTime: 1,
+          name: "Tea 21",
+          teaType: TeaType.BLACK,
+          temperature: 1,
+        },
         [apple.id, chocolate.id],
         21,
-        2025
+        2025,
       );
-      await editTea({ ingredientIds: [apple.id, lemon.id, orange.id]}, result!.id);
-      const editedTea = await prisma.tea.findUnique({ where: { id: result!.id }, include: { ingredients: true } });
+      await editTea({ ingredientIds: [apple.id, lemon.id, orange.id] }, result!.id);
+      const editedTea = await prisma.tea.findUnique({ include: { ingredients: true }, where: { id: result!.id } });
       expect(editedTea!.ingredients).toHaveLength(3);
-      const ingredientsName = editedTea!.ingredients.map(ingredient => ingredient.name);
+      const ingredientsName = editedTea!.ingredients.map((ingredient) => ingredient.name);
       expect(ingredientsName).toContain("Manzana");
       expect(ingredientsName).toContain("Limón");
       expect(ingredientsName).toContain("Naranja");

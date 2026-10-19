@@ -1,20 +1,21 @@
-import { prisma } from "@/lib/prisma";
-import { createPrismaUser } from "../dal/dal-user";
 import { Role, TeaType } from "@/generated/prisma/enums";
-import { add25Days, addDayAssignment, addStoryImage, addStoryTea, addTea, createTeaGuess } from "../dal";
+import { prisma } from "@/lib/prisma";
+
 import { seedIngredients } from "../../../prisma/seed-ingredients";
+import { add25Days, addDayAssignment, addStoryImage, addStoryTea, addTea, createTeaGuess } from "../dal";
+import { createPrismaUser } from "../dal/dal-user";
 
 export async function seedDatabase() {
   // **** CREATE USERS **** //
-  await createPrismaUser({ username: "CarlosC", email: "carlos@carlos.com", image: "38_kjq3k8" });
-  await prisma.user.update({ where: { email: "carlos@carlos.com" }, data: { role: Role.ADMIN } });
+  await createPrismaUser({ email: "carlos@carlos.com", image: "38_kjq3k8", username: "CarlosC" });
+  await prisma.user.update({ data: { role: Role.ADMIN }, where: { email: "carlos@carlos.com" } });
 
-  const deinosUser = await createPrismaUser({ username: "Deinos", email: "jorgedeinos@gmail.com", image: "94_dtpyjy" });
-  await prisma.user.update({ where: { email: "jorgedeinos@gmail.com" }, data: { role: Role.EXECUTEAVE } });
+  const deinosUser = await createPrismaUser({ email: "jorgedeinos@gmail.com", image: "94_dtpyjy", username: "Deinos" });
+  await prisma.user.update({ data: { role: Role.EXECUTEAVE }, where: { email: "jorgedeinos@gmail.com" } });
 
-  const mikoUser = await createPrismaUser({ username: "mikoalilla", email: "miko@gmail.com", image: "11_n5c86c" });
-  const anaUser = await createPrismaUser({ username: "Ñita", email: "ana@gmail.com", image: "90_lwzifs" });
-  const sonyUser = await createPrismaUser({ username: "Sony", email: "sony@gmail.com", image: "100_xh9syq" });
+  const mikoUser = await createPrismaUser({ email: "miko@gmail.com", image: "11_n5c86c", username: "mikoalilla" });
+  const anaUser = await createPrismaUser({ email: "ana@gmail.com", image: "90_lwzifs", username: "Ñita" });
+  const sonyUser = await createPrismaUser({ email: "sony@gmail.com", image: "100_xh9syq", username: "Sony" });
 
   // **** CREATE DAYS **** //
   await add25Days();
@@ -31,31 +32,31 @@ export async function seedDatabase() {
   // **** CREATE TEAS, STORIES & IMAGES **** //
   const tea1 = await addTea(
     {
-      name: "Ruta del desierto",
-      teaType: TeaType.ROOIBOS,
-      infusionTime: 3,
-      temperature: 95,
-      hasTheine: false,
-      canReinfuse: false,
-      moreIndications: "Disfrutar a la noche",
       addMilk: false,
+      canReinfuse: false,
+      hasTheine: false,
+      infusionTime: 3,
+      moreIndications: "Disfrutar a la noche",
+      name: "Ruta del desierto",
       storeName: "La tienda de las especias",
+      teaType: TeaType.ROOIBOS,
+      temperature: 95,
       url: "https://www.tiendadelasespecias.com/rutadeldesierto",
     },
     [apple.id, lemon.id],
     1,
-    2025
+    2025,
   );
   if (tea1) {
     const storyOne = await addStoryTea(
       {
+        onlyMusic: false,
         storyPart1: "Todo pasó hace tiempo",
         storyPart2: "Tienes pistas en el nombre",
         storyPart3: "Cuanto más avanzas, más te pierdes",
         youtubeURL: "https://www.youtube.com/watch?v=jfKfPfyJRdk",
-        onlyMusic: false,
       },
-      tea1.id
+      tea1.id,
     );
     await addStoryImage("samples/dessert-on-a-plate", 0, storyOne.id);
     await addStoryImage("samples/coffee", 1, storyOne.id);
@@ -64,21 +65,21 @@ export async function seedDatabase() {
 
   const tea2 = await addTea(
     {
-      name: "Pakistaní",
-      teaType: TeaType.BLACK,
-      infusionTime: 5,
-      temperature: 105,
-      hasTheine: true,
-      canReinfuse: true,
-      reinfuseNumber: 2,
-      moreIndications: "En pakistán sabe mejor",
       addMilk: true,
+      canReinfuse: true,
+      hasTheine: true,
+      infusionTime: 5,
+      moreIndications: "En pakistán sabe mejor",
+      name: "Pakistaní",
+      reinfuseNumber: 2,
       storeName: "La tienda de las especias",
+      teaType: TeaType.BLACK,
+      temperature: 105,
       url: "https://www.tiendadelasespecias.com/rutadeldesierto",
     },
     [clove.id, cinnamon.id, cardamon.id],
     2,
-    2025
+    2025,
   );
   if (tea2) {
     const storyTwo = await addStoryTea(
@@ -88,7 +89,7 @@ export async function seedDatabase() {
         storyPart3: "pillarás",
         youtubeURL: "https://www.youtube.com/watch?v=jfKfPfyJRdk",
       },
-      tea2.id
+      tea2.id,
     );
     await addStoryImage("samples/breakfast", 0, storyTwo.id);
   }

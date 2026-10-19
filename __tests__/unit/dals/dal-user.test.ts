@@ -1,7 +1,16 @@
-import { prismaMock } from '@/lib/__mocks__/prisma';
-import { describe, expect, it, vi, beforeAll } from 'vitest'
-import { User, Role } from "@/generated/prisma/client";
-import { getUser, getAllUsers, editUser, changeUserRole, deleteUser, createPrismaUser, UserWithDayAssignedDay } from "@/lib/dal/dal-user";
+import { beforeAll, describe, expect, it, vi } from "vitest";
+
+import { Role, User } from "@/generated/prisma/client";
+import { prismaMock } from "@/lib/__mocks__/prisma";
+import {
+  changeUserRole,
+  createPrismaUser,
+  deleteUser,
+  editUser,
+  getAllUsers,
+  getUser,
+  UserWithDayAssignedDay,
+} from "@/lib/dal/dal-user";
 
 describe("DAL User", () => {
   beforeAll(() => {
@@ -9,15 +18,15 @@ describe("DAL User", () => {
   });
 
   const mockUser: User = {
-    id: "user-1",
-    username: "TestUser",
+    createdAt: new Date(),
     email: "test@example.com",
-    role: "USER",
+    emailVerified: false,
+    id: "user-1",
     image: null,
     name: null,
-    emailVerified: false,
-    createdAt: new Date(),
+    role: "USER",
     updatedAt: new Date(),
+    username: "TestUser",
   };
 
   describe("getUser", () => {
@@ -42,12 +51,12 @@ describe("DAL User", () => {
   describe("getAllUsers", () => {
     const mockUsersList: Array<UserWithDayAssignedDay> = [
       {
-        id: "1",
-        username: "A",
-        image: null,
-        email: "a@a.com",
-        role: Role.USER,
         daysAssigned: [],
+        email: "a@a.com",
+        id: "1",
+        image: null,
+        role: Role.USER,
+        username: "A",
       },
     ];
 
@@ -60,10 +69,10 @@ describe("DAL User", () => {
         expect.objectContaining({
           select: expect.objectContaining({
             email: true,
-            role: true,
             id: true,
+            role: true,
           }),
-        })
+        }),
       );
     });
 
@@ -76,10 +85,10 @@ describe("DAL User", () => {
         expect.objectContaining({
           select: expect.objectContaining({
             email: false,
-            role: false,
             id: true,
+            role: false,
           }),
-        })
+        }),
       );
     });
   });
@@ -89,13 +98,13 @@ describe("DAL User", () => {
       const updatedUser: User = { ...mockUser, username: "NewName" };
       prismaMock.user.update.mockResolvedValue(updatedUser);
 
-      const dataToUpdate = { username: "NewName", image: "new-img" };
+      const dataToUpdate = { image: "new-img", username: "NewName" };
       const result = await editUser("user-1", dataToUpdate);
 
       expect(result).toEqual(updatedUser);
       expect(prismaMock.user.update).toHaveBeenCalledWith({
-        where: { id: "user-1" },
         data: dataToUpdate,
+        where: { id: "user-1" },
       });
     });
   });
@@ -110,8 +119,8 @@ describe("DAL User", () => {
 
       expect(result.role).toBe("ADMIN");
       expect(prismaMock.user.update).toHaveBeenCalledWith({
-        where: { id: "user-1" },
         data: { role: "ADMIN" },
+        where: { id: "user-1" },
       });
     });
   });
@@ -136,10 +145,10 @@ describe("DAL User", () => {
       prismaMock.user.create.mockResolvedValue(mockUser);
 
       const createData = {
-        username: "TestUser",
         email: "test@example.com",
         password: "hashed",
         role: Role.USER,
+        username: "TestUser",
       };
 
       const result = await createPrismaUser(createData);

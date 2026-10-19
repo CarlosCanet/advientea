@@ -1,16 +1,16 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface TimerProps {
+  isPlayingSound?: boolean;
   seconds: number;
-  isPlayingSound?: boolean
 }
 
-export default function Timer({ seconds, isPlayingSound = true }: TimerProps) {
+export default function Timer({ isPlayingSound = true, seconds }: TimerProps) {
   const [isRunning, setIsRunning] = useState(false);
   const [timeLeft, setTimeLeft] = useState<number>(seconds);
-  const endTimeRef = useRef<number | null>(null);
+  const endTimeRef = useRef<null | number>(null);
   const modalRef = useRef<HTMLDialogElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
 
@@ -64,16 +64,24 @@ export default function Timer({ seconds, isPlayingSound = true }: TimerProps) {
   return (
     <>
       <div className="flex gap-6 justify-center items-center">
-        <div className="bg-info text-info-content font-bold text-2xl py-2 px-4 rounded-md border-4 border-secondary">{formatTime(timeLeft)}</div>
+        <div className="bg-info text-info-content font-bold text-2xl py-2 px-4 rounded-md border-4 border-secondary">
+          {formatTime(timeLeft)}
+        </div>
         {!isRunning ? (
-          <button className="btn btn-primary text-2xl w-25 h-13" onClick={startTimer} disabled={isRunning}>Start</button>
+          <button className="btn btn-primary text-2xl w-25 h-13" disabled={isRunning} onClick={startTimer}>
+            Start
+          </button>
         ) : (
-          <button className="btn btn-warning text-2xl w-25 h-13" onClick={resetTimer} disabled={!isRunning}>Reset</button>
+          <button className="btn btn-warning text-2xl w-25 h-13" disabled={!isRunning} onClick={resetTimer}>
+            Reset
+          </button>
         )}
       </div>
-      <dialog ref={modalRef} className="modal">
+      <dialog className="modal" ref={modalRef}>
         <div className="modal-box">
-          <h3 className="font-bold text-xl place-self-center">Es la hora de servir<span className="italic">Té</span></h3>
+          <h3 className="font-bold text-xl place-self-center">
+            Es la hora de servir<span className="italic">Té</span>
+          </h3>
           <div className="modal-action place-self-center">
             <form method="dialog">
               <button className="btn btn-primary">Close</button>

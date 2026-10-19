@@ -1,24 +1,26 @@
 "use client";
-import { assignUserToDay } from "@/app/actions/teaInfoActions";
 import { useState, useTransition } from "react";
+
+import { assignUserToDay } from "@/app/actions/teaInfoActions";
+
 import ActionToast, { useActionToast } from "./ActionToast";
 
 interface UserBasic {
   id: string;
-  username: string
+  username: string;
 }
 
 interface AssignmentSelectProps {
-  userId: string;
   dayId: string;
-  users: Array<UserBasic>;
   guestName?: string;
+  userId: string;
+  users: Array<UserBasic>;
 }
 
-export default function AssignmentSelect({ userId, dayId, users, guestName }: AssignmentSelectProps) {
+export default function AssignmentSelect({ dayId, guestName, userId, users }: AssignmentSelectProps) {
   const [isPending, startTransition] = useTransition();
-  const [currentValue, setCurrentValue] = useState<string>(guestName ?? (userId ?? ""));
-  const { toast, showToast } = useActionToast();
+  const [currentValue, setCurrentValue] = useState<string>(guestName ?? userId ?? "");
+  const { showToast, toast } = useActionToast();
 
   const handleChangeSelect = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const previousValue = currentValue;
@@ -31,16 +33,30 @@ export default function AssignmentSelect({ userId, dayId, users, guestName }: As
       }
       showToast(result);
     });
-  }
+  };
 
   return (
     <>
-      <select value={currentValue} className={`select ${!currentValue ? "text-neutral" : ""}`} name={`person-day-${dayId}`} onChange={(event) => handleChangeSelect(event)} disabled={isPending} >
+      <select
+        className={`select ${!currentValue ? "text-neutral" : ""}`}
+        disabled={isPending}
+        name={`person-day-${dayId}`}
+        onChange={(event) => handleChangeSelect(event)}
+        value={currentValue}
+      >
         <option value="">Elige a une persone</option>
-        {users.map((user) => <option key={user.id} value={user.id} >{user.username}</option>)}
-        {guestName && <option key={`${dayId}-${guestName}`} value={guestName} >{guestName}</option>}
-        </select>
+        {users.map((user) => (
+          <option key={user.id} value={user.id}>
+            {user.username}
+          </option>
+        ))}
+        {guestName && (
+          <option key={`${dayId}-${guestName}`} value={guestName}>
+            {guestName}
+          </option>
+        )}
+      </select>
       <ActionToast toast={toast} />
     </>
-  )
+  );
 }

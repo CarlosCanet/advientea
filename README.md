@@ -11,6 +11,7 @@ A gamified advent calendar web application for tea lovers, built with Next.js 16
 Each accepted participant is responsible for curating their assigned day, updating tea information, and setting the daily atmosphere. A logistical coordinator (affectionately known as the **Execu-TEA-ve**) assigns days and manages the distribution of physical tea packs to all participants beforehand.
 
 On the designated days (typically early December), the cycle unfolds as follows:
+
 - **Morning**: Essential brewing instructions and initial mood setting.
 - **Noon & Afternoon**: Enhanced atmosphere (music, photos, stories) is revealed.
 - **Evening**: The tea's identity and purchase details are finally unveiled.
@@ -36,12 +37,13 @@ Participants can also play **Adivina*Té*** (Guess the Tea). Registered users ea
 - **StoryTea**: Narrative content with progressive reveals
 - **TeaGuess**: User guesses with calculated points
 - **StoryImage**: Multiple images per tea day story
-- **Badge** *(Future)*: Achievement definitions
-- **UserBadge** *(Future)*: User-badge assignments
+- **Badge** _(Future)_: Achievement definitions
+- **UserBadge** _(Future)_: User-badge assignments
 
 ### ↕️ Key Workflows
 
 #### Daily Reveal Cycle (19:00 UTC)
+
 - Tea name, ingredients, and type are revealed
 - If a user only guesses the contributor, points remain hidden until final day
 - Daily ranking is updated
@@ -49,6 +51,7 @@ Participants can also play **Adivina*Té*** (Guess the Tea). Registered users ea
 - Overall ranking is shown after final day
 
 #### Tea Guessing Game
+
 1. **What you can guess** (any combination):
    - Tea name
    - Ingredients
@@ -69,32 +72,38 @@ This project uses cutting-edge technologies to explore modern web development pa
 ### Core Framework Choices
 
 **Next.js 16** (App Router)
+
 - Native server actions for type-safe mutations without API routes
 - Async dynamic params (`await params`) for cleaner route handling
 - Turbopack stability for faster dev/build cycles
 
 **Tailwind CSS v4 + daisyUI 5**
+
 - New `@import` and `@plugin` syntax for simplified configuration
 - Inline theme definitions for better maintainability
 - Component-first approach with daisyUI reducing custom CSS by ~60%
 
 **BetterAuth** over NextAuth
+
 - Type-safe auth with zero config boilerplate
 - Built-in Prisma adapter with proper TypeScript inference
 - Simpler session management for this use case (no OAuth complexity needed)
 
 **Vitest** over Jest
+
 - Resolved Jest compatibility issues with Prisma in integration tests (ESM/CommonJS mismatch)
 - Native ESM support eliminates transform configuration overhead
 - Faster test execution in watch mode
 - Better TypeScript integration out-of-the-box
 
 ### Trade-offs Accepted
-- **Benefits**: Modern DX, performance improvements, cleaner codebase  
-- **Risks**: Limited community resources, potential breaking changes  
+
+- **Benefits**: Modern DX, performance improvements, cleaner codebase
+- **Risks**: Limited community resources, potential breaking changes
 - **Mitigation**: Comprehensive test coverage (TDD), detailed documentation, MCP integration for AI-assisted documentation
 
 ### Learning Outcomes
+
 - Mastered Next.js 16 async patterns and Server Component best practices
 - Evaluated Tailwind v4 migration path (worth it for new projects)
 - Proved BetterAuth viability for production auth flows
@@ -114,7 +123,7 @@ The code adheres to high-quality software engineering standards to ensure mainta
 
 This project leverages modern AI tools to enhance productivity and code quality:
 
-- **AI Agents**: Specialized roles defined in `AGENTS.md` (e.g., UI Agent, Database Agent, Testing Agent) to handle specific domains.
+- **Agent guidance**: `AGENTS.md` documents the toolchain, environments, data-safety rules and conventions that humans and coding agents follow in this repository.
 - **MCP (Model Context Protocol)**: Integration with external tools (GitHub, Sentry, Documentation) to provide rich context to the AI assistant.
 - **GitHub Copilot**: Used for code generation, refactoring, and following the strict guidelines defined in `.github/copilot-instructions.md`.
 
@@ -130,28 +139,29 @@ This project leverages modern AI tools to enhance productivity and code quality:
 ### Installation
 
 1. Clone the repository
+
 ```bash
 git clone https://github.com/CarlosCanet/advientea.git
 cd advientea
 ```
 
-2. Install dependencies
-```bash
-# Using pnpm (recommended)
-pnpm install
+2. Set up environment variables (before installing: the install step generates the Prisma client and needs `DATABASE_URL`)
 
-# Or using npm
-npm install
-```
-
-3. Set up environment variables
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env` and add your credentials.
+Edit `.env` and add your credentials. `DATABASE_URL` must point to a local PostgreSQL.
+
+3. Install dependencies (installs the pinned toolchain first, see `mise.toml`)
+
+```bash
+mise install
+pnpm install
+```
 
 4. Set up the database
+
 ```bash
 # Using pnpm
 pnpm dlx prisma generate
@@ -163,6 +173,7 @@ npx prisma migrate dev --name init
 ```
 
 5. Run the development server
+
 ```bash
 # Using pnpm
 pnpm dev
@@ -187,6 +198,7 @@ npx prisma studio # Open Prisma Studio (DB GUI)
 ## 📃 Documentation
 
 ### Technical Documentation
-- **[AGENTS.md](./AGENTS.md)** - Agent roles and responsibilities for AI development
+
+- **[AGENTS.md](./AGENTS.md)** - Toolchain, environments, data-safety rules and conventions for humans and coding agents
 - **[copilot-instructions.md](./.github/copilot-instructions.md)** - Coding standards and patterns
 - **[daisyUI Instructions](./.github/instructions/daisyui.instructions.md)** - UI component guidelines

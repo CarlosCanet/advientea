@@ -1,22 +1,23 @@
 import { Role } from "@/generated/prisma/enums";
+
 import { auth } from "../auth";
 import { changeUserRole, deleteUser } from "../dal/dal-user";
 
 export interface CreateUserDTO {
-  username: string;
   email: string;
-  password: string;
   image?: string;
+  password: string;
   role?: Role;
+  username: string;
 }
 
 export async function createUser(data: CreateUserDTO) {
   const body = {
-    name: data.username,
-    username: data.username,
-    email: data.email,
-    password: data.password,
     callbackURL: "/profile",
+    email: data.email,
+    name: data.username,
+    password: data.password,
+    username: data.username,
     ...(data.image && { image: data.image }),
   };
 
@@ -42,6 +43,6 @@ function canAssignRole(requestedRole: Role, callerRole?: Role): boolean {
 
 export async function deleteUserService(id: string, callerRole?: Role) {
   if (callerRole !== Role.ADMIN) throw new Error("Only admins can delete users");
-  const result = await deleteUser(id)
+  const result = await deleteUser(id);
   return result;
 }

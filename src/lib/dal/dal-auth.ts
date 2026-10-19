@@ -1,7 +1,9 @@
-import { cache } from "react";
 import { headers } from "next/headers";
-import { auth } from "../auth";
+import { cache } from "react";
+
 import { Role } from "@/generated/prisma/enums";
+
+import { auth } from "../auth";
 import { ForbiddenError, UnauthenticatedError } from "../errors";
 
 export const verifySession = cache(async function verifySession() {
@@ -9,9 +11,9 @@ export const verifySession = cache(async function verifySession() {
     headers: await headers(),
   });
   if (!session?.user) {
-    return { isAuth: false as const, userId: null, role: null, user: null };
+    return { isAuth: false as const, role: null, user: null, userId: null };
   }
-  return { isAuth: true as const, userId: session.user.id, role: session.user.role, user: session.user };
+  return { isAuth: true as const, role: session.user.role, user: session.user, userId: session.user.id };
 });
 
 export async function requireSession() {
@@ -33,8 +35,8 @@ export async function requireRole(...roles: Role[]) {
 export async function changePassword(currentPassword: string, newPassword: string, revokeOtherSessions: boolean) {
   const data = await auth.api.changePassword({
     body: {
-      newPassword,
       currentPassword,
+      newPassword,
       revokeOtherSessions,
     },
     headers: await headers(),

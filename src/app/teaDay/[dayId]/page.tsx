@@ -1,3 +1,10 @@
+import { headers } from "next/headers";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { BsCupHotFill } from "react-icons/bs";
+import { FaStore, FaUser } from "react-icons/fa";
+import { MdComputer } from "react-icons/md";
+
 import StoryTeaComponent from "@/components/StoryTeaComponent";
 import TeaGuessCard from "@/components/TeaGuessCard";
 import TeaGuessForm from "@/components/TeaGuessForm";
@@ -8,16 +15,10 @@ import { Role } from "@/generated/prisma/enums";
 import { getAdvienteaDayState } from "@/lib/advientea-rules";
 import { auth } from "@/lib/auth";
 import { getDay, getUsernameAssignedToTea } from "@/lib/dal";
-import { headers } from "next/headers";
-import Link from "next/link";
-import { notFound } from "next/navigation";
-import { BsCupHotFill } from "react-icons/bs";
-import { FaStore, FaUser } from "react-icons/fa";
-import { MdComputer } from "react-icons/md";
 
 interface TeaDayPageProps {
   params: Promise<{ dayId: string }>;
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
 export default async function TeaDayPage({ params, searchParams }: TeaDayPageProps) {
@@ -32,9 +33,8 @@ export default async function TeaDayPage({ params, searchParams }: TeaDayPagePro
   const session = await auth.api.getSession({ headers: await headers() });
   const advienteaDayState = getAdvienteaDayState(day.dayNumber, day.year, session?.user.role as Role, simulated);
 
-
   if (!advienteaDayState.isReleased) {
-    return (<WaitForDayToCome dayNumber={day.dayNumber} />);
+    return <WaitForDayToCome dayNumber={day.dayNumber} />;
   }
 
   return (
@@ -48,7 +48,12 @@ export default async function TeaDayPage({ params, searchParams }: TeaDayPagePro
           ) : (
             <div className="skeleton skeleton-text font-[Griffy] text-2xl">Té desconocido</div>
           )}
-          {advienteaDayState.isPersonNameReleased && <div className="flex gap-2 items-center"><FaUser />{userName}</div>}
+          {advienteaDayState.isPersonNameReleased && (
+            <div className="flex gap-2 items-center">
+              <FaUser />
+              {userName}
+            </div>
+          )}
         </div>
       </div>
 
@@ -61,49 +66,61 @@ export default async function TeaDayPage({ params, searchParams }: TeaDayPagePro
           </div>
         </>
       ) : (
-          <>
-            <div className="collapse collapse-arrow bg-base-100 w-full max-w-xl">
-              <input type="checkbox" defaultChecked={true} />
-              <div className="collapse-title font-semibold text-4xl after:start-5 after:end-auto pe-4 ps-12">
-                Informa<span className="italic">Té</span>
-              </div>
-              <div className="collapse-content text-sm">
-                {advienteaDayState.isPart1Released ? ( 
-                  <>
-                    <div className="flex gap-2 items-center text-2xl mb-4">
-                      <BsCupHotFill />
-                      <div>¿Cómo infusionar?</div>
-                    </div>
-                    <TeaInfusionInfo tea={tea} />
-                    <div className="mt-2">
-                      <Timer seconds={(tea?.infusionTime ?? 0) * 60} />
-                    </div>
-                    
-                    {advienteaDayState.isTeaReleased && (tea?.storeName || tea?.url) && 
-                      <div className="flex flex-col gap-2 mt-4">
-                        <div className="flex gap-2 items-center text-2xl mb-4">
-                          <FaStore />
-                          <div>¿Dónde comprar?</div>
-                        </div>                
-                        {tea.storeName && <div className="flex items-center gap-2 ml-4"><FaStore />{tea.storeName}</div>}
-                        {tea.url && <Link href={tea.url} className="flex items-center gap-2 ml-4"><MdComputer />{tea.url}</Link>}
-                      </div>
-                    }
-                  </>
-                ): ( 
-                  <div className="skeleton skeleton-text font-[Griffy] text-center text-2xl">No es la hora todavía...</div>   
-                )}
-                </div>              
+        <>
+          <div className="collapse collapse-arrow bg-base-100 w-full max-w-xl">
+            <input defaultChecked={true} type="checkbox" />
+            <div className="collapse-title font-semibold text-4xl after:start-5 after:end-auto pe-4 ps-12">
+              Informa<span className="italic">Té</span>
             </div>
-            
-            {tea?.story &&
-              <StoryTeaComponent
-                story={tea?.story}
-                isPart1Released={advienteaDayState.isPart1Released}
-                isPart2Released={advienteaDayState.isPart2Released}
-                isPart3Released={advienteaDayState.isPart3Released}
-              />
-            }
+            <div className="collapse-content text-sm">
+              {advienteaDayState.isPart1Released ? (
+                <>
+                  <div className="flex gap-2 items-center text-2xl mb-4">
+                    <BsCupHotFill />
+                    <div>¿Cómo infusionar?</div>
+                  </div>
+                  <TeaInfusionInfo tea={tea} />
+                  <div className="mt-2">
+                    <Timer seconds={(tea?.infusionTime ?? 0) * 60} />
+                  </div>
+
+                  {advienteaDayState.isTeaReleased && (tea?.storeName || tea?.url) && (
+                    <div className="flex flex-col gap-2 mt-4">
+                      <div className="flex gap-2 items-center text-2xl mb-4">
+                        <FaStore />
+                        <div>¿Dónde comprar?</div>
+                      </div>
+                      {tea.storeName && (
+                        <div className="flex items-center gap-2 ml-4">
+                          <FaStore />
+                          {tea.storeName}
+                        </div>
+                      )}
+                      {tea.url && (
+                        <Link className="flex items-center gap-2 ml-4" href={tea.url}>
+                          <MdComputer />
+                          {tea.url}
+                        </Link>
+                      )}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="skeleton skeleton-text font-[Griffy] text-center text-2xl">
+                  No es la hora todavía...
+                </div>
+              )}
+            </div>
+          </div>
+
+          {tea?.story && (
+            <StoryTeaComponent
+              isPart1Released={advienteaDayState.isPart1Released}
+              isPart2Released={advienteaDayState.isPart2Released}
+              isPart3Released={advienteaDayState.isPart3Released}
+              story={tea?.story}
+            />
+          )}
         </>
       )}
 

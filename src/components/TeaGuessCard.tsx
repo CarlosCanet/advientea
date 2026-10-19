@@ -1,15 +1,17 @@
+import { headers } from "next/headers";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { BsFillPatchQuestionFill } from "react-icons/bs";
+
+import { Role, TeaType } from "@/generated/prisma/enums";
+import { getAdvienteaDayState } from "@/lib/advientea-rules";
+import { auth } from "@/lib/auth";
+import { canUserGuessPerson, canUserGuessTea } from "@/lib/services/tea-guess-service";
 import { SelectOption } from "@/lib/types";
+import { TEA_TYPE_LABELS } from "@/lib/utils";
+
 import { getAllAssigners, getAllIngredients, getDay, getDayForGuessing } from "../lib/dal";
 import TeaGuessForm from "./TeaGuessForm";
-import { canUserGuessPerson, canUserGuessTea } from "@/lib/services/tea-guess-service";
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
-import { Role, TeaType } from "@/generated/prisma/enums";
-import { TEA_TYPE_LABELS } from "@/lib/utils";
-import { BsFillPatchQuestionFill } from "react-icons/bs";
-import { getAdvienteaDayState } from "@/lib/advientea-rules";
-import { notFound } from "next/navigation";
-import Link from "next/link";
 
 interface TeaGuessCardProps {
   dayId: string;
@@ -27,11 +29,20 @@ export default async function TeaGuessCard({ dayId }: TeaGuessCardProps) {
     }))
     .toSorted((type1, type2) => type1.name.localeCompare(type2.name));
 
-  const [ingredients, dayForGuessing, users] = await Promise.all([getAllIngredients(), getDayForGuessing(dayId), getAllAssigners()]);
+  const [ingredients, dayForGuessing, users] = await Promise.all([
+    getAllIngredients(),
+    getDayForGuessing(dayId),
+    getAllAssigners(),
+  ]);
 
-  const ingredientList: Array<SelectOption> = ingredients?.map((ingredient) => ({ id: ingredient.id, name: ingredient.name })) ?? [];
-  const teaHasIngredients: boolean = Array.isArray(dayForGuessing?.tea?.ingredients) && dayForGuessing.tea.ingredients.length > 0;
-  const userList: Array<SelectOption> = users?.map((user) => ({ id: user.userId ?? "", name: user.user?.username ?? user.guestName ?? "" })).toSorted((user1, user2) => user1.name.localeCompare(user2.name)) ?? [];
+  const ingredientList: Array<SelectOption> =
+    ingredients?.map((ingredient) => ({ id: ingredient.id, name: ingredient.name })) ?? [];
+  const teaHasIngredients: boolean =
+    Array.isArray(dayForGuessing?.tea?.ingredients) && dayForGuessing.tea.ingredients.length > 0;
+  const userList: Array<SelectOption> =
+    users
+      ?.map((user) => ({ id: user.userId ?? "", name: user.user?.username ?? user.guestName ?? "" }))
+      .toSorted((user1, user2) => user1.name.localeCompare(user2.name)) ?? [];
   const canGuessTea = await canUserGuessTea(dayId, session.user.id);
   const canGuessPerson = await canUserGuessPerson(dayId, session.user.id);
   const day = await getDay(dayId);
@@ -46,31 +57,35 @@ export default async function TeaGuessCard({ dayId }: TeaGuessCardProps) {
       <div className="card-body items-center">
         <h2 className="card-title font-semibold gap-4 text-4xl items">
           <BsFillPatchQuestionFill />
-          <div className="flex gap-0">Adivina<span className="italic">Té</span></div>
+          <div className="flex gap-0">
+            Adivina<span className="italic">Té</span>
+          </div>
           <BsFillPatchQuestionFill />
         </h2>
 
         {isAssignee ? (
           <div className="text-center p-4">
             <div className="text-xl font-bold mb-2">¡Gracias por aportar tu granito de té!</div>
-            <p className="text-md">Como eres le proponen<span className="italic">Té</span> de hoy, no puedes participar en el juego.</p>
+            <p className="text-md">
+              Como eres le proponen<span className="italic">Té</span> de hoy, no puedes participar en el juego.
+            </p>
           </div>
         ) : (
           <>
             <div className="font-[Griffy] text-lg">¡ Vamos a jugar !</div>
             <TeaGuessForm
-              dayId={dayId}
-              users={userList}
-              teaHasIngredients={teaHasIngredients}
-              ingredients={ingredientList}
-              teaTypeOptions={teaTypeOptions}
-              canUserGuessTea={canGuessTea}
               canUserGuessPerson={canGuessPerson}
+              canUserGuessTea={canGuessTea}
+              dayId={dayId}
+              ingredients={ingredientList}
+              teaHasIngredients={teaHasIngredients}
+              teaTypeOptions={teaTypeOptions}
+              users={userList}
             />
           </>
         )}
         {advienteaDayState.isTeaReleased && (
-          <Link href={`/ranking/${dayId}`} className="mt-6">
+          <Link className="mt-6" href={`/ranking/${dayId}`}>
             <button className="btn btn-success">Ranking de hoy</button>
           </Link>
         )}

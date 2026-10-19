@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  # Never cancel a run on main: every production commit must end with its own check.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+env:
+  # Needed at install time: the postinstall runs `prisma generate`, and prisma.config.ts
+  # throws if DATABASE_URL is missing. .env.test is only loaded when NODE_ENV=test (vitest).
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5433/tests
+
+jobs:
+  checks:
+    name: Format, lint, types and tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      # Installs the exact node and pnpm from mise.toml, so CI matches local and Vercel.
+      - uses: jdx/mise-action@v4
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/pnpm/store
+          key: pnpm-store-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-store-${{ runner.os }}-
+
+      # CI=true is set by GitHub Actions, so lefthook's postinstall skips installing git hooks.
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm format:check
+      - run: pnpm lint
+      - run: pnpm exec tsc --noEmit -p tsconfig.json
+      - run: pnpm vitest --project unit --run
+
+      # The vitest global setup starts docker-compose, waits for Postgres and runs the migrations.
+      # Connection details come from the committed .env.test.
+      - run: pnpm vitest --project integration --run

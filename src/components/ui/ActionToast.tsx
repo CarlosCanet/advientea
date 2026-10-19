@@ -1,11 +1,12 @@
 "use client";
-import { ActionResponse } from "@/lib/types";
 import { useEffect, useState } from "react";
 
-export type Toast = { kind: "success" | "error"; message: string };
+import { ActionResponse } from "@/lib/types";
+
+export type Toast = { kind: "error" | "success"; message: string };
 
 export function useActionToast(durationMs = 5000) {
-  const [toast, setToast] = useState<Toast | null>(null);
+  const [toast, setToast] = useState<null | Toast>(null);
 
   useEffect(() => {
     if (!toast) return;
@@ -16,10 +17,10 @@ export function useActionToast(durationMs = 5000) {
   const showToast = (result: ActionResponse) =>
     setToast({ kind: result.success ? "success" : "error", message: result.message });
 
-  return { toast, showToast };
+  return { showToast, toast };
 }
 
-export default function ActionToast({ toast }: { toast: Toast | null }) {
+export default function ActionToast({ toast }: { toast: null | Toast }) {
   if (!toast) return null;
   return (
     <div className="toast">
