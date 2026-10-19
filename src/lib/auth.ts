@@ -3,6 +3,7 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { prisma } from "@/lib/prisma";
 import { nextCookies } from "better-auth/next-js";
+import { Role } from "@/generated/prisma/enums";
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, { provider: "postgresql" }),
@@ -17,10 +18,10 @@ export const auth = betterAuth({
         input: true
       },
       role: {
-        type: "string",
+        type: Object.values(Role),
         required: true,
         input: false,
-        defaultValue: "USER"
+        defaultValue: Role.USER
       }
     }
   },

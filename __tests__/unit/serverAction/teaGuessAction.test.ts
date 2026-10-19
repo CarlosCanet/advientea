@@ -1,24 +1,15 @@
 import { it, expect, describe, vi, beforeAll, beforeEach } from "vitest";
-import { auth } from "@/lib/auth";
 import { submitTeaGuess } from "@/app/actions/teaGuessActions";
 import { Role, TeaType } from "@/generated/prisma/enums";
-import { createTeaGuess, TeaGuessWithIngredients } from "@/lib/dal";
+import { createTeaGuess, requireSession, TeaGuessWithIngredients } from "@/lib/dal";
+import { UnauthenticatedError } from "@/lib/errors";
 import { TeaIngredient } from "@/generated/prisma/client";
 import { calculatePointsFromGuess, canUserGuessPerson, canUserGuessTea, validateTeaGuess } from "@/lib/services/tea-guess-service";
 import { revalidatePath } from "next/cache";
 
-vi.mock("next/headers", () => ({
-  headers: vi.fn().mockResolvedValue({}),
-}));
-vi.mock("@/lib/auth", () => ({
-  auth: {
-    api: {
-      getSession: vi.fn(),
-    },
-  },
-}));
 vi.mock("@/lib/dal", () => ({
   createTeaGuess: vi.fn(),
+  requireSession: vi.fn(),
 }));
 vi.mock("@/lib/services/tea-guess-service", () => ({
   canUserGuessTea: vi.fn(),
@@ -33,15 +24,10 @@ vi.mock("next/cache", () => ({
 describe("teaGuessAction", () => {
   const validFormData: FormData = new FormData();
   const invalidFormData: FormData = new FormData();
-  const validSession = {
-    session: {
-      id: "session-id",
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      userId: "user-id",
-      expiresAt: new Date(),
-      token: "token",
-    },
+  const authenticatedSession = {
+    isAuth: true as const,
+    userId: "user-id",
+    role: Role.USER,
     user: {
       id: "user-id",
       createdAt: new Date(),
@@ -89,15 +75,15 @@ describe("teaGuessAction", () => {
     vi.clearAllMocks();
   });
   it("should return error if user is not authenticated", async () => {
-    vi.mocked(auth.api.getSession).mockResolvedValue(null);
+    vi.mocked(requireSession).mockRejectedValue(new UnauthenticatedError());
     const result = await submitTeaGuess("day-id", null, validFormData);
     expect(result.success).toBe(false);
-    expect(result.message).toBe("Unauthorized");
+    expect(result.message).toBe("Debes iniciar sesión");
     expect(createTeaGuess).not.toHaveBeenCalled();
   });
 
   it("should return validation errors for invalid data", async () => {
-    vi.mocked(auth.api.getSession).mockResolvedValue(validSession);
+    vi.mocked(requireSession).mockResolvedValue(authenticatedSession);
     vi.mocked(validateTeaGuess).mockResolvedValue({
       success: false,
       error: { errors: ["error"], properties: { teaName: { errors: ["value"] } } },
@@ -110,7 +96,7 @@ describe("teaGuessAction", () => {
   });
 
   it("should return error if user is the owner of the tea or wrong date", async () => {
-    vi.mocked(auth.api.getSession).mockResolvedValue(validSession);
+    vi.mocked(requireSession).mockResolvedValue(authenticatedSession);
     vi.mocked(validateTeaGuess).mockResolvedValue({
       success: true,
       data: {
@@ -132,7 +118,7 @@ describe("teaGuessAction", () => {
   });
 
   it("should return success if user is authenticated and valid data", async () => {
-    vi.mocked(auth.api.getSession).mockResolvedValue(validSession);
+    vi.mocked(requireSession).mockResolvedValue(authenticatedSession);
     vi.mocked(createTeaGuess).mockResolvedValue(mockTeaGuessCreated);
     vi.mocked(validateTeaGuess).mockResolvedValue({
       success: true,

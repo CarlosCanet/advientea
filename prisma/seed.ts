@@ -70,7 +70,7 @@
 //     moreIndications: "Disfrutar a la noche",
 //     addMilk: false,
 //     storeName: "La tienda de las especias",
-//     url: "wwww.tiendadelasespecias.com/rutadeldesierto",
+//     url: "https://www.tiendadelasespecias.com/rutadeldesierto",
 //   }, 1, 2025);
 
 //   for (let index = 1; index < 25; index++) {
@@ -84,7 +84,7 @@
 //       moreIndications: "De madrugada sabe mejor",
 //       addMilk: true,
 //       storeName: "La tienda de las especias",
-//       url: "wwww.tiendadelasespecias.com/te-chai"
+//       url: "https://www.tiendadelasespecias.com/te-chai"
 //     }, index + 1, 2025);
 //   }
 // }

@@ -9,6 +9,11 @@ export interface SignUpFormData {
   image: File;
 }
 
+export interface ActionResponse {
+  success: boolean;
+  message: string;
+}
+
 export interface SignUpActionResponse {
   success: boolean;
   message: string;
@@ -68,7 +73,6 @@ export interface TeaInfoFormData {
   imagesOrder?: Array<string>;
   keptImages?: Array<string>;
   keptImagesOrder?: Array<string>;
-  deleteImages?: Array<string>;
 }
 
 export interface TeaInfoActionResponse {
@@ -110,7 +114,8 @@ type ImageStoryFormNew = {
 
 export type ImageStoryForm = ImageStoryFormOld | ImageStoryFormNew;
 
-export const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/svg+xml", "image/webp"];
+// SVG is excluded on purpose: it can embed scripts (stored XSS when served inline).
+export const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
 export interface UpdateProfileFormData {
   username: string;
   // email: string;

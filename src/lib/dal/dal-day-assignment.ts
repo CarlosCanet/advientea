@@ -37,6 +37,19 @@ export async function getDayAssignment(yearOrId: number | string, email?: string
   }
 }
 
+export async function getDayAssignmentByUserId(userId: string, year: number = 2025): Promise<DayAssignmentWithDayTeaAndUser | null> {
+  try{
+    const assignment = await prisma.dayAssignment.findUnique({
+      where: { userId_year: { userId: userId, year } },
+      include: { day: { include: { tea: true } }, user: true },
+    });
+    return assignment;
+  } catch (error: unknown){
+    console.error(error);
+    throw error;
+  }
+}
+
 export async function getAllDayAssignment(year: number = 2025): Promise<Array<DayAssignmentWithDayTeaAndUser>> {
   try {
     const assignments = await prisma.dayAssignment.findMany({
@@ -98,10 +111,26 @@ export async function editDayAssignment(data: Prisma.DayAssignmentUncheckedUpdat
   return dayAssignmentUpdated;
 }
 
+export async function upsertDayAssignment(dayId: string, assignment: Prisma.DayAssignmentUncheckedCreateInput): Promise<DayAssignmentWithDayAndUser> {
+  const dayAssignment = await prisma.dayAssignment.upsert({
+      where: { dayId },
+      create: assignment,
+      update: assignment,
+      include: { day: true, user: true },
+    });
+  return dayAssignment;
+}
+
 export async function deleteDayAssignment(id: string): Promise<DayAssignmentWithDayAndUser> {
   const dayAssignmentDeleted = await prisma.dayAssignment.delete({
     where: { id },
     include: { day: true, user: true },
   });
   return dayAssignmentDeleted;
+}
+
+export async function deleteDayAssignmentByDay(dayId: string): Promise<void> {
+  await prisma.dayAssignment.deleteMany({
+    where: { dayId },
+  });
 }

@@ -129,6 +129,7 @@ export default function ProfileForm({ username, email, imageId }: ProfileFormPro
           )}
         </>
       )}
+      {state.message && <p className={`text-sm text-center ${state.success ? "text-success" : "text-error"}`}>{state.message}</p>}
       <div className="card-actions justify-center mt-4">
         <button className="btn btn-soft btn-neutral" type="button" onClick={() => router.back()}>Atrás</button>
         <button className="btn btn-primary" type="submit" disabled={isPending || !!passwordError}>
