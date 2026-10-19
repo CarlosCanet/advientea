@@ -1,8 +1,13 @@
-onlyBuiltDependencies:
-  - "@prisma/client"
-  - "@prisma/engines"
-  - "@sentry/cli"
-  - esbuild
-  - prisma
-  - sharp
-  - unrs-resolver
+# Dependency build scripts pnpm may run (blocked by default since pnpm 10).
+# lefthook needs its postinstall to install the git hooks. The others are denied explicitly
+# because the project has always run with them blocked (local installs and Vercel builds):
+# our own postinstall generates the Prisma client, and esbuild, sentry-cli, sharp and
+# unrs-resolver get their binaries from optional platform packages, not from these scripts.
+allowBuilds:
+  lefthook: true
+  "@prisma/engines": false
+  prisma: false
+  "@sentry/cli": false
+  esbuild: false
+  sharp: false
+  unrs-resolver: false

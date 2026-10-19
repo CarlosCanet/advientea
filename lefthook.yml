@@ -1,0 +1,42 @@
+min_version: 2.0.0
+# Git hooks. Installed by lefthook's postinstall (allowed in pnpm-workspace.yaml allowBuilds).
+# Skip once with LEFTHOOK=0 git commit ... ; never skip on pushes to shared branches.
+
+pre-commit:
+  parallel: true
+  jobs:
+    # Runs on every commit on purpose: the lockfile can drift after a pull or a branch switch too.
+    # --lockfile-only makes it a pure check: no node_modules writes and no lifecycle scripts.
+    - name: Check lockfile
+      run: pnpm install --frozen-lockfile --lockfile-only --silent
+
+    # Lint and Format rewrite the same files, so they run in sequence inside this group,
+    # Prettier last so it has the final say on formatting.
+    - name: Fix and format
+      group:
+        piped: true
+        jobs:
+          - name: Lint
+            glob: "*.{ts,tsx,js,mjs,mts,cjs}"
+            run: pnpm exec eslint --fix '{staged_files}'
+            stage_fixed: true
+          - name: Format
+            glob: "*.{ts,tsx,js,mjs,mts,cjs,json,css,md,yml,yaml}"
+            run: pnpm exec prettier --write '{staged_files}'
+            stage_fixed: true
+
+    - name: Typecheck
+      # Whole project on purpose: a change in one file can break types elsewhere, and so can
+      # a schema, dependency or compiler-config change, hence the extra globs.
+      glob:
+        - "*.{ts,tsx,mts}"
+        - "prisma/schema.prisma"
+        - "package.json"
+        - "pnpm-lock.yaml"
+        - "tsconfig.json"
+      run: pnpm exec tsc --noEmit -p tsconfig.json
+
+pre-push:
+  jobs:
+    - name: unit tests
+      run: pnpm vitest --project unit --run
