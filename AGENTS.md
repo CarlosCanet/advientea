@@ -1,346 +1,80 @@
 # AGENTS.md
 
-> **Note:** All project documentation is maintained in English for consistency, collaboration, and better integration with AI tools and international development standards.
-
-## Overview
-
-This project is an Advent Tea Calendar built with Next.js 16.0 (App Router), React 19.2, TypeScript 5, Tailwind CSS v4, and daisyUI 5.3.9.
-
-**Core Features:**
-
-- **Authentication System:** Secure user registration, login, and password recovery using BetterAuth and Resend for email delivery
-- **Tea Calendar:** Interactive advent calendar (grid layout) with daily tea reveals at 21:00 UTC
-- **Gamification:** Users guess tea names daily, earning points based on accuracy and timing
-- **User Roles:** Admin (full access) and User (assigned to one specific day)
-- **Story Content:** Each day has a narrative with progressive reveals and optional YouTube media
-- **Ranking System:** Daily and overall leaderboards highlighting top 3 users with avatars
-- **Badges:** Achievement system for special accomplishments (first correct guess, most guessed tea, etc.)
-- **Image Management:** Cloudinary integration for user avatars and tea day images
-- **TDD Approach:** Test-Driven Development using Vitest and React Testing Library
-- **Form Handling:** Server Actions (native Next.js 16) with progressive enhancement
-- **Scoring Algorithm:** Levenshtein distance using fastest-levenshtein library
-
-The project emphasizes server components, performance, security, and maintainability.
-
-## Agent Roles & Responsibilities
-
-### 1. UI/UX Agent
-
-- Implements user interfaces using daisyUI v5 and Tailwind CSS v4
-- Ensures responsive, accessible, and visually consistent components
-- Follows the design system and color variables defined in `globals.css`
-- Uses Geist fonts and applies font variables in layouts
-
-### 2. Server Component Agent
-
-- Builds server components by default ("use client" only when needed)
-- Handles data fetching, static optimization, and error boundaries
-- Implements Server Actions for form handling (native Next.js 16 pattern)
-- Implements API routes when needed for non-form endpoints in `src/app/api/`
-- Ensures security (input validation, authentication, CSRF, etc.)
-- Uses async params pattern in dynamic routes: `const { id } = await params`
-
-### 3. Client Component Agent
-
-- Adds interactivity with React hooks and client-side state
-- Implements loading and error states using Suspense and `loading.tsx`/`error.tsx`
-- Keeps state close to where it is used
-
-### 4. TypeScript Agent
-
-- Defines clear interfaces and types for all data and props
-- Uses strict mode and type guards
-- Validates runtime data as needed (Zod can be added post-MVP)
-
-### 5. Styling Agent
-
-- Applies Tailwind v4 and daisyUI v5 classes for all components
-- Uses utility classes for layout, spacing, and responsiveness
-- Supports dark mode and container queries
-
-### 6. Performance Agent
-
-- Optimizes images with `next/image`
-- Implements code splitting and route prefetching
-- Uses Turbopack for builds and dev
-- Monitors bundle size and static optimization
-
-### 7. Security Agent
-
-- Validates and sanitizes all user input
-- Implements authentication with BetterAuth (registration, login, password recovery)
-- Manages password hashing with bcryptjs
-- Implements authorization checks (admin vs user permissions)
-- Protects routes with middleware (admin-only pages, user-assigned day enforcement)
-- Follows best practices for secure HTTP methods and data handling
-- Implements CSRF protection and rate limiting in API routes
-
-### 8. Database Agent
-
-- Manages Prisma schema and migrations
-- Implements data models: User, Day, StoryTea, TeaGuess, Badge, UserBadge, DayImage
-- Handles database queries in Server Components
-- Ensures data integrity with proper relations and constraints
-- Manages indexes for optimized queries (userId, dayId combinations)
-- Uses PostgreSQL for development (configurable for other environments)
-
-### 9. Media Integration Agent
-
-- Handles YouTube embed integration for ambient music/videos
-- Implements Cloudinary integration for image uploads (avatars, tea day images)
-- Manages responsive media players
-- Optimizes media loading and playback performance
-- Implements secure upload flows (signed URLs, public_id management)
-
-### 10. Testing Agent
-
-- Implements Test-Driven Development (TDD) approach
-- Writes and maintains unit and integration tests using Vitest and React Testing Library
-- Tests business logic: scoring algorithm, string similarity, badge awarding
-- Tests React components and API routes
-- Ensures new features have adequate test coverage
-- Runs tests via `npm run test` command
-- Mocks dependencies and services as needed
-
-### 11. Authentication Agent
-
-- Implements BetterAuth configuration and setup
-- Handles user registration with email verification
-- Manages login/logout flows
-- Implements password recovery with Resend email service
-- Manages session handling and token refresh
-- Integrates auth state with Next.js Server Components and Client Components
-
-### 12. Gamification Agent
-
-- Implements tea name guessing logic and scoring algorithm
-- Calculates points based on string similarity (Levenshtein distance using fastest-levenshtein library)
-- Awards points considering timing (earlier guesses may get bonus points)
-- Manages badge awarding system based on achievements
-- Implements daily and overall ranking calculations
-- Reveals scores at 21:00 UTC daily (REVEAL_HOUR constant)
-
-### 13. Email Agent
-
-- Configures and manages Resend for transactional emails
-- Sends password recovery emails with secure tokens
-- Handles email templates for user communications
-- Ensures email delivery reliability and error handling
-
-### 14. Documentation Agent
-
-- **ALWAYS** consult Context7 MCP Server (`mcp_context7_*` tools) for:
-  - Package documentation (resolve library ID first with `resolve-library-id`, then use `get-library-docs`)
-  - API references and function signatures
-  - Framework/library usage patterns and best practices
-  - Code examples and implementation guides
-- Use `mode='code'` for API references and code examples (default)
-- Use `mode='info'` for conceptual guides and architectural questions
-
-### 15. Issue Management Agent
-
-- **ALWAYS** consult GitHub MCP Server (`mcp_github_*` tools) for:
-  - Retrieving issue details (`mcp_github_search_issues` with specific query)
-  - Checking issue requirements, tasks, and acceptance criteria
-  - Verifying issue status and assigned labels
-  - Reviewing issue comments and discussions
-- Search issues by title, number, or labels before starting work
-- Use structured queries: `repo:owner/repo is:issue number:X` or `in:title "Issue Title"`
-
-## Agent Collaboration
-
-- Agents communicate via clear TypeScript interfaces and props
-- Shared logic and types are placed in common modules
-- All agents follow the standards in `.github/copilot-instructions.md`
-- Documentation Agent must be consulted before implementing any external library feature
-- Issue Management Agent must be consulted before starting work on any issue
-
-## File Structure Reference
-
-## Canonical File Structure Strategy
-
-Instead of maintaining a rigid file tree, follow these architectural patterns:
-
-- **Global Config**: `src/lib/` for shared logic (auth, scoring, rules), `prisma/` for DB schema.
-- **Routing**: `src/app/[feature-domain]/` pattern (e.g., `teaDay/`, `ranking/`, `admin-dashboard/`).
-- **Auth Pages**: Flat structure `src/app/sign-in`, `src/app/sign-up`, etc.
-- **API**: `src/app/api/[resource]/route.ts` for endpoints.
-- **Generated Code**: `src/generated/` (do not edit manually).
-- **Public Assets**: `/public` for static images/icons.
-
-## Database Schema
-
-### Multi-Year Support
-
-The schema supports multiple calendar editions (2025, 2026, etc.) through the `year` field in Day and DayAssignment models.
-
-### MVP Models (Active)
-
-#### User Model
-
-- Authentication and profile information
-- Fields: username, email, password (hashed with bcryptjs), isAdmin, image (Cloudinary URL), createdAt, updatedAt
-- Relations: daysAssigned (DayAssignment[]), guesses (TeaGuess[] - BONUS P1), badges (UserBadge[] - Production)
-- Unique constraints: username, email
-
-#### Day Model
-
-- Represents a single day in the tea advent calendar
-- Fields: dayNumber (1-25), year (default 2025)
-- Relations: tea (Tea, 1-to-1), story (StoryTea, 1-to-1), assignment (DayAssignment, 1-to-1), guesses (TeaGuess[] - BONUS P1)
-- Unique constraint: [dayNumber, year] - allows same day number across different years
-- Reveal time is constant at 21:00 UTC (defined in src/lib/constants.ts)
-
-#### Tea Model
-
-- Tea information (separated from Day for better normalization)
-- Fields: dayId, name, infusionTime (minutes), temperature (celsius), hasTheine, canReinfuse, reinfuseNumber, moreIndications, addMilk, storeName, url
-- Relations: day (Day, 1-to-1)
-- Unique constraint: dayId (one tea per day)
-- Cascade delete: if Day is deleted, Tea is deleted
-- Note: Intentional duplication allowed (users upload their own tea data without checking for existing teas)
-
-#### DayAssignment Model
-
-- Manages user-to-day assignments with multi-year support
-- Fields: userId, dayId, year
-- Relations: user (User), day (Day)
-- Unique constraints: dayId (one assignment per day), [userId, year] (one day per user per year)
-- Index: year (for efficient queries by calendar edition)
-- Cascade delete: if User or Day is deleted, assignment is deleted
-
-#### StoryTea Model
-
-- Contains narrative content for each tea day
-- Fields: dayId, storyPart1, storyPart2, storyPart3, youtubeURL, onlyMusic
-- Relations: day (Day, 1-to-1), images (StoryImage[])
-- Unique constraint: dayId
-- Cascade delete/update with parent Day
-
-#### StoryImage Model
-
-- Images for tea day stories (formerly DayImage)
-- Fields: storyTeaId, url (Cloudinary URL), publicId (for management), order (default 0), createdAt
-- Relations: story (StoryTea)
-- Index: [storyTeaId, order] for efficient ordered gallery queries
-- Cascade delete: if StoryTea is deleted, all images are deleted
-- Uploaded by assigned user or admin
-- Multiple images per StoryTea supported
-
-### BONUS P1 Models (Phase 2.2 - Commented in schema)
-
-#### TeaGuess Model
-
-- Stores user attempts to guess tea names
-- Fields: userId, dayId, guessedName, timestamp, points
-- Relations: user (User), day (Day)
-- Points are calculated immediately upon guess submission (using scoring algorithm)
-- Points are revealed to users at 21:00 UTC daily
-- Only the last guess per user/day is used for scoring (query by timestamp DESC)
-- Index: [userId, dayId, timestamp] for efficient last guess queries
-- No `isLatest` flag - simpler to query by timestamp
-
-### Production Models (Phase 3.2 - Commented in schema)
-
-#### Badge Model
-
-- Achievement definitions
-- Fields: name, description, icon (Cloudinary URL or emoji)
-- Relations: users (UserBadge[]) - many-to-many
-- Unique constraint: name
-- Examples: "First Blood" (first correct guess), "Tea Master" (highest score), etc.
-
-#### UserBadge Model
-
-- Junction table for User ↔ Badge many-to-many relation
-- Fields: userId, badgeId, earnedAt
-- Relations: user (User), badge (Badge)
-- Unique constraint: [userId, badgeId] - prevents duplicate badge awards
-- Cascade delete: if User or Badge is deleted, relation is deleted
-
-## Development Workflow
-
-### Git & GitHub Workflow
-
-**Branching Strategy:**
-
-- **main:** Production branch (Netlify deploys from here)
-- **develop:** Active development branch (work happens here)
-- **No feature branches:** Commit directly to develop for speed
-
-**Commit Convention:**
-
-- **Format:** `<type>: <description>`
-- **Issue numbers:** If the commit is associated with a tracked issue, append the issue reference as ` (#issue-number)`; include the issue number for any commit that resolves, implements, or is intended to be tracked by an issue.
-- **Max length:** 72 characters (strict)
-- **Body:** Avoid unless absolutely essential (details go in code/PR/issue)
-- **Types:** feat, fix, test, refactor, chore, docs
-
-```bash
-# Good examples (concise, max 72 chars)
-feat: implement user registration (#7)
-fix: correct UTC timezone handling (#18)
-test: add scoring algorithm tests (#30)
-refactor: simplify teaDay page structure (#17)
-chore: update environment variables (#1)
-docs: add deployment instructions
-
-# If body is essential (rare cases):
-feat: implement Prisma schema (#2)
-
-Add User, Day, StoryTea, TeaGuess, Badge models
-```
-
-**Deploy Workflow:**
-
-```bash
-# Daily work on develop
-git checkout develop
-git pull origin develop
-# Work on issue (TDD: test → code → refactor)
-git add .
-git commit -m "feat: implement login page (#8)"
-git push origin develop
-
-# Deploy to production (end of milestone or stable feature set)
-gh pr create --base main --head develop --title "chore: MVP milestone release"
-# Merge PR → Netlify autodeploy
-```
-
-**GitHub Projects:**
-
-- Track all 45 issues in Project #17 "AdvienTea Calendar"
-- Update issue status as you work (Todo → In Progress → Done)
-- Close issues in commit messages: `Closes #8`
-- 3 Milestones: MVP (Nov 18), BONUS P1 (Nov 23), Production (Nov 26)
-
-### Code Development Workflow
-
-1. **Pick issue from GitHub Project** (follow phase order)
-2. **TDD cycle:**
-   - Write failing tests (red)
-   - Implement feature (green)
-   - Refactor code (clean)
-3. **Commit with issue number**
-4. **Push to develop** (Netlify preview if configured)
-5. **Move issue to Done** in GitHub Project
-6. **Repeat for next issue**
-7. **PR to main** when milestone complete
-
-### Feature Implementation Workflow
-
-1. Plan component hierarchy and agent boundaries
-2. Define types/interfaces
-3. Write tests first (TDD)
-4. Implement server logic and data fetching
-5. Build UI with daisyUI/Tailwind
-6. Add client interactivity as needed
-7. Add error/loading states
-8. Optimize and secure
-9. Commit and push
+Guidance for anyone, human or coding agent, working on this repository. Documentation is written in English; user-facing strings in the app are Spanish.
+
+## Project at a glance
+
+Advienté is a tea advent calendar: 25 days in December, one tea per day, each day owned by one person who writes a short story and brewing notes. Everyone else guesses the tea and the author, and a ranking is built from those guesses. The app is live with real users; the 2026 edition is being prepared on top of the 2025 code.
+
+- **Stack:** Next.js 16 (App Router, Turbopack), React 19, TypeScript 5, Tailwind CSS 4 + daisyUI 5, Prisma 7 with `@prisma/adapter-pg` on PostgreSQL (Neon), better-auth, Cloudinary, Resend, Sentry, Vitest 4.
+- **Hosting:** Vercel. `main` deploys to production, `develop` deploys to the persistent preview `staging-adviente.vercel.app`, every other branch gets a PR preview. Neon creates a database branch per preview (`preview/<git-branch>`).
+
+## Toolchain
+
+Versions are pinned so that local, CI and Vercel build the same way. Vercel builds with Node 24 and pnpm 10 (pnpm 11+ is not supported there), so do not bump these on your own.
+
+- `mise.toml` pins Node and pnpm. Run `mise install` once; CI uses `jdx/mise-action` with the same file. `package.json` repeats the pin in `packageManager` and `engines` for Vercel.
+- pnpm only. On Windows, call scripts as `pnpm run <script>` when the name clashes with a system command (`format` does).
+- `pnpm-workspace.yaml` lists which dependency build scripts may run (`allowBuilds`). Only lefthook needs its postinstall; the rest have always run blocked in this project.
+- Formatting and linting: Prettier (`.prettierrc`) and ESLint flat config (`eslint.config.mjs`): `eslint-config-next`, `eslint-plugin-perfectionist` for import, object and type ordering, and `eslint-config-prettier` last. Line endings are LF everywhere (`.gitattributes`, `.editorconfig`).
+- Git hooks via lefthook (`lefthook.yml`): pre-commit formats and lints staged files and type-checks the project; pre-push runs the unit tests. Skip once with `LEFTHOOK=0 git commit ...`, never on shared branches.
+- CI: `.github/workflows/ci.yml` runs format check, lint, `tsc`, unit tests and the integration suite (Postgres in Docker) on PRs and pushes to `develop` and `main`.
+- Mechanical commits (mass formatting and sorting) are listed in `.git-blame-ignore-revs`. Enable locally with `git config blame.ignoreRevsFile .git-blame-ignore-revs`.
+
+### Commands
+
+| Command                  | What it does                                                        |
+| ------------------------ | ------------------------------------------------------------------- |
+| `pnpm dev`               | Dev server with Turbopack                                           |
+| `pnpm lint`              | ESLint                                                              |
+| `pnpm run format`        | Prettier, write                                                     |
+| `pnpm format:check`      | Prettier, check only (CI)                                           |
+| `pnpm exec tsc --noEmit` | Type-check                                                          |
+| `pnpm test:u`            | Unit tests (`__tests__/unit`)                                       |
+| `pnpm test:i`            | Integration tests against Docker Postgres (`__tests__/integration`) |
+| `pnpm docker:up`         | Start the test Postgres (`localhost:5433/tests`)                    |
+| `pnpm db:seed`           | Seed the database that `DATABASE_URL` points to (dev only)          |
+
+## Environments and data safety
+
+These rules exist because the app has production users and a shared Cloudinary account. Read them before running anything.
+
+- **Never touch the production database.** `.env` holds the local dev database (`localhost:5432`). The production connection string must never be used from a developer machine.
+- **Tests use the Docker Postgres only.** `.env.test` (committed, no secrets) points to `localhost:5433/tests`; `.env.test.local` (gitignored) may override it. The integration suite resets and reseeds that database on every test.
+- **Do not run `pnpm build` locally against a real database.** The build script runs `prisma migrate deploy` first. `prisma migrate ...` and `pnpm db:reset` act on whatever `DATABASE_URL` resolves to through `prisma.config.ts` (that is `.env`, never `.env.test`), so run them only when that is your local dev database or the Docker test database (`pnpm dotenv -e .env.test -- prisma migrate reset`).
+- **Cloudinary is one shared account for every environment.** The app deletes the previous asset when an avatar or a story image is replaced. Never exercise those flows against rows that reference production assets; use disposable test assets. A per-environment folder and a delete guard are planned.
+- **Staging data is a copy of production.** The `preview/develop` Neon branch is copy-on-write: writes stay in staging, but it contains real user data and sits behind Vercel SSO. Use throwaway accounts there.
+- Secrets live in Vercel as Sensitive variables. Never print, log or commit them.
+
+## Architecture
+
+- `src/app/<feature>/` holds routes; auth pages are flat (`sign-in`, `sign-up`, `reset-password`).
+- `src/app/actions/*` are Server Actions. **They are public POST endpoints**: every exported action starts with `requireSession()` or `requireRole(...)` from `src/lib/dal/dal-auth.ts` (exceptions: `signup`, `signin`, `signout`, and `addTeaInfo`, which allows guests on purpose). `__tests__/unit/serverAction/actionsAuthSweep.test.ts` enforces this for every action module; add new actions there.
+- `src/lib/dal/` is the data access layer and where Prisma queries belong. `src/lib/services/` holds business logic (scoring, rankings, users); `ranking-service.ts` still queries Prisma directly and should move its queries to the DAL when touched. `src/lib/auth.ts` hands the client to better-auth's Prisma adapter. `src/lib/schemas/` holds the Zod 4 schemas shared by forms and actions. `src/lib/errors.ts` defines `UnauthenticatedError` and `ForbiddenError`.
+- Roles (`Role` enum): `ADMIN`, `EXECUTEAVE` (calendar manager) and `USER`. Only `ADMIN` changes roles, creates or deletes days and sees `/users`. `ADMIN` and `EXECUTEAVE` assign days and edit any tea. `USER` edits only the tea of their own `DayAssignment` for the active year.
+- Mutation actions called from client components return `ActionResponse { success, message }` with Spanish messages; form actions used with `useActionState` return the extended `*ActionResponse` shapes from `src/lib/types.ts`, which add `errors` and `inputs` so the form can show field errors and keep what the user typed. Client components show the message through `useActionToast` / `ActionToast` (`src/components/ui/ActionToast.tsx`), a stopgap until the planned move to shadcn/ui and sonner.
+- Editing a story's images goes through `replaceStoryImages(storyTeaId, slots)` in `src/lib/dal/dal-story-image.ts`: one transaction, ids scoped to the story, removed assets returned for deletion after commit. Creation in `addTeaInfo` still inserts images one by one with `addStoryImage`; new code should use `replaceStoryImages`.
+- Day visibility and the reveal schedule live in `src/lib/advientea-rules.ts`; guessing rules in `src/lib/services/tea-guess-service.ts`; scoring in `src/lib/tea-guess-scoring.ts`.
+- `src/generated/prisma/` is generated by `prisma generate` on install. Do not edit it or `prisma/migrations/` by hand.
+
+## Conventions
+
+- Code, comments and docs in English; UI copy in Spanish. Comment only the non-obvious why, never the what.
+- Server Components by default, `"use client"` only where there is interactivity. Forms use Server Actions with `useActionState`.
+- Commits: `<type>: <description>`, at most 72 characters, `(#issue)` when the work is tracked. Types: `feat`, `fix`, `test`, `refactor`, `chore`, `docs`, `style`, `ci`. Keep mechanical changes (formatting, sorting, renames) in their own commits.
+- Branches: `main` is production, `develop` is staging. Work on short-lived branches and open PRs to `develop`; `develop` goes to `main` by PR when staging has been checked.
+- Tests first for logic: unit tests for scoring, rules and services with mocked DAL; integration tests for DAL functions and anything that depends on database constraints.
+- Before relying on a library behaviour, check the official documentation for the installed version. Several past assumptions about Next.js, better-auth and Prisma turned out to be wrong.
+
+## Working here as an agent
+
+- Keep diffs focused. Formatting is handled by the hooks; do not reformat untouched code or rewrite existing comments.
+- Never run destructive commands (`db:reset`, migrations, data deletion, Cloudinary deletions) outside the Docker test database without an explicit instruction, and never against production.
+- Vercel, Neon and GitHub operations are read-only unless the task says otherwise.
+- When a check cannot be run, say so instead of assuming it passed.
 
 ## References
 
-- See `.github/copilot-instructions.md` for full standards
-- See `README.md` for project setup and scripts
-- See GitHub Project #17 for issue tracking: https://github.com/users/CarlosCanet/projects/17
+- `README.md`: setup and getting started.
+- `.github/copilot-instructions.md` and `.github/instructions/daisyui.instructions.md`: styling and daisyUI conventions.
+- GitHub Project #17 tracks the work: https://github.com/users/CarlosCanet/projects/17

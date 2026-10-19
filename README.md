@@ -123,7 +123,7 @@ The code adheres to high-quality software engineering standards to ensure mainta
 
 This project leverages modern AI tools to enhance productivity and code quality:
 
-- **AI Agents**: Specialized roles defined in `AGENTS.md` (e.g., UI Agent, Database Agent, Testing Agent) to handle specific domains.
+- **Agent guidance**: `AGENTS.md` documents the toolchain, environments, data-safety rules and conventions that humans and coding agents follow in this repository.
 - **MCP (Model Context Protocol)**: Integration with external tools (GitHub, Sentry, Documentation) to provide rich context to the AI assistant.
 - **GitHub Copilot**: Used for code generation, refactoring, and following the strict guidelines defined in `.github/copilot-instructions.md`.
 
@@ -145,23 +145,20 @@ git clone https://github.com/CarlosCanet/advientea.git
 cd advientea
 ```
 
-2. Install dependencies
-
-```bash
-# Using pnpm (recommended)
-pnpm install
-
-# Or using npm
-npm install
-```
-
-3. Set up environment variables
+2. Set up environment variables (before installing: the install step generates the Prisma client and needs `DATABASE_URL`)
 
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env` and add your credentials.
+Edit `.env` and add your credentials. `DATABASE_URL` must point to a local PostgreSQL.
+
+3. Install dependencies (installs the pinned toolchain first, see `mise.toml`)
+
+```bash
+mise install
+pnpm install
+```
 
 4. Set up the database
 
@@ -202,6 +199,6 @@ npx prisma studio # Open Prisma Studio (DB GUI)
 
 ### Technical Documentation
 
-- **[AGENTS.md](./AGENTS.md)** - Agent roles and responsibilities for AI development
+- **[AGENTS.md](./AGENTS.md)** - Toolchain, environments, data-safety rules and conventions for humans and coding agents
 - **[copilot-instructions.md](./.github/copilot-instructions.md)** - Coding standards and patterns
 - **[daisyUI Instructions](./.github/instructions/daisyui.instructions.md)** - UI component guidelines
