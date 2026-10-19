@@ -1,15 +1,17 @@
+import { headers } from "next/headers";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { BsFillPatchQuestionFill } from "react-icons/bs";
+
+import { Role, TeaType } from "@/generated/prisma/enums";
+import { getAdvienteaDayState } from "@/lib/advientea-rules";
+import { auth } from "@/lib/auth";
+import { canUserGuessPerson, canUserGuessTea } from "@/lib/services/tea-guess-service";
 import { SelectOption } from "@/lib/types";
+import { TEA_TYPE_LABELS } from "@/lib/utils";
+
 import { getAllAssigners, getAllIngredients, getDay, getDayForGuessing } from "../lib/dal";
 import TeaGuessForm from "./TeaGuessForm";
-import { canUserGuessPerson, canUserGuessTea } from "@/lib/services/tea-guess-service";
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
-import { Role, TeaType } from "@/generated/prisma/enums";
-import { TEA_TYPE_LABELS } from "@/lib/utils";
-import { BsFillPatchQuestionFill } from "react-icons/bs";
-import { getAdvienteaDayState } from "@/lib/advientea-rules";
-import { notFound } from "next/navigation";
-import Link from "next/link";
 
 interface TeaGuessCardProps {
   dayId: string;
@@ -72,18 +74,18 @@ export default async function TeaGuessCard({ dayId }: TeaGuessCardProps) {
           <>
             <div className="font-[Griffy] text-lg">¡ Vamos a jugar !</div>
             <TeaGuessForm
-              dayId={dayId}
-              users={userList}
-              teaHasIngredients={teaHasIngredients}
-              ingredients={ingredientList}
-              teaTypeOptions={teaTypeOptions}
-              canUserGuessTea={canGuessTea}
               canUserGuessPerson={canGuessPerson}
+              canUserGuessTea={canGuessTea}
+              dayId={dayId}
+              ingredients={ingredientList}
+              teaHasIngredients={teaHasIngredients}
+              teaTypeOptions={teaTypeOptions}
+              users={userList}
             />
           </>
         )}
         {advienteaDayState.isTeaReleased && (
-          <Link href={`/ranking/${dayId}`} className="mt-6">
+          <Link className="mt-6" href={`/ranking/${dayId}`}>
             <button className="btn btn-success">Ranking de hoy</button>
           </Link>
         )}

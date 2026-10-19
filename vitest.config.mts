@@ -1,6 +1,6 @@
-import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import tsconfigPaths from "vite-tsconfig-paths";
+import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   plugins: [tsconfigPaths(), react()],
@@ -10,19 +10,19 @@ export default defineConfig({
       {
         extends: true,
         test: {
-          name: "unit",
           include: ["__tests__/unit/**/*.test.{ts,tsx}"],
+          name: "unit",
         },
       },
       {
         extends: true,
         test: {
-          name: "integration",
-          include: ["__tests__/integration/**/*.test.ts"],
-          globalSetup: ["src/lib/tests/global-setup.ts"],
-          setupFiles: ["src/lib/tests/setup.ts"],
           fileParallelism: false,
+          globalSetup: ["src/lib/tests/global-setup.ts"],
+          include: ["__tests__/integration/**/*.test.ts"],
           maxWorkers: 1,
+          name: "integration",
+          setupFiles: ["src/lib/tests/setup.ts"],
         },
       },
     ],

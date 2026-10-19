@@ -1,9 +1,10 @@
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+
 import CheckboxUsersExecuteave from "@/components/ui/CheckboxUsersExecuteave";
 import { Role } from "@/generated/prisma/enums";
 import { auth } from "@/lib/auth";
 import { getAllUsers } from "@/lib/dal";
-import { headers } from "next/headers";
-import { redirect } from "next/navigation";
 
 export default async function Users() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -40,7 +41,7 @@ export default async function Users() {
                     <td>{user.username}</td>
                     <td>{user.email}</td>
                     <td className="text-center">
-                      <CheckboxUsersExecuteave userId={user.id} role={user.role} />
+                      <CheckboxUsersExecuteave role={user.role} userId={user.id} />
                     </td>
                     <td className="text-center">{user.daysAssigned[0]?.day.dayNumber}</td>
                   </tr>

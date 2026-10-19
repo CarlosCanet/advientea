@@ -1,12 +1,13 @@
 import { RankingEntry } from "@/lib/types";
+
 import ProfileImage from "./ui/ProfileImage";
 
 interface RankingListProps {
-  ranking: Array<RankingEntry>;
   currentUserId: string;
+  ranking: Array<RankingEntry>;
 }
 
-export default function RankingList({ ranking, currentUserId }: RankingListProps) {
+export default function RankingList({ currentUserId, ranking }: RankingListProps) {
   if (ranking.length === 0) {
     return (
       <div className="card w-full max-w-xl bg-base-200 card-xl shadow-md border border-primary/20 mb-5">
@@ -21,8 +22,8 @@ export default function RankingList({ ranking, currentUserId }: RankingListProps
           const isCurrentUser = user.userId === currentUserId;
           return (
             <li
-              key={user.userId}
               className={`list-row items-center ${isCurrentUser && "bg-secondary/65 text-secondary-content/65"}`}
+              key={user.userId}
             >
               <div className="text-4xl font-medium opacity-40 tabular-nums">
                 {user.rank.toString().padStart(2, "0")}

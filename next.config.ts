@@ -1,5 +1,6 @@
-import { withSentryConfig } from "@sentry/nextjs";
 import type { NextConfig } from "next";
+
+import { withSentryConfig } from "@sentry/nextjs";
 
 // Report-Only on purpose: the browser logs violations to the console instead of blocking.
 // Click through staging with devtools open, add any missing origin, then rename the header to
@@ -38,7 +39,7 @@ const nextConfig: NextConfig = {
     },
   },
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [{ headers: securityHeaders, source: "/:path*" }];
   },
 };
 

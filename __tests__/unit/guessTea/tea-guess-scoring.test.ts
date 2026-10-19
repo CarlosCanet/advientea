@@ -1,3 +1,5 @@
+import { describe, expect, it } from "vitest";
+
 import { TeaType } from "@/generated/prisma/enums";
 import {
   calculateDailyScore,
@@ -8,7 +10,6 @@ import {
   calculateTimeScore,
 } from "@/lib/tea-guess-scoring";
 import { TeaGuessFormData } from "@/lib/types";
-import { describe, expect, it } from "vitest";
 
 describe("Tea guess scoring", () => {
   describe("TeaName scoring", () => {
@@ -178,17 +179,17 @@ describe("Tea guess scoring", () => {
 
   describe("Daily score", () => {
     const originalTea: TeaGuessFormData = {
-      teaName: "tea-name",
-      teaType: TeaType.GREEN,
       ingredients: ["i1-id", "i2-id", "i3-id"],
       personName: "user1-id",
+      teaName: "tea-name",
+      teaType: TeaType.GREEN,
     };
     it("should give 1000 if you answer correctly every field and before 10:00 h", () => {
       const guess: TeaGuessFormData = {
-        teaName: "tea-name",
-        teaType: TeaType.GREEN,
         ingredients: ["i1-id", "i3-id", "i2-id"],
         personName: "user1-id",
+        teaName: "tea-name",
+        teaType: TeaType.GREEN,
       };
       const timestamp = new Date();
       timestamp.setHours(9, 58, 0, 0);
@@ -202,10 +203,10 @@ describe("Tea guess scoring", () => {
 
     it("should give 0 points if you answer everything wrong and after 20:00 h", () => {
       const guess: TeaGuessFormData = {
-        teaName: "zsr1awbxM125Ac",
-        teaType: TeaType.BLACK,
         ingredients: ["i4-id", "i5-id", "i6-id"],
         personName: "zsr1awbxM125Aczsr1awbxM125Ac",
+        teaName: "zsr1awbxM125Ac",
+        teaType: TeaType.BLACK,
       };
       const timestamp = new Date();
       timestamp.setHours(20, 8, 0, 0);
@@ -215,10 +216,10 @@ describe("Tea guess scoring", () => {
 
     it("should give partial points if you have mixed answers", () => {
       const guess: TeaGuessFormData = {
-        teaName: "tea-name",
-        teaType: TeaType.BLACK,
         ingredients: ["i4-id", "i5-id", "i6-id"],
         personName: "user1-id",
+        teaName: "tea-name",
+        teaType: TeaType.BLACK,
       };
       const timestamp = new Date();
       timestamp.setHours(15, 0, 0, 0);
@@ -233,8 +234,8 @@ describe("Tea guess scoring", () => {
 
     it("should give points with partial guesses", () => {
       const guess: TeaGuessFormData = {
-        teaName: "tea-name",
         personName: "zsr1awbxM125Ac",
+        teaName: "tea-name",
       };
       const timestamp = new Date();
       timestamp.setHours(15, 0, 0, 0);
@@ -245,18 +246,18 @@ describe("Tea guess scoring", () => {
 
     it("should give points normally if some fields are missing in the original tea", () => {
       const incompleteTea: TeaGuessFormData = {
-        teaName: "tea-name",
         personName: "user1-id",
+        teaName: "tea-name",
       };
       const guess1: TeaGuessFormData = {
-        teaName: "tea-name",
         personName: "zsr1awbxM125Ac",
+        teaName: "tea-name",
       };
       const guess2: TeaGuessFormData = {
-        teaName: "tea-name",
-        teaType: TeaType.BLACK,
         ingredients: ["i1-id"],
         personName: "zsr1awbxM125Ac",
+        teaName: "tea-name",
+        teaType: TeaType.BLACK,
       };
       const timestamp = new Date();
       timestamp.setHours(15, 0, 0, 0);

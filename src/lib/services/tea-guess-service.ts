@@ -1,25 +1,27 @@
 import z from "zod";
+
 import { getFormString, getFormStringsByPrefix } from "@/app/actions/commonActions";
 import { Role, TeaType } from "@/generated/prisma/enums";
-import { getDayForGuessing } from "../dal";
+
 import { getAdvienteaDayState, isDateTodayOrPast } from "../advientea-rules";
-import { TeaGuessFormData } from "../types";
+import { getDayForGuessing } from "../dal";
 import { calculateDailyScore } from "../tea-guess-scoring";
+import { TeaGuessFormData } from "../types";
 
 const TeaGuessFormSchema = z
   .object({
-    teaName: z
-      .string()
-      .trim()
-      .transform((val) => (val === "" ? undefined : val))
-      .optional(),
-    teaType: z.preprocess((val) => (val === "" ? undefined : val), z.enum(TeaType).optional()),
     ingredients: z.array(z.string()).optional(),
     personName: z
       .string()
       .trim()
       .transform((val) => (val === "" ? undefined : val))
       .optional(),
+    teaName: z
+      .string()
+      .trim()
+      .transform((val) => (val === "" ? undefined : val))
+      .optional(),
+    teaType: z.preprocess((val) => (val === "" ? undefined : val), z.enum(TeaType).optional()),
   })
   .refine(
     (data) => {
@@ -65,15 +67,15 @@ export async function canUserGuessPerson(dayId: string, currentUserId: string): 
   return !dayState.isPersonNameReleased;
 }
 
-export async function calculatePointsFromGuess(dayId: string, guessData: TeaGuessFormData): Promise<number | null> {
+export async function calculatePointsFromGuess(dayId: string, guessData: TeaGuessFormData): Promise<null | number> {
   const dayGuessedRecord = await getDayForGuessing(dayId);
   if (!dayGuessedRecord || !dayGuessedRecord.tea) return null;
 
   const teaData: TeaGuessFormData = {
-    teaName: dayGuessedRecord?.tea?.name,
-    teaType: dayGuessedRecord?.tea?.teaType,
     ingredients: dayGuessedRecord?.tea?.ingredients.map((ing) => ing.name),
     personName: dayGuessedRecord?.assignment?.user?.username ?? dayGuessedRecord?.assignment?.guestName ?? "",
+    teaName: dayGuessedRecord?.tea?.name,
+    teaType: dayGuessedRecord?.tea?.teaType,
   };
   const timestamp = new Date();
 

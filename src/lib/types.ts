@@ -2,21 +2,19 @@ import { TeaType } from "@/generated/prisma/client";
 
 export const DEFAULT_IMAGE_PROFILE = "advientea/2025-Caoslendario/avatars/kmz6ttle9ihjuosyqyns";
 export interface SignUpFormData {
-  username: string;
   email: string;
+  image: File;
   password: string;
   passwordConfirmation?: string;
-  image: File;
+  username: string;
 }
 
 export interface ActionResponse {
-  success: boolean;
   message: string;
+  success: boolean;
 }
 
 export interface SignUpActionResponse {
-  success: boolean;
-  message: string;
   errors?: {
     errors: Array<string>;
     properties?: {
@@ -26,48 +24,50 @@ export interface SignUpActionResponse {
     };
   };
   inputs?: SignUpFormData;
+  message: string;
+  success: boolean;
 }
 
 export const initialSignUpActionResponse: SignUpActionResponse = {
-  success: false,
   message: "",
+  success: false,
 };
 
 export type SignInFormData = Pick<SignUpFormData, "email" | "password">;
 export interface SignInActionResponse {
-  success: boolean;
-  message: string;
   errors?: {
     [K in keyof SignInFormData]?: Array<string>;
   };
+  message: string;
+  success: boolean;
 }
 
 export const initialSignInActionResponse: SignInActionResponse = {
-  success: false,
   message: "",
+  success: false,
 };
 
 export interface TeaInfoFormData {
-  personName: string;
   dayNumber: number;
+  personName: string;
 
-  teaName: string;
-  temperature: number;
-  infusionTime: number;
-  hasTheine: boolean;
   addMilk: boolean;
   canReinfuse: boolean;
-  reinfuseNumber?: number;
+  hasTheine: boolean;
+  infusionTime: number;
   moreIndications?: string;
+  reinfuseNumber?: number;
   storeName?: string;
-  urlStore?: string;
   teaId?: string;
+  teaName: string;
+  temperature: number;
+  urlStore?: string;
 
+  onlyMusic: boolean;
   storyPart1: string;
   storyPart2: string;
   storyPart3: string;
   youtubeURL?: string;
-  onlyMusic: boolean;
 
   images?: Array<File>;
   imagesOrder?: Array<string>;
@@ -76,8 +76,6 @@ export interface TeaInfoFormData {
 }
 
 export interface TeaInfoActionResponse {
-  success: boolean;
-  message: string;
   errors?: {
     errors: Array<string>;
     properties?: {
@@ -87,32 +85,34 @@ export interface TeaInfoActionResponse {
     };
   };
   inputs?: TeaInfoFormData;
+  message: string;
+  success: boolean;
 }
 
 export const initialTeaInfoActionResponse: TeaInfoActionResponse = {
-  success: false,
   message: "",
+  success: false,
 };
 
 type ImageStoryFormOld = {
-  id: string;
-  order: number;
-  isNew: false;
-  publicId: string;
-  previewURL?: never;
   file?: never;
+  id: string;
+  isNew: false;
+  order: number;
+  previewURL?: never;
+  publicId: string;
 };
 
 type ImageStoryFormNew = {
-  id: string;
-  order: number;
-  isNew: true;
-  previewURL: string;
   file: File;
+  id: string;
+  isNew: true;
+  order: number;
+  previewURL: string;
   publicId?: never;
 };
 
-export type ImageStoryForm = ImageStoryFormOld | ImageStoryFormNew;
+export type ImageStoryForm = ImageStoryFormNew | ImageStoryFormOld;
 
 // SVG is excluded on purpose: it can embed scripts (stored XSS when served inline).
 export const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
@@ -120,14 +120,12 @@ export interface UpdateProfileFormData {
   username: string;
   // email: string;
   currentPassword?: string;
+  image?: File;
   newPassword?: string;
   newPasswordConfirmation?: string;
-  image?: File;
 }
 
 export interface UpdateProfileActionResponse {
-  success: boolean;
-  message: string;
   errors?: {
     errors: Array<string>;
     properties?: {
@@ -137,23 +135,23 @@ export interface UpdateProfileActionResponse {
     };
   };
   inputs?: UpdateProfileFormData;
+  message: string;
+  success: boolean;
 }
 
 export const initialUpdateProfileActionResponse: UpdateProfileActionResponse = {
-  success: false,
   message: "",
+  success: false,
 };
 
 export interface TeaGuessFormData {
-  teaName?: string;
-  teaType?: TeaType;
   ingredients?: Array<string>;
   personName?: string;
+  teaName?: string;
+  teaType?: TeaType;
 }
 
 export interface TeaGuessActionResponse {
-  success: boolean;
-  message: string;
   errors?: {
     errors: Array<string>;
     properties?: {
@@ -163,11 +161,13 @@ export interface TeaGuessActionResponse {
     };
   };
   inputs?: Omit<TeaGuessFormData, "teaType"> & { teaType?: string };
+  message: string;
+  success: boolean;
 }
 
 export const initialTeaGuessActionResponse: TeaGuessActionResponse = {
-  success: false,
   message: "",
+  success: false,
 };
 
 export type SelectOption = {
@@ -176,9 +176,9 @@ export type SelectOption = {
 };
 
 export interface RankingEntry {
-  userId: string;
-  username: string;
   avatar: string;
   points: number;
   rank: number;
+  userId: string;
+  username: string;
 }

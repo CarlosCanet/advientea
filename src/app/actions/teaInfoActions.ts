@@ -1,6 +1,11 @@
 "use server";
-import { Role } from "@/generated/prisma/enums";
+import { revalidatePath } from "next/cache";
+import { z } from "zod";
+
 import { Prisma } from "@/generated/prisma/client";
+import { Role } from "@/generated/prisma/enums";
+import { deleteAsset } from "@/lib/cloudinary";
+import { uploadImageFile } from "@/lib/cloudinary";
 import {
   add25Days,
   addDay,
@@ -21,49 +26,46 @@ import {
   upsertDayAssignment,
   verifySession,
 } from "@/lib/dal";
-import { deleteAsset } from "@/lib/cloudinary";
 import { ForbiddenError, UnauthenticatedError } from "@/lib/errors";
 import { teaInfoFormSchema } from "@/lib/schemas/tea";
 import { ActionResponse, TeaInfoActionResponse, TeaInfoFormData } from "@/lib/types";
-import { revalidatePath } from "next/cache";
-import { z } from "zod";
+
 import { getFormBoolean, getFormFilesByPrefix, getFormNumber, getFormString } from "./commonActions";
-import { uploadImageFile } from "@/lib/cloudinary";
 
 export async function addTeaInfo(
-  prevState: TeaInfoActionResponse | null,
+  prevState: null | TeaInfoActionResponse,
   formData: FormData,
 ): Promise<TeaInfoActionResponse> {
   try {
     const { isAuth, userId } = await verifySession();
     const rawData: TeaInfoFormData = {
-      personName: getFormString(formData, "personName"),
-      dayNumber: getFormNumber(formData, "dayNumber"),
-      teaName: getFormString(formData, "teaName"),
-      temperature: getFormNumber(formData, "temperature"),
-      infusionTime: getFormNumber(formData, "infusionTime"),
-      hasTheine: getFormBoolean(formData, "hasTheine"),
       addMilk: getFormBoolean(formData, "addMilk"),
       canReinfuse: getFormBoolean(formData, "canReinfuse"),
-      reinfuseNumber: getFormNumber(formData, "reinfuseNumber") || undefined,
+      dayNumber: getFormNumber(formData, "dayNumber"),
+      hasTheine: getFormBoolean(formData, "hasTheine"),
+      images: getFormFilesByPrefix(formData, "image"),
+      infusionTime: getFormNumber(formData, "infusionTime"),
       moreIndications: getFormString(formData, "moreIndications") || undefined,
+      onlyMusic: getFormBoolean(formData, "onlyMusic"),
+      personName: getFormString(formData, "personName"),
+      reinfuseNumber: getFormNumber(formData, "reinfuseNumber") || undefined,
       storeName: getFormString(formData, "storeName") || undefined,
-      urlStore: getFormString(formData, "urlStore") || undefined,
       storyPart1: getFormString(formData, "storyPart1"),
       storyPart2: getFormString(formData, "storyPart2"),
       storyPart3: getFormString(formData, "storyPart3"),
+      teaName: getFormString(formData, "teaName"),
+      temperature: getFormNumber(formData, "temperature"),
+      urlStore: getFormString(formData, "urlStore") || undefined,
       youtubeURL: getFormString(formData, "youtubeURL") || undefined,
-      onlyMusic: getFormBoolean(formData, "onlyMusic"),
-      images: getFormFilesByPrefix(formData, "image"),
     };
     const validatedFields = teaInfoFormSchema.safeParse(rawData);
 
     if (!validatedFields.success) {
       return {
-        success: false,
-        message: "Hay errores en el formulario",
         errors: z.treeifyError(validatedFields.error),
         inputs: rawData,
+        message: "Hay errores en el formulario",
+        success: false,
       };
     }
 
@@ -75,15 +77,15 @@ export async function addTeaInfo(
     }
     const teaCreated = await addTea(
       {
-        name: data.teaName,
-        infusionTime: data.infusionTime,
-        temperature: data.temperature,
-        hasTheine: data.hasTheine,
-        canReinfuse: data.canReinfuse,
-        reinfuseNumber: data.reinfuseNumber,
-        moreIndications: data.moreIndications,
         addMilk: data.addMilk,
+        canReinfuse: data.canReinfuse,
+        hasTheine: data.hasTheine,
+        infusionTime: data.infusionTime,
+        moreIndications: data.moreIndications,
+        name: data.teaName,
+        reinfuseNumber: data.reinfuseNumber,
         storeName: data.storeName,
+        temperature: data.temperature,
         url: data.urlStore,
       },
       [],
@@ -102,11 +104,11 @@ export async function addTeaInfo(
     ) {
       const storyCreated = await addStoryTea(
         {
+          onlyMusic: data.onlyMusic,
           storyPart1: data.storyPart1,
           storyPart2: data.storyPart2,
           storyPart3: data.storyPart3,
           youtubeURL: data.youtubeURL,
-          onlyMusic: data.onlyMusic,
         },
         teaCreated.id,
       );
@@ -132,8 +134,8 @@ export async function addTeaInfo(
       );
     }
     return {
-      success: true,
       message: "Té guardado",
+      success: true,
     };
   } catch (error: unknown) {
     const isGuardError = error instanceof UnauthenticatedError || error instanceof ForbiddenError;
@@ -144,51 +146,51 @@ export async function addTeaInfo(
     }
     const message = isGuardError ? error.message : "No se pudo guardar el té. Inténtalo de nuevo.";
     return {
-      success: false,
-      message,
       errors: { errors: [message] },
+      message,
+      success: false,
     };
   }
 }
 
 export async function editTeaInfoAction(
-  prevState: TeaInfoActionResponse | null,
+  prevState: null | TeaInfoActionResponse,
   formData: FormData,
 ): Promise<TeaInfoActionResponse> {
   try {
     const { role, userId } = await requireSession();
 
     const rawData: TeaInfoFormData = {
-      personName: getFormString(formData, "personName"),
-      dayNumber: getFormNumber(formData, "dayNumber"),
-      teaName: getFormString(formData, "teaName"),
-      temperature: getFormNumber(formData, "temperature"),
-      infusionTime: getFormNumber(formData, "infusionTime"),
-      hasTheine: getFormBoolean(formData, "hasTheine"),
       addMilk: getFormBoolean(formData, "addMilk"),
       canReinfuse: getFormBoolean(formData, "canReinfuse"),
-      reinfuseNumber: getFormNumber(formData, "reinfuseNumber") || undefined,
+      dayNumber: getFormNumber(formData, "dayNumber"),
+      hasTheine: getFormBoolean(formData, "hasTheine"),
+      images: getFormFilesByPrefix(formData, "image"),
+      imagesOrder: (formData.getAll("images_order") as Array<string>) || undefined,
+      infusionTime: getFormNumber(formData, "infusionTime"),
+      keptImages: (formData.getAll("kept_images") as Array<string>) || undefined,
+      keptImagesOrder: (formData.getAll("kept_images_order") as Array<string>) || undefined,
       moreIndications: getFormString(formData, "moreIndications") || undefined,
+      onlyMusic: getFormBoolean(formData, "onlyMusic"),
+      personName: getFormString(formData, "personName"),
+      reinfuseNumber: getFormNumber(formData, "reinfuseNumber") || undefined,
       storeName: getFormString(formData, "storeName") || undefined,
-      urlStore: getFormString(formData, "urlStore") || undefined,
       storyPart1: getFormString(formData, "storyPart1"),
       storyPart2: getFormString(formData, "storyPart2"),
       storyPart3: getFormString(formData, "storyPart3"),
-      youtubeURL: getFormString(formData, "youtubeURL") || undefined,
-      onlyMusic: getFormBoolean(formData, "onlyMusic"),
-      images: getFormFilesByPrefix(formData, "image"),
-      imagesOrder: (formData.getAll("images_order") as Array<string>) || undefined,
-      keptImages: (formData.getAll("kept_images") as Array<string>) || undefined,
-      keptImagesOrder: (formData.getAll("kept_images_order") as Array<string>) || undefined,
       teaId: getFormString(formData, "tea_id"),
+      teaName: getFormString(formData, "teaName"),
+      temperature: getFormNumber(formData, "temperature"),
+      urlStore: getFormString(formData, "urlStore") || undefined,
+      youtubeURL: getFormString(formData, "youtubeURL") || undefined,
     };
     const validatedFields = teaInfoFormSchema.safeParse(rawData);
     if (!validatedFields.success) {
       return {
-        success: false,
-        message: "Hay errores en el formulario",
         errors: z.treeifyError(validatedFields.error),
         inputs: rawData,
+        message: "Hay errores en el formulario",
+        success: false,
       };
     }
 
@@ -215,15 +217,15 @@ export async function editTeaInfoAction(
     }
     const editedTea = await editTea(
       {
-        name: data.teaName,
-        infusionTime: data.infusionTime,
-        temperature: data.temperature,
-        hasTheine: data.hasTheine,
-        canReinfuse: data.canReinfuse,
-        reinfuseNumber: data.reinfuseNumber,
-        moreIndications: data.moreIndications,
         addMilk: data.addMilk,
+        canReinfuse: data.canReinfuse,
+        hasTheine: data.hasTheine,
+        infusionTime: data.infusionTime,
+        moreIndications: data.moreIndications,
+        name: data.teaName,
+        reinfuseNumber: data.reinfuseNumber,
         storeName: data.storeName,
+        temperature: data.temperature,
         url: data.urlStore,
       },
       data.teaId,
@@ -235,11 +237,11 @@ export async function editTeaInfoAction(
 
     if (data.storyPart1 || data.storyPart2 || data.storyPart3 || data.youtubeURL || data.onlyMusic) {
       const formStoryTea = {
+        onlyMusic: data.onlyMusic,
         storyPart1: data.storyPart1,
         storyPart2: data.storyPart2,
         storyPart3: data.storyPart3,
         youtubeURL: data.youtubeURL,
-        onlyMusic: data.onlyMusic,
       };
       if (currentTea.story) {
         const editedStory = await editStoryTea(formStoryTea, currentTea.story.id);
@@ -255,7 +257,7 @@ export async function editTeaInfoAction(
     const newImages = data.images ?? [];
     const slotsByPosition: Array<StoryImageSlot | undefined> = [];
     (data.keptImages ?? []).forEach((id, i) => {
-      slotsByPosition[data.keptImagesOrder?.[i] ?? i] = { kind: "existing", id };
+      slotsByPosition[data.keptImagesOrder?.[i] ?? i] = { id, kind: "existing" };
     });
     if (newImages.length > 0) {
       const publicIds = await Promise.all(newImages.map((image) => uploadImageFile(image, "teaDay")));
@@ -276,8 +278,8 @@ export async function editTeaInfoAction(
     }
 
     return {
-      success: true,
       message: "Té actualizado",
+      success: true,
     };
   } catch (error: unknown) {
     const isGuardError = error instanceof UnauthenticatedError || error instanceof ForbiddenError;
@@ -288,9 +290,9 @@ export async function editTeaInfoAction(
     }
     const message = isGuardError ? error.message : "No se pudo actualizar el té. Inténtalo de nuevo.";
     return {
-      success: false,
-      message,
       errors: { errors: [message] },
+      message,
+      success: false,
     };
   }
 }
@@ -306,17 +308,17 @@ export async function assignUserToDay(
     if (!userId && !guestName) {
       await deleteDayAssignmentByDay(dayId);
       revalidatePath("/edit-tea-info");
-      return { success: true, message: "Asignación eliminada" };
+      return { message: "Asignación eliminada", success: true };
     }
 
-    const assignment = { dayId, year, userId: userId || null, guestName: guestName || null };
+    const assignment = { dayId, guestName: guestName || null, userId: userId || null, year };
     if (assignment.userId && assignment.guestName) {
       assignment.guestName = null;
     }
 
     await upsertDayAssignment(dayId, assignment);
     revalidatePath("/edit-tea-info");
-    return { success: true, message: "Asignación actualizada" };
+    return { message: "Asignación actualizada", success: true };
   } catch (error: unknown) {
     const isGuardError = error instanceof UnauthenticatedError || error instanceof ForbiddenError;
     const isAlreadyAssigned = error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
@@ -328,7 +330,7 @@ export async function assignUserToDay(
     let message = "No se pudo guardar la asignación. Inténtalo de nuevo.";
     if (isGuardError) message = error.message;
     else if (isAlreadyAssigned) message = "Esa persona ya tiene un día asignado este año.";
-    return { success: false, message };
+    return { message, success: false };
   }
 }
 
@@ -337,7 +339,7 @@ export async function addDaysAction(year: number = 2025): Promise<ActionResponse
     await requireRole(Role.ADMIN);
     await add25Days(year);
     revalidatePath("/edit-tea-info");
-    return { success: true, message: "Días creados" };
+    return { message: "Días creados", success: true };
   } catch (error: unknown) {
     const isGuardError = error instanceof UnauthenticatedError || error instanceof ForbiddenError;
     if (isGuardError) {
@@ -346,8 +348,8 @@ export async function addDaysAction(year: number = 2025): Promise<ActionResponse
       console.error("[addDaysAction] unexpected error", error);
     }
     return {
-      success: false,
       message: isGuardError ? error.message : "No se pudieron crear los días. Inténtalo de nuevo.",
+      success: false,
     };
   }
 }
@@ -357,7 +359,7 @@ export async function deleteDayAction(dayId: string): Promise<ActionResponse> {
     await requireRole(Role.ADMIN);
     await deleteDay(dayId);
     revalidatePath("/edit-tea-info");
-    return { success: true, message: "Día borrado" };
+    return { message: "Día borrado", success: true };
   } catch (error: unknown) {
     const isGuardError = error instanceof UnauthenticatedError || error instanceof ForbiddenError;
     if (isGuardError) {
@@ -366,8 +368,8 @@ export async function deleteDayAction(dayId: string): Promise<ActionResponse> {
       console.error("[deleteDayAction] unexpected error", error);
     }
     return {
-      success: false,
       message: isGuardError ? error.message : "No se pudo borrar el día. Inténtalo de nuevo.",
+      success: false,
     };
   }
 }

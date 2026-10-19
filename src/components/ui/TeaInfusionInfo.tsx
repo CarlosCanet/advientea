@@ -1,16 +1,17 @@
-import { Tea } from "@/generated/prisma/client";
 import { FaClock } from "react-icons/fa";
 import { FaRepeat, FaTemperatureFull } from "react-icons/fa6";
 import { GiMilkCarton } from "react-icons/gi";
 import { LuZap, LuZapOff } from "react-icons/lu";
 import { MdMore } from "react-icons/md";
 
+import { Tea } from "@/generated/prisma/client";
+
 interface TeaInfusionInfoProps {
-  tea: Tea;
   hasMoreIndication?: boolean;
+  tea: Tea;
   xs?: boolean;
 }
-export default function TeaInfusionInfo({ tea, hasMoreIndication = true, xs = false }: TeaInfusionInfoProps) {
+export default function TeaInfusionInfo({ hasMoreIndication = true, tea, xs = false }: TeaInfusionInfoProps) {
   return (
     <>
       <div className="flex gap-1.5 flex-wrap justify-evenly my-2 ml-4">

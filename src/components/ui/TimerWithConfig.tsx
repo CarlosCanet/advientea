@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+
 import Timer from "../Timer";
 
 export default function TimerWithConfig() {
@@ -58,12 +59,12 @@ export default function TimerWithConfig() {
             </button>
           </div>
           <label className="label ml-3 mt-2 font-semibold self-center">
-            <input type="checkbox" defaultChecked className="checkbox" onChange={onChangeSound} />
+            <input className="checkbox" defaultChecked onChange={onChangeSound} type="checkbox" />
             Con sonido
           </label>
         </div>
       </div>
-      <Timer key={seconds} seconds={seconds} isPlayingSound={isPlayingSound} />
+      <Timer isPlayingSound={isPlayingSound} key={seconds} seconds={seconds} />
     </div>
   );
 }

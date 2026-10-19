@@ -1,3 +1,10 @@
+import { headers } from "next/headers";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { BsCupHotFill } from "react-icons/bs";
+import { FaStore, FaUser } from "react-icons/fa";
+import { MdComputer } from "react-icons/md";
+
 import StoryTeaComponent from "@/components/StoryTeaComponent";
 import TeaGuessCard from "@/components/TeaGuessCard";
 import TeaGuessForm from "@/components/TeaGuessForm";
@@ -8,12 +15,6 @@ import { Role } from "@/generated/prisma/enums";
 import { getAdvienteaDayState } from "@/lib/advientea-rules";
 import { auth } from "@/lib/auth";
 import { getDay, getUsernameAssignedToTea } from "@/lib/dal";
-import { headers } from "next/headers";
-import Link from "next/link";
-import { notFound } from "next/navigation";
-import { BsCupHotFill } from "react-icons/bs";
-import { FaStore, FaUser } from "react-icons/fa";
-import { MdComputer } from "react-icons/md";
 
 interface TeaDayPageProps {
   params: Promise<{ dayId: string }>;
@@ -67,7 +68,7 @@ export default async function TeaDayPage({ params, searchParams }: TeaDayPagePro
       ) : (
         <>
           <div className="collapse collapse-arrow bg-base-100 w-full max-w-xl">
-            <input type="checkbox" defaultChecked={true} />
+            <input defaultChecked={true} type="checkbox" />
             <div className="collapse-title font-semibold text-4xl after:start-5 after:end-auto pe-4 ps-12">
               Informa<span className="italic">Té</span>
             </div>
@@ -96,7 +97,7 @@ export default async function TeaDayPage({ params, searchParams }: TeaDayPagePro
                         </div>
                       )}
                       {tea.url && (
-                        <Link href={tea.url} className="flex items-center gap-2 ml-4">
+                        <Link className="flex items-center gap-2 ml-4" href={tea.url}>
                           <MdComputer />
                           {tea.url}
                         </Link>
@@ -114,10 +115,10 @@ export default async function TeaDayPage({ params, searchParams }: TeaDayPagePro
 
           {tea?.story && (
             <StoryTeaComponent
-              story={tea?.story}
               isPart1Released={advienteaDayState.isPart1Released}
               isPart2Released={advienteaDayState.isPart2Released}
               isPart3Released={advienteaDayState.isPart3Released}
+              story={tea?.story}
             />
           )}
         </>

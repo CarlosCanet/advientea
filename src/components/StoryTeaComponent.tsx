@@ -1,21 +1,23 @@
-import { Prisma } from "@/generated/prisma/client";
-import TimelineIcon from "./ui/TimelineIcon";
 import { Suspense } from "react";
-import YoutubeComponent from "./YoutubeComponent";
+
+import { Prisma } from "@/generated/prisma/client";
 import { getYouTubeId } from "@/lib/utils";
+
 import CarouselComponent from "./ui/CarouselComponent";
+import TimelineIcon from "./ui/TimelineIcon";
+import YoutubeComponent from "./YoutubeComponent";
 
 interface StoryTeaComponentProps {
-  story: Prisma.StoryTeaGetPayload<{ include: { images: true } }>;
   isPart1Released: boolean;
   isPart2Released: boolean;
   isPart3Released: boolean;
+  story: Prisma.StoryTeaGetPayload<{ include: { images: true } }>;
 }
 export default function StoryTeaComponent({
-  story,
   isPart1Released,
   isPart2Released,
   isPart3Released,
+  story,
 }: StoryTeaComponentProps) {
   // const videoId = "GFfn8L2saYI";
   const videoId = story.youtubeURL ? getYouTubeId(story.youtubeURL) : null;

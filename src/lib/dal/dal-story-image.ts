@@ -1,8 +1,9 @@
 import { Prisma, StoryImage } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
-import { getTea } from "./dal-tea";
-import { getStoryTea } from "./dal-story-tea";
+
 import { deleteAsset } from "../cloudinary";
+import { getStoryTea } from "./dal-story-tea";
+import { getTea } from "./dal-tea";
 
 export type StoryImageWithStory = Prisma.StoryImageGetPayload<{ include: { story: true } }>;
 
@@ -10,7 +11,7 @@ export async function getStoryImage(id: string): Promise<StoryImage>;
 export async function getStoryImage(order: number, day: number, year: number): Promise<StoryImage>;
 
 export async function getStoryImage(
-  idOrOrder: string | number,
+  idOrOrder: number | string,
   day?: number,
   year: number = 2025,
 ): Promise<StoryImage> {
@@ -34,8 +35,8 @@ export async function getStoryImage(
 
 export async function getAllStoryImages(storyTeaId: string): Promise<StoryImage[]> {
   const images = await prisma.storyImage.findMany({
-    where: { storyTeaId },
     orderBy: { order: "asc" },
+    where: { storyTeaId },
   });
   return images;
 }
@@ -50,14 +51,14 @@ export async function addStoryImage(publicId: string, order: number, storyId: st
       finalOrder = count;
     } else {
       await tx.storyImage.updateMany({
-        where: { storyTeaId: storyId, order: { gte: order } },
         data: { order: { increment: 1 } },
+        where: { order: { gte: order }, storyTeaId: storyId },
       });
     }
     const imageCreated = await tx.storyImage.create({
       data: {
-        publicId,
         order: finalOrder,
+        publicId,
         story: { connect: { id: storyId } },
       },
       include: { story: true },
@@ -68,7 +69,7 @@ export async function addStoryImage(publicId: string, order: number, storyId: st
 }
 
 export async function editStoryImage(data: Prisma.StoryImageUncheckedUpdateInput, id: string): Promise<StoryImage> {
-  const imageUpdated = await prisma.storyImage.update({ where: { id }, data });
+  const imageUpdated = await prisma.storyImage.update({ data, where: { id } });
   return imageUpdated;
 }
 
@@ -78,7 +79,7 @@ export async function deleteStoryImage(id: string): Promise<StoryImage> {
   return imageDeleted;
 }
 
-export type StoryImageSlot = { kind: "existing"; id: string } | { kind: "new"; publicId: string };
+export type StoryImageSlot = { id: string; kind: "existing" } | { kind: "new"; publicId: string };
 
 /**
  * Makes the story's images match `slots` exactly, in that order, inside one transaction.
@@ -88,7 +89,7 @@ export type StoryImageSlot = { kind: "existing"; id: string } | { kind: "new"; p
  */
 export async function replaceStoryImages(storyTeaId: string, slots: StoryImageSlot[]): Promise<string[]> {
   return prisma.$transaction(async (tx) => {
-    const current = await tx.storyImage.findMany({ where: { storyTeaId }, select: { id: true, publicId: true } });
+    const current = await tx.storyImage.findMany({ select: { id: true, publicId: true }, where: { storyTeaId } });
     const currentIds = new Set(current.map((img) => img.id));
     const keptSlots = slots.filter(
       (slot): slot is Extract<StoryImageSlot, { kind: "existing" }> =>
@@ -98,19 +99,19 @@ export async function replaceStoryImages(storyTeaId: string, slots: StoryImageSl
     const removed = current.filter((img) => !keptIds.has(img.id));
 
     if (removed.length > 0) {
-      await tx.storyImage.deleteMany({ where: { storyTeaId, id: { in: removed.map((img) => img.id) } } });
+      await tx.storyImage.deleteMany({ where: { id: { in: removed.map((img) => img.id) }, storyTeaId } });
     }
     // Park kept rows at negative orders first: final orders are 0..n-1 and would collide with the unique index otherwise.
     for (const [i, slot] of keptSlots.entries()) {
-      await tx.storyImage.update({ where: { id: slot.id }, data: { order: -i - 1 } });
+      await tx.storyImage.update({ data: { order: -i - 1 }, where: { id: slot.id } });
     }
     let order = 0;
     for (const slot of slots) {
       if (slot.kind === "existing") {
         if (!currentIds.has(slot.id)) continue;
-        await tx.storyImage.update({ where: { id: slot.id }, data: { order } });
+        await tx.storyImage.update({ data: { order }, where: { id: slot.id } });
       } else {
-        await tx.storyImage.create({ data: { publicId: slot.publicId, order, storyTeaId } });
+        await tx.storyImage.create({ data: { order, publicId: slot.publicId, storyTeaId } });
       }
       order++;
     }

@@ -1,12 +1,13 @@
+import { headers } from "next/headers";
+import { notFound } from "next/navigation";
+import { FaAward } from "react-icons/fa6";
+
 import RankingList from "@/components/RankingList";
 import { Role } from "@/generated/prisma/enums";
 import { getAdvienteaDayState } from "@/lib/advientea-rules";
 import { auth } from "@/lib/auth";
 import { getDay } from "@/lib/dal";
 import { getDailyRanking } from "@/lib/services/ranking-service";
-import { headers } from "next/headers";
-import { notFound } from "next/navigation";
-import { FaAward } from "react-icons/fa6";
 
 interface RankingPageProps {
   params: Promise<{ dayId: string }>;
@@ -37,7 +38,7 @@ export default async function RankingPage({ params }: RankingPageProps) {
         </div>
       </div>
       {advienteaDayState.isTeaReleased ? (
-        <RankingList ranking={ranking} currentUserId={session.user.id} />
+        <RankingList currentUserId={session.user.id} ranking={ranking} />
       ) : (
         <div className="bg-base-100 w-full max-w-xl p-5 rounded-2xl justify-center items-center text-center text-xl font-[Griffy]">
           <div className="skeleton skeleton-text text-base-200">El ranking aún no está disponible.</div>

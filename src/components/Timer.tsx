@@ -1,16 +1,16 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface TimerProps {
-  seconds: number;
   isPlayingSound?: boolean;
+  seconds: number;
 }
 
-export default function Timer({ seconds, isPlayingSound = true }: TimerProps) {
+export default function Timer({ isPlayingSound = true, seconds }: TimerProps) {
   const [isRunning, setIsRunning] = useState(false);
   const [timeLeft, setTimeLeft] = useState<number>(seconds);
-  const endTimeRef = useRef<number | null>(null);
+  const endTimeRef = useRef<null | number>(null);
   const modalRef = useRef<HTMLDialogElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
 
@@ -68,16 +68,16 @@ export default function Timer({ seconds, isPlayingSound = true }: TimerProps) {
           {formatTime(timeLeft)}
         </div>
         {!isRunning ? (
-          <button className="btn btn-primary text-2xl w-25 h-13" onClick={startTimer} disabled={isRunning}>
+          <button className="btn btn-primary text-2xl w-25 h-13" disabled={isRunning} onClick={startTimer}>
             Start
           </button>
         ) : (
-          <button className="btn btn-warning text-2xl w-25 h-13" onClick={resetTimer} disabled={!isRunning}>
+          <button className="btn btn-warning text-2xl w-25 h-13" disabled={!isRunning} onClick={resetTimer}>
             Reset
           </button>
         )}
       </div>
-      <dialog ref={modalRef} className="modal">
+      <dialog className="modal" ref={modalRef}>
         <div className="modal-box">
           <h3 className="font-bold text-xl place-self-center">
             Es la hora de servir<span className="italic">Té</span>

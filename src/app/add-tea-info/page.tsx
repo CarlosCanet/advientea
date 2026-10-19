@@ -1,9 +1,10 @@
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+
 import AddTeaInfoForm from "@/components/AddTeaInfoForm";
 import { Role } from "@/generated/prisma/client";
 import { auth } from "@/lib/auth";
 import { getAllDayAssignment, getAllUsers, getDayAssignment } from "@/lib/dal";
-import { headers } from "next/headers";
-import { redirect } from "next/navigation";
 
 async function AddTeaInfo() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -27,10 +28,10 @@ async function AddTeaInfo() {
     <>
       <div className="flex justify-center">
         <AddTeaInfoForm
-          username={session?.user.name ?? ""}
+          canAssign={isUserPrivileged}
           dayNumber={assignment?.day.dayNumber ?? 0}
           isLoggedIn={!!session?.user}
-          canAssign={isUserPrivileged}
+          username={session?.user.name ?? ""}
           users={users}
         />
       </div>

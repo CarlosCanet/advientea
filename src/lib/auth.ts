@@ -1,9 +1,10 @@
 import "@/envConfig";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { prisma } from "@/lib/prisma";
 import { nextCookies } from "better-auth/next-js";
+
 import { Role } from "@/generated/prisma/enums";
+import { prisma } from "@/lib/prisma";
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, { provider: "postgresql" }),
@@ -12,16 +13,16 @@ export const auth = betterAuth({
   },
   user: {
     additionalFields: {
-      username: {
-        type: "string",
-        required: true,
-        input: true,
-      },
       role: {
-        type: Object.values(Role),
-        required: true,
-        input: false,
         defaultValue: Role.USER,
+        input: false,
+        required: true,
+        type: Object.values(Role),
+      },
+      username: {
+        input: true,
+        required: true,
+        type: "string",
       },
     },
   },
@@ -32,19 +33,19 @@ export const auth = betterAuth({
   //     clientSecret: process.env.GOOGLE_CLIENT_SECRET as string
   //   }
   // },
+  advanced: {
+    cookiePrefix: "advientea",
+  },
   rateLimit: {
-    window: 10,
     max: 100,
+    window: 10,
   },
   session: {
     expiresIn: 60 * 60 * 24 * 31,
     updateAge: 60 * 60 * 24,
   },
-  advanced: {
-    cookiePrefix: "advientea",
-  },
   // trustedOrigins: ["http://localhost:3000", "https://adviente.netlify.app/"],
-  secret: process.env.BETTER_AUTH_SECRET,
   baseURL: process.env.BETTER_AUTH_URL,
   plugins: [nextCookies()],
+  secret: process.env.BETTER_AUTH_SECRET,
 });

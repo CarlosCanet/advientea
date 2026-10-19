@@ -1,6 +1,8 @@
 "use client";
-import { assignUserToDay } from "@/app/actions/teaInfoActions";
 import { useState, useTransition } from "react";
+
+import { assignUserToDay } from "@/app/actions/teaInfoActions";
+
 import ActionToast, { useActionToast } from "./ActionToast";
 
 interface UserBasic {
@@ -9,16 +11,16 @@ interface UserBasic {
 }
 
 interface AssignmentSelectProps {
-  userId: string;
   dayId: string;
-  users: Array<UserBasic>;
   guestName?: string;
+  userId: string;
+  users: Array<UserBasic>;
 }
 
-export default function AssignmentSelect({ userId, dayId, users, guestName }: AssignmentSelectProps) {
+export default function AssignmentSelect({ dayId, guestName, userId, users }: AssignmentSelectProps) {
   const [isPending, startTransition] = useTransition();
   const [currentValue, setCurrentValue] = useState<string>(guestName ?? userId ?? "");
-  const { toast, showToast } = useActionToast();
+  const { showToast, toast } = useActionToast();
 
   const handleChangeSelect = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const previousValue = currentValue;
@@ -36,11 +38,11 @@ export default function AssignmentSelect({ userId, dayId, users, guestName }: As
   return (
     <>
       <select
-        value={currentValue}
         className={`select ${!currentValue ? "text-neutral" : ""}`}
+        disabled={isPending}
         name={`person-day-${dayId}`}
         onChange={(event) => handleChangeSelect(event)}
-        disabled={isPending}
+        value={currentValue}
       >
         <option value="">Elige a une persone</option>
         {users.map((user) => (

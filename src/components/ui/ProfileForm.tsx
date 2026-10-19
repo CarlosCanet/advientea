@@ -1,6 +1,4 @@
 "use client";
-import { updateUserProfile } from "@/app/actions/authActions";
-import { ALLOWED_IMAGE_TYPES, initialUpdateProfileActionResponse } from "@/lib/types";
 import { CldImage } from "next-cloudinary";
 import Form from "next/form";
 import Image from "next/image";
@@ -10,13 +8,16 @@ import { FaEye, FaEyeSlash, FaUser } from "react-icons/fa";
 import { IoKeySharp } from "react-icons/io5";
 import { MdOutlinePassword } from "react-icons/md";
 
+import { updateUserProfile } from "@/app/actions/authActions";
+import { ALLOWED_IMAGE_TYPES, initialUpdateProfileActionResponse } from "@/lib/types";
+
 interface ProfileFormProps {
-  username: string;
   email: string;
   imageId: string;
+  username: string;
 }
 
-export default function ProfileForm({ username, email, imageId }: ProfileFormProps) {
+export default function ProfileForm({ email, imageId, username }: ProfileFormProps) {
   const [state, action, isPending] = useActionState(updateUserProfile, initialUpdateProfileActionResponse);
   const [isChangingPassword, setIsChangingPassword] = useState<boolean>(false);
   const [showCurrentPassword, setShowCurrentPassword] = useState<boolean>(false);
@@ -50,28 +51,28 @@ export default function ProfileForm({ username, email, imageId }: ProfileFormPro
         <div className="w-48 h-48 rounded-full border-4 border-primary overflow-hidden relative">
           {imagePreviewURL ? (
             <Image
-              src={imagePreviewURL}
               alt="User profile preview"
               className="object-cover w-full h-full"
-              width={1200}
               height={1200}
+              src={imagePreviewURL}
+              width={1200}
             />
           ) : (
             <CldImage
-              src={imageId}
               alt="User profile preview"
               className="object-cover w-full h-full"
-              width={1200}
               height={1200}
+              src={imageId}
+              width={1200}
             />
           )}
         </div>
         <input
-          type="file"
-          name="image"
-          className="file-input file-input-primary place-self-center file-input-sm"
-          onChange={handleChange}
           aria-label="Seleccionar imagen"
+          className="file-input file-input-primary place-self-center file-input-sm"
+          name="image"
+          onChange={handleChange}
+          type="file"
         />
         {imageErrorMsg && <p className="text-xs text-error font-bold -mt-3">{imageErrorMsg}</p>}
       </div>
@@ -79,13 +80,13 @@ export default function ProfileForm({ username, email, imageId }: ProfileFormPro
         <span className="floating-label">Username</span>
         <FaUser />
         <input
-          type="text"
-          name="username"
-          className="grow"
-          placeholder="Username"
           autoComplete="additional-name"
-          required
+          className="grow"
           defaultValue={state.inputs?.username ?? username}
+          name="username"
+          placeholder="Username"
+          required
+          type="text"
         />
       </label>
       {state?.errors?.properties?.username && (
@@ -94,10 +95,10 @@ export default function ProfileForm({ username, email, imageId }: ProfileFormPro
       <div className="divider my-0"></div>
       <label className="label w-full place-content-evenly">
         <input
-          type="checkbox"
           checked={isChangingPassword}
           className="checkbox checkbox-sm"
           onChange={() => setIsChangingPassword((prevState) => !prevState)}
+          type="checkbox"
         />
         ¿Cambiar contraseña?
       </label>
@@ -108,17 +109,17 @@ export default function ProfileForm({ username, email, imageId }: ProfileFormPro
             <span className="floating-label">Contraseña actual</span>
             <IoKeySharp />
             <input
-              name="currentPassword"
-              type={showCurrentPassword ? "text" : "password"}
               className="grow"
-              placeholder="Contraseña actual"
               defaultValue={state?.inputs?.currentPassword}
+              name="currentPassword"
+              placeholder="Contraseña actual"
               required
+              type={showCurrentPassword ? "text" : "password"}
             />
             <button
-              type="button"
-              onClick={() => setShowCurrentPassword(!showCurrentPassword)}
               className="cursor-pointer"
+              onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+              type="button"
             >
               {showCurrentPassword ? <FaEyeSlash /> : <FaEye />}
             </button>
@@ -132,16 +133,16 @@ export default function ProfileForm({ username, email, imageId }: ProfileFormPro
             <span className="floating-label">Nueva contraseña</span>
             <MdOutlinePassword />
             <input
-              name="newPassword"
-              type={showNewPassword ? "text" : "password"}
-              className="grow"
-              placeholder="Nueva contraseña"
-              value={state?.inputs?.newPassword ?? newPassword}
               autoComplete="new-password"
+              className="grow"
+              name="newPassword"
               onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="Nueva contraseña"
               required
+              type={showNewPassword ? "text" : "password"}
+              value={state?.inputs?.newPassword ?? newPassword}
             />
-            <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} className="cursor-pointer">
+            <button className="cursor-pointer" onClick={() => setShowNewPassword(!showNewPassword)} type="button">
               {showCurrentPassword ? <FaEyeSlash /> : <FaEye />}
             </button>
           </label>
@@ -155,14 +156,14 @@ export default function ProfileForm({ username, email, imageId }: ProfileFormPro
             <span className="floating-label">Confirma tu nueva contraseña</span>
             <MdOutlinePassword />
             <input
-              name="newPasswordConfirmation"
-              type={showNewPassword ? "text" : "password"}
-              className="grow"
-              placeholder="Confirma tu nueva contraseña"
-              value={state?.inputs?.newPasswordConfirmation ?? newPasswordConfirmation}
               autoComplete="new-password"
+              className="grow"
+              name="newPasswordConfirmation"
               onChange={(e) => setNewPasswordConfirmation(e.target.value)}
+              placeholder="Confirma tu nueva contraseña"
               required
+              type={showNewPassword ? "text" : "password"}
+              value={state?.inputs?.newPasswordConfirmation ?? newPasswordConfirmation}
             />
           </label>
           {passwordError && <p className="text-xs text-error font-bold -mt-2 mb-2">{passwordError}</p>}
@@ -177,10 +178,10 @@ export default function ProfileForm({ username, email, imageId }: ProfileFormPro
         <p className={`text-sm text-center ${state.success ? "text-success" : "text-error"}`}>{state.message}</p>
       )}
       <div className="card-actions justify-center mt-4">
-        <button className="btn btn-soft btn-neutral" type="button" onClick={() => router.back()}>
+        <button className="btn btn-soft btn-neutral" onClick={() => router.back()} type="button">
           Atrás
         </button>
-        <button className="btn btn-primary" type="submit" disabled={isPending || !!passwordError}>
+        <button className="btn btn-primary" disabled={isPending || !!passwordError} type="submit">
           {isPending ? <span className="loading loading-spinner"></span> : "Editar"}
         </button>
       </div>

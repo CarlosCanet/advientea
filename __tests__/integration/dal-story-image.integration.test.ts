@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { prisma } from "@/lib/prisma";
+
 import { replaceStoryImages } from "@/lib/dal";
+import { prisma } from "@/lib/prisma";
 
 // Seed (test-utils): "Ruta del desierto" has a story with 3 images (orders 0,1,2); "Pakistaní" has a story with 1.
 async function storyOf(teaName: string) {
   return prisma.storyTea.findFirstOrThrow({
-    where: { tea: { name: teaName } },
     include: { images: { orderBy: { order: "asc" } } },
+    where: { tea: { name: teaName } },
   });
 }
 
@@ -17,9 +18,9 @@ describe("dal StoryImage · replaceStoryImages", () => {
 
     // Final list: third moves to the front, a new one goes in the middle, first stays last, second is dropped.
     const removed = await replaceStoryImages(story.id, [
-      { kind: "existing", id: third.id },
+      { id: third.id, kind: "existing" },
       { kind: "new", publicId: "samples/new-image" },
-      { kind: "existing", id: first.id },
+      { id: first.id, kind: "existing" },
     ]);
 
     const after = await storyOf("Ruta del desierto");
@@ -33,7 +34,7 @@ describe("dal StoryImage · replaceStoryImages", () => {
 
   it("survives a full reversal without violating the unique (storyTeaId, order) index", async () => {
     const story = await storyOf("Ruta del desierto");
-    const reversed = [...story.images].reverse().map((img) => ({ kind: "existing" as const, id: img.id }));
+    const reversed = [...story.images].reverse().map((img) => ({ id: img.id, kind: "existing" as const }));
 
     await expect(replaceStoryImages(story.id, reversed)).resolves.toEqual([]);
 
@@ -48,8 +49,8 @@ describe("dal StoryImage · replaceStoryImages", () => {
     const foreignImage = theirs.images[0];
 
     const removed = await replaceStoryImages(mine.id, [
-      { kind: "existing", id: foreignImage.id }, // must be ignored, not adopted nor deleted
-      { kind: "existing", id: mine.images[0].id },
+      { id: foreignImage.id, kind: "existing" }, // must be ignored, not adopted nor deleted
+      { id: mine.images[0].id, kind: "existing" },
     ]);
 
     const mineAfter = await storyOf("Ruta del desierto");

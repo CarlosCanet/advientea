@@ -1,6 +1,7 @@
-import { describe, it, expect } from "vitest";
-import { prisma } from "@/lib/prisma";
+import { describe, expect, it } from "vitest";
+
 import { Role } from "@/generated/prisma/client";
+import { prisma } from "@/lib/prisma";
 
 describe("Database seed verification", () => {
   it("should populate the initial required state", async () => {
@@ -25,8 +26,8 @@ describe("Database seed verification", () => {
 
   it("should have relationships correctly linked", async () => {
     const day1 = await prisma.day.findUnique({
-      where: { dayNumber_year: { dayNumber: 1, year: 2025 } },
       include: {
+        assignment: { include: { user: true } },
         tea: {
           include: {
             story: {
@@ -34,8 +35,8 @@ describe("Database seed verification", () => {
             },
           },
         },
-        assignment: { include: { user: true } },
       },
+      where: { dayNumber_year: { dayNumber: 1, year: 2025 } },
     });
     expect(day1?.tea).toBeDefined();
     expect(day1?.tea?.name).toBe("Ruta del desierto");

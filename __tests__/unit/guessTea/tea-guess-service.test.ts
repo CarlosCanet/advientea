@@ -1,3 +1,5 @@
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
 import { TeaIngredient } from "@/generated/prisma/client";
 import { TeaType } from "@/generated/prisma/enums";
 import { DayForGuessing, getDayForGuessing } from "@/lib/dal";
@@ -8,7 +10,6 @@ import {
   validateTeaGuess,
 } from "@/lib/services/tea-guess-service";
 import { TeaGuessFormData } from "@/lib/types";
-import { it, expect, describe, vi, afterEach, afterAll, beforeEach } from "vitest";
 
 vi.mock("@/lib/dal", () => ({
   getDayForGuessing: vi.fn(),
@@ -29,27 +30,27 @@ describe("Tea service", () => {
   describe("validateTeaGuess (Form validation)", () => {
     it.each([
       {
-        name: "Full data",
         data: {
           ingredients: ["Ingre1", "Ingredient2"],
-          teaName: "My tea",
           personName: "Person",
+          teaName: "My tea",
           teaType: TeaType.BLACK,
         },
+        name: "Full data",
       },
-      { name: "Only ingredients", data: { ingredients: ["Ingre1", "Ingredient2"] } },
-      { name: "Only Tea Name", data: { teaName: "My tea" } },
-      { name: "Only Person Name", data: { personName: "Person" } },
-      { name: "Only Tea Type", data: { teaType: TeaType.BLACK } },
+      { data: { ingredients: ["Ingre1", "Ingredient2"] }, name: "Only ingredients" },
+      { data: { teaName: "My tea" }, name: "Only Tea Name" },
+      { data: { personName: "Person" }, name: "Only Person Name" },
+      { data: { teaType: TeaType.BLACK }, name: "Only Tea Type" },
     ])("should return true for valid data", ({ data }) => {
       const formData = createMockFormData(data);
       expect(validateTeaGuess(formData).success).toBe(true);
     });
 
     it.each([
-      { name: "Only one empty field", data: { teaName: "" } },
-      { name: "Only blank spaces", data: { personName: "   " } },
-      { name: "Empty array", data: { ingredients: [] } },
+      { data: { teaName: "" }, name: "Only one empty field" },
+      { data: { personName: "   " }, name: "Only blank spaces" },
+      { data: { ingredients: [] }, name: "Empty array" },
     ])("should return false for empty string or empty arrays", ({ data }) => {
       const formData = createMockFormData(data);
       expect(validateTeaGuess(formData).success).toBe(false);
@@ -68,30 +69,30 @@ describe("Tea service", () => {
     });
 
     const mockGuessInDB = (
-      userId: string | null,
+      userId: null | string,
       dayNumber: number,
       year: number = 2025,
       teaExists: boolean = true,
     ) => {
       vi.mocked(getDayForGuessing).mockResolvedValue({
-        dayNumber,
-        year,
         assignment: {
+          guestName: userId ? "" : "Anónimo",
           user: userId
             ? {
                 id: userId,
                 username: "",
               }
             : null,
-          guestName: userId ? "" : "Anónimo",
         },
+        dayNumber,
         tea: teaExists
           ? {
-              name: "",
               ingredients: [],
+              name: "",
               teaType: TeaType.BLACK,
             }
           : null,
+        year,
       });
     };
 
@@ -275,38 +276,38 @@ describe("Tea service", () => {
       });
 
       const mockIngredient1: TeaIngredient = {
+        createdAt: new Date(),
         id: "i1-id",
         name: "ingredient1",
-        createdAt: new Date(),
         updatedAt: new Date(),
       };
 
       const mockDayData: DayForGuessing = {
+        assignment: {
+          guestName: null,
+          user: { id: "user-id", username: "userName" },
+        },
         dayNumber: 1,
-        year: 2025,
         tea: {
+          ingredients: [mockIngredient1],
           name: "Earl Grey",
           teaType: TeaType.BLACK,
-          ingredients: [mockIngredient1],
         },
-        assignment: {
-          user: { id: "user-id", username: "userName" },
-          guestName: null,
-        },
+        year: 2025,
       };
 
       const mockUserGuess = {
-        teaName: "Earl Grey",
-        teaType: TeaType.BLACK,
         ingredients: ["i1-id"],
         personName: "user1-id",
         personType: "userId" as const,
+        teaName: "Earl Grey",
+        teaType: TeaType.BLACK,
       };
 
       it("should return null if the day or tea does not exist", async () => {
         vi.mocked(getDayForGuessing).mockResolvedValue(null);
         const result1 = await calculatePointsFromGuess("day999-id", mockUserGuess);
-        vi.mocked(getDayForGuessing).mockResolvedValue({ dayNumber: 2, year: 2025, assignment: null, tea: null });
+        vi.mocked(getDayForGuessing).mockResolvedValue({ assignment: null, dayNumber: 2, tea: null, year: 2025 });
         const result2 = await calculatePointsFromGuess("day2-id", mockUserGuess);
         expect(result1).toBeNull();
         expect(result2).toBeNull();

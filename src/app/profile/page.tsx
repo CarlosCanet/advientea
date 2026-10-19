@@ -1,8 +1,9 @@
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+
 import ProfileForm from "@/components/ui/ProfileForm";
 import { auth } from "@/lib/auth";
 import { DEFAULT_IMAGE_PROFILE } from "@/lib/types";
-import { headers } from "next/headers";
-import { redirect } from "next/navigation";
 
 export default async function ProfilePage() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -24,7 +25,7 @@ export default async function ProfilePage() {
       </div>
       <div className="card w-full max-w-xl bg-base-100 text-neutral-content card-xl shadow-sm">
         <div className="card-body items-center">
-          <ProfileForm username={user.username} email={user.email} imageId={user.image || DEFAULT_IMAGE_PROFILE} />
+          <ProfileForm email={user.email} imageId={user.image || DEFAULT_IMAGE_PROFILE} username={user.username} />
         </div>
       </div>
     </div>

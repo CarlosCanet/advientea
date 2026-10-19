@@ -1,8 +1,9 @@
-import { describe, it, expect, beforeEach } from "vitest";
-import { prisma } from "@/lib/prisma";
-import { getDailyRanking, getOverallRanking } from "@/lib/services/ranking-service";
+import { beforeEach, describe, expect, it } from "vitest";
+
 import { Day, TeaIngredient, TeaType, User } from "@/generated/prisma/client";
 import { createTeaGuess } from "@/lib/dal";
+import { prisma } from "@/lib/prisma";
+import { getDailyRanking, getOverallRanking } from "@/lib/services/ranking-service";
 
 describe("Ranking service", () => {
   let user1: User;
@@ -29,7 +30,7 @@ describe("Ranking service", () => {
       await createTeaGuess(
         user2.id,
         day1.id,
-        { teaName: "Ruta desierto", teaType: TeaType.HERBAL, ingredients: [apple.id], personName: "Deino" },
+        { ingredients: [apple.id], personName: "Deino", teaName: "Ruta desierto", teaType: TeaType.HERBAL },
         740,
       );
 
@@ -38,10 +39,10 @@ describe("Ranking service", () => {
         user1.id,
         day1.id,
         {
-          teaName: "Ruta del desierto",
-          teaType: TeaType.ROOIBOS,
           ingredients: [apple.id, lemon.id],
           personName: "Deinos",
+          teaName: "Ruta del desierto",
+          teaType: TeaType.ROOIBOS,
         },
         1000,
       );
@@ -50,7 +51,7 @@ describe("Ranking service", () => {
       await createTeaGuess(
         user3.id,
         day1.id,
-        { teaName: "Desierto", teaType: TeaType.ROOIBOS, ingredients: [], personName: "David" },
+        { ingredients: [], personName: "David", teaName: "Desierto", teaType: TeaType.ROOIBOS },
         580,
       );
 
@@ -67,7 +68,7 @@ describe("Ranking service", () => {
       const guess1 = await createTeaGuess(
         user3.id,
         day2.id,
-        { teaName: "Té especial", teaType: TeaType.OOLONG, ingredients: [], personName: "Sony" },
+        { ingredients: [], personName: "Sony", teaName: "Té especial", teaType: TeaType.OOLONG },
         780,
       );
 
@@ -75,7 +76,7 @@ describe("Ranking service", () => {
       const guess2 = await createTeaGuess(
         user2.id,
         day2.id,
-        { teaName: "Especial", teaType: TeaType.OOLONG, ingredients: [], personName: "miko" },
+        { ingredients: [], personName: "miko", teaName: "Especial", teaType: TeaType.OOLONG },
         780,
       );
 
@@ -83,15 +84,15 @@ describe("Ranking service", () => {
       const guess3 = await createTeaGuess(
         user1.id,
         day2.id,
-        { teaName: "Oolong", teaType: TeaType.BLACK, ingredients: [] },
+        { ingredients: [], teaName: "Oolong", teaType: TeaType.BLACK },
         390,
       );
 
       const date = new Date();
       await Promise.all([
-        prisma.teaGuess.update({ where: { id: guess1!.id }, data: { createdAt: date } }),
-        prisma.teaGuess.update({ where: { id: guess2!.id }, data: { createdAt: new Date(date.getTime() + 5000) } }),
-        prisma.teaGuess.update({ where: { id: guess3!.id }, data: { createdAt: new Date(date.getTime() + 10000) } }),
+        prisma.teaGuess.update({ data: { createdAt: date }, where: { id: guess1!.id } }),
+        prisma.teaGuess.update({ data: { createdAt: new Date(date.getTime() + 5000) }, where: { id: guess2!.id } }),
+        prisma.teaGuess.update({ data: { createdAt: new Date(date.getTime() + 10000) }, where: { id: guess3!.id } }),
       ]);
 
       const ranking = await getDailyRanking(day2.id);
@@ -110,7 +111,7 @@ describe("Ranking service", () => {
       const guess1 = await createTeaGuess(
         user1.id,
         day2.id,
-        { teaName: "Pakistaní", teaType: TeaType.GREEN, ingredients: [] },
+        { ingredients: [], teaName: "Pakistaní", teaType: TeaType.GREEN },
         410,
       );
 
@@ -118,7 +119,7 @@ describe("Ranking service", () => {
       await createTeaGuess(
         user2.id,
         day2.id,
-        { teaName: "Chai", teaType: TeaType.BLACK, ingredients: [cinnamon.id] },
+        { ingredients: [cinnamon.id], teaName: "Chai", teaType: TeaType.BLACK },
         446,
       );
 
@@ -126,7 +127,7 @@ describe("Ranking service", () => {
       const guess2 = await createTeaGuess(
         user1.id,
         day2.id,
-        { teaName: "Pakistani", teaType: TeaType.BLACK, ingredients: [cinnamon.id], personName: "Ñita" },
+        { ingredients: [cinnamon.id], personName: "Ñita", teaName: "Pakistani", teaType: TeaType.BLACK },
         656,
       );
 
@@ -134,15 +135,15 @@ describe("Ranking service", () => {
       const guess3 = await createTeaGuess(
         user1.id,
         day2.id,
-        { teaName: "Té pakistaní", teaType: TeaType.BLACK, ingredients: [cinnamon.id], personName: "Anónimo" },
+        { ingredients: [cinnamon.id], personName: "Anónimo", teaName: "Té pakistaní", teaType: TeaType.BLACK },
         716,
       );
 
       const date = new Date();
       await Promise.all([
-        prisma.teaGuess.update({ where: { id: guess1!.id }, data: { createdAt: date } }),
-        prisma.teaGuess.update({ where: { id: guess2!.id }, data: { createdAt: new Date(date.getTime() + 5000) } }),
-        prisma.teaGuess.update({ where: { id: guess3!.id }, data: { createdAt: new Date(date.getTime() + 10000) } }),
+        prisma.teaGuess.update({ data: { createdAt: date }, where: { id: guess1!.id } }),
+        prisma.teaGuess.update({ data: { createdAt: new Date(date.getTime() + 5000) }, where: { id: guess2!.id } }),
+        prisma.teaGuess.update({ data: { createdAt: new Date(date.getTime() + 10000) }, where: { id: guess3!.id } }),
       ]);
 
       const ranking = await getDailyRanking(day2.id);
@@ -160,13 +161,13 @@ describe("Ranking service", () => {
       await createTeaGuess(
         user1.id,
         day1.id,
-        { teaName: "Ruta del desierto", teaType: TeaType.ROOIBOS, ingredients: [apple.id], personName: "Dein" },
+        { ingredients: [apple.id], personName: "Dein", teaName: "Ruta del desierto", teaType: TeaType.ROOIBOS },
         740,
       );
       await createTeaGuess(
         user1.id,
         day2.id,
-        { teaName: "Té Pakistaní", teaType: TeaType.ROOIBOS, ingredients: [apple.id, lemon.id], personName: "Deinos" },
+        { ingredients: [apple.id, lemon.id], personName: "Deinos", teaName: "Té Pakistaní", teaType: TeaType.ROOIBOS },
         200,
       );
 
@@ -174,13 +175,13 @@ describe("Ranking service", () => {
       await createTeaGuess(
         user2.id,
         day1.id,
-        { teaName: "Ruta desierto", teaType: TeaType.HERBAL, ingredients: [apple.id], personName: "Deino" },
+        { ingredients: [apple.id], personName: "Deino", teaName: "Ruta desierto", teaType: TeaType.HERBAL },
         900,
       );
       await createTeaGuess(
         user2.id,
         day2.id,
-        { teaName: "Té Pakistaní", teaType: TeaType.BLACK, ingredients: [apple.id], personName: "miko" },
+        { ingredients: [apple.id], personName: "miko", teaName: "Té Pakistaní", teaType: TeaType.BLACK },
         600,
       );
 
@@ -188,7 +189,7 @@ describe("Ranking service", () => {
       await createTeaGuess(
         user3.id,
         day1.id,
-        { teaName: "Ruta del desierto", teaType: TeaType.ROOIBOS, ingredients: [], personName: "David" },
+        { ingredients: [], personName: "David", teaName: "Ruta del desierto", teaType: TeaType.ROOIBOS },
         1000,
       );
 
@@ -208,19 +209,19 @@ describe("Ranking service", () => {
       const guess111 = await createTeaGuess(
         user1.id,
         day1.id,
-        { teaName: "Té especial", teaType: TeaType.ROOIBOS, ingredients: [apple.id], personName: "Adcc" },
+        { ingredients: [apple.id], personName: "Adcc", teaName: "Té especial", teaType: TeaType.ROOIBOS },
         150,
       );
       const guess112 = await createTeaGuess(
         user1.id,
         day1.id,
-        { teaName: "Ruta del desierto", teaType: TeaType.ROOIBOS, ingredients: [apple.id], personName: "Dein" },
+        { ingredients: [apple.id], personName: "Dein", teaName: "Ruta del desierto", teaType: TeaType.ROOIBOS },
         740,
       );
       await createTeaGuess(
         user1.id,
         day2.id,
-        { teaName: "Té Pakistaní", teaType: TeaType.ROOIBOS, ingredients: [apple.id, lemon.id], personName: "Deinos" },
+        { ingredients: [apple.id, lemon.id], personName: "Deinos", teaName: "Té Pakistaní", teaType: TeaType.ROOIBOS },
         200,
       );
 
@@ -228,28 +229,28 @@ describe("Ranking service", () => {
       const guess211 = await createTeaGuess(
         user2.id,
         day1.id,
-        { teaName: "Ascae té", teaType: TeaType.BLACK, ingredients: [cinnamon.id], personName: "Deino" },
+        { ingredients: [cinnamon.id], personName: "Deino", teaName: "Ascae té", teaType: TeaType.BLACK },
         300,
       );
       const guess212 = await createTeaGuess(
         user2.id,
         day1.id,
-        { teaName: "Ruta desierto", teaType: TeaType.HERBAL, ingredients: [apple.id], personName: "Deino" },
+        { ingredients: [apple.id], personName: "Deino", teaName: "Ruta desierto", teaType: TeaType.HERBAL },
         900,
       );
       await createTeaGuess(
         user2.id,
         day2.id,
-        { teaName: "Té Pakistaní", teaType: TeaType.BLACK, ingredients: [apple.id], personName: "miko" },
+        { ingredients: [apple.id], personName: "miko", teaName: "Té Pakistaní", teaType: TeaType.BLACK },
         600,
       );
 
       const date = new Date();
       await Promise.all([
-        prisma.teaGuess.update({ where: { id: guess111!.id }, data: { createdAt: date } }),
-        prisma.teaGuess.update({ where: { id: guess211!.id }, data: { createdAt: new Date(date.getTime() + 5000) } }),
-        prisma.teaGuess.update({ where: { id: guess112!.id }, data: { createdAt: new Date(date.getTime() + 10000) } }),
-        prisma.teaGuess.update({ where: { id: guess212!.id }, data: { createdAt: new Date(date.getTime() + 20000) } }),
+        prisma.teaGuess.update({ data: { createdAt: date }, where: { id: guess111!.id } }),
+        prisma.teaGuess.update({ data: { createdAt: new Date(date.getTime() + 5000) }, where: { id: guess211!.id } }),
+        prisma.teaGuess.update({ data: { createdAt: new Date(date.getTime() + 10000) }, where: { id: guess112!.id } }),
+        prisma.teaGuess.update({ data: { createdAt: new Date(date.getTime() + 20000) }, where: { id: guess212!.id } }),
       ]);
 
       const ranking = await getOverallRanking();

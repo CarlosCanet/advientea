@@ -1,7 +1,9 @@
-import { TeaType } from "@/generated/prisma/client";
 import { distance } from "fastest-levenshtein";
-import { cleanGuessName } from "./utils";
+
+import { TeaType } from "@/generated/prisma/client";
+
 import { TeaGuessFormData } from "./types";
+import { cleanGuessName } from "./utils";
 
 function calculateNameScore(originalName: string, guessName: string): number {
   const cleantOriginalName = cleanGuessName(originalName);

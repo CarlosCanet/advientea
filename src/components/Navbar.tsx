@@ -1,13 +1,15 @@
-import { signout } from "@/app/actions/authActions";
-import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
+import Image from "next/image";
 import Link from "next/link";
 import { RxHamburgerMenu } from "react-icons/rx";
-import ProfileImage from "./ui/ProfileImage";
-import Image from "next/image";
+
+import { signout } from "@/app/actions/authActions";
 import { Role } from "@/generated/prisma/enums";
+import { auth } from "@/lib/auth";
 import { getDayAssignment } from "@/lib/dal";
 import { DEFAULT_IMAGE_PROFILE } from "@/lib/types";
+
+import ProfileImage from "./ui/ProfileImage";
 
 async function Navbar() {
   const session = await auth.api.getSession({
@@ -17,12 +19,12 @@ async function Navbar() {
   return (
     <nav className="navbar bg-neutral shadow-sm fixed z-50 h-16">
       <div className="navbar-start ml-4">
-        <Link href="/" className="btn btn-ghost btn-circle btn-xl text-xl text-neutral-content w-12 h-12">
-          <Image src="/LogoAdvientea.png" alt="Logo de advienté" width={48} height={48} />
+        <Link className="btn btn-ghost btn-circle btn-xl text-xl text-neutral-content w-12 h-12" href="/">
+          <Image alt="Logo de advienté" height={48} src="/LogoAdvientea.png" width={48} />
         </Link>
       </div>
       <div className="navbar-center">
-        <Link href="/" className="btn btn-ghost text-xl text-neutral-content">
+        <Link className="btn btn-ghost text-xl text-neutral-content" href="/">
           <div>
             Advien<i>té</i> 2025
           </div>
@@ -30,10 +32,10 @@ async function Navbar() {
       </div>
       <div className="navbar-end mr-4">
         <div className="dropdown dropdown-end">
-          <div tabIndex={0} role="button" className="btn btn-ghost btn-circle text-neutral-content">
+          <div className="btn btn-ghost btn-circle text-neutral-content" role="button" tabIndex={0}>
             {session ? (
               <div>
-                <ProfileImage name={session.user.name} image={session.user.image || DEFAULT_IMAGE_PROFILE} />
+                <ProfileImage image={session.user.image || DEFAULT_IMAGE_PROFILE} name={session.user.name} />
               </div>
             ) : (
               <RxHamburgerMenu />
@@ -41,8 +43,8 @@ async function Navbar() {
           </div>
           {/* <ul tabIndex={-1} className="menu menu-sm dropdown-content bg-base-100 rounded-box z-1 mt-3 w-30 p-2 shadow"> */}
           <ul
-            tabIndex={-1}
             className="menu menu-sm dropdown-content bg-base-100 rounded-box z-1 mt-3 w-max min-w-28 whitespace-nowrap px-2 py-2 shadow items-end"
+            tabIndex={-1}
           >
             {session && (
               <li className="menu-title -ml-2 px-4">

@@ -1,7 +1,8 @@
+import { beforeEach, describe, expect, it } from "vitest";
+
 import { Day, User } from "@/generated/prisma/client";
-import { prisma } from "@/lib/prisma";
 import { createTeaGuess, getAllGuesses, getLastGuess, TeaWithIngredients } from "@/lib/dal";
-import { it, expect, describe, beforeEach } from "vitest";
+import { prisma } from "@/lib/prisma";
 import { TeaGuessFormData } from "@/lib/types";
 
 describe("Dal tea guess", async () => {
@@ -18,12 +19,12 @@ describe("Dal tea guess", async () => {
 
   beforeEach(async () => {
     const dayAssignmentRecord1 = await prisma.dayAssignment.findFirstOrThrow({
-      where: { user: { isNot: null }, day: { tea: { isNot: null } } },
-      include: { user: true, day: { include: { tea: { include: { ingredients: true } } } } },
+      include: { day: { include: { tea: { include: { ingredients: true } } } }, user: true },
+      where: { day: { tea: { isNot: null } }, user: { isNot: null } },
     });
     const dayAssignmentRecord2 = await prisma.dayAssignment.findFirstOrThrow({
-      where: { user: null, day: { tea: { isNot: null } }, id: { not: dayAssignmentRecord1.id } },
-      include: { user: true, day: { include: { tea: { include: { ingredients: true } } } } },
+      include: { day: { include: { tea: { include: { ingredients: true } } } }, user: true },
+      where: { day: { tea: { isNot: null } }, id: { not: dayAssignmentRecord1.id }, user: null },
     });
     const ownerDay1 = dayAssignmentRecord1.user;
     testUser = await prisma.user.findFirstOrThrow({ where: { id: { not: ownerDay1!.id } } });
@@ -34,16 +35,16 @@ describe("Dal tea guess", async () => {
     const tea1: TeaWithIngredients = dayAssignmentRecord1.day.tea;
     const tea2: TeaWithIngredients = dayAssignmentRecord2.day.tea;
     guessComplete1 = {
+      ingredients: tea1.ingredients.map((ingredient) => ingredient.id),
+      personName: ownerDay1?.username ?? "",
       teaName: tea1?.name,
       teaType: tea1?.teaType,
-      personName: ownerDay1?.username ?? "",
-      ingredients: tea1.ingredients.map((ingredient) => ingredient.id),
     };
     guessComplete2 = {
+      ingredients: tea2.ingredients.map((ingredient) => ingredient.id),
+      personName: dayAssignmentRecord2.guestName!,
       teaName: tea2?.name,
       teaType: tea2?.teaType,
-      personName: dayAssignmentRecord2.guestName!,
-      ingredients: tea2.ingredients.map((ingredient) => ingredient.id),
     };
     guessOnlyTeaName = {
       teaName: tea2?.name,

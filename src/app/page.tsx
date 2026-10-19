@@ -1,8 +1,9 @@
-import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { GiCoffeeCup, GiNightSleep } from "react-icons/gi";
 import { MdOutlineHistoryEdu } from "react-icons/md";
+
+import { auth } from "@/lib/auth";
 
 export default async function Home() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -22,7 +23,7 @@ export default async function Home() {
             decidido compartir con el resto del mundo, y también para que compartamos y disfrutemos de aquellos retazos
             de inspiración que nos acunan mientras cogemos la taza caliente con las manos frías.
           </p>
-          <Link href="/teaDay" className="btn btn-accent px-8 py-10 text-lg place-self-center shadow-xl">
+          <Link className="btn btn-accent px-8 py-10 text-lg place-self-center shadow-xl" href="/teaDay">
             <span>
               Pasa<span className="italic">Té</span> por
               <br />
@@ -78,16 +79,16 @@ export default async function Home() {
               </p>
               <div className="flex flex-wrap gap-3 justify-center">
                 {!session && (
-                  <Link href="/sign-in" className="btn btn-primary">
+                  <Link className="btn btn-primary" href="/sign-in">
                     Entra
                   </Link>
                 )}
                 {!session && (
-                  <Link href="/sign-up" className="btn btn-primary">
+                  <Link className="btn btn-primary" href="/sign-up">
                     Regístrate
                   </Link>
                 )}
-                <Link href="/add-tea-info" className="btn btn-secondary">
+                <Link className="btn btn-secondary" href="/add-tea-info">
                   Añade tu té
                 </Link>
               </div>

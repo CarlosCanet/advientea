@@ -1,3 +1,9 @@
+import { headers } from "next/headers";
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { FaEye } from "react-icons/fa";
+import { FaPencil } from "react-icons/fa6";
+
 import AssignmentSelect from "@/components/ui/AssignmentSelect";
 import ButtonAddDays from "@/components/ui/ButtonAddDays";
 import ButtonDeleteDay from "@/components/ui/ButtonDeleteDay";
@@ -5,11 +11,6 @@ import WaitForDayAssignment from "@/components/ui/WaitForDayAssignment";
 import { Role } from "@/generated/prisma/client";
 import { auth } from "@/lib/auth";
 import { getAllDays, getAllUsers, getDayAssignment } from "@/lib/dal";
-import { headers } from "next/headers";
-import Link from "next/link";
-import { redirect } from "next/navigation";
-import { FaEye } from "react-icons/fa";
-import { FaPencil } from "react-icons/fa6";
 
 async function EditTeaInfo() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -55,11 +56,11 @@ async function EditTeaInfo() {
                     <td>
                       {
                         <AssignmentSelect
-                          key={`${day.id}-${day.assignment?.user?.id ?? day.assignment?.guestName}`}
                           dayId={day.id}
+                          guestName={day.assignment?.guestName ?? undefined}
+                          key={`${day.id}-${day.assignment?.user?.id ?? day.assignment?.guestName}`}
                           userId={day.assignment?.user?.id ?? ""}
                           users={users}
-                          guestName={day.assignment?.guestName ?? undefined}
                         />
                       }
                     </td>

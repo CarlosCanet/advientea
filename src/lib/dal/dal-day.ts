@@ -9,27 +9,27 @@ export type DayWithAssignmentAndTeaComplete = Prisma.DayGetPayload<{
 }>;
 export type DayForGuessing = Prisma.DayGetPayload<{
   select: {
-    assignment: { select: { user: { select: { id: true; username: true } }; guestName: true } };
-    tea: { select: { name: true; ingredients: true; teaType: true } };
+    assignment: { select: { guestName: true; user: { select: { id: true; username: true } } } };
     dayNumber: true;
+    tea: { select: { ingredients: true; name: true; teaType: true } };
     year: true;
   };
 }>;
 
 export async function getDay(id: string): Promise<DayWithTeaComplete | null>;
 export async function getDay(day: number, year: number): Promise<DayWithTeaComplete | null>;
-export async function getDay(idOrDay: string | number, year: number = 2025): Promise<DayWithTeaComplete | null> {
+export async function getDay(idOrDay: number | string, year: number = 2025): Promise<DayWithTeaComplete | null> {
   if (typeof idOrDay === "string") {
     const dayResponse = await prisma.day.findUnique({
-      where: { id: idOrDay },
       include: { tea: { include: { story: { include: { images: { orderBy: { order: "asc" } } } } } } },
+      where: { id: idOrDay },
     });
     if (!dayResponse) return null;
     return dayResponse;
   }
   const dayResponse = await prisma.day.findUnique({
-    where: { dayNumber_year: { dayNumber: idOrDay, year: year } },
     include: { tea: { include: { story: { include: { images: { orderBy: { order: "asc" } } } } } } },
+    where: { dayNumber_year: { dayNumber: idOrDay, year: year } },
   });
   if (!dayResponse) return null;
   return dayResponse;
@@ -37,41 +37,41 @@ export async function getDay(idOrDay: string | number, year: number = 2025): Pro
 
 export async function getDayForGuessing(id: string): Promise<DayForGuessing | null> {
   const dayResponse = await prisma.day.findUnique({
-    where: { id },
     select: {
       assignment: {
         select: {
+          guestName: true,
           user: {
             select: {
               id: true,
               username: true,
             },
           },
-          guestName: true,
-        },
-      },
-      tea: {
-        select: {
-          name: true,
-          ingredients: true,
-          teaType: true,
         },
       },
       dayNumber: true,
+      tea: {
+        select: {
+          ingredients: true,
+          name: true,
+          teaType: true,
+        },
+      },
       year: true,
     },
+    where: { id },
   });
   return dayResponse;
 }
 
 export async function getAllDays(year: number): Promise<Array<DayWithAssignmentAndTeaComplete>> {
   const allDays = await prisma.day.findMany({
-    where: { year },
     include: {
       assignment: { include: { user: true } },
       tea: { include: { story: { include: { images: { orderBy: { order: "asc" } } } } } },
     },
     orderBy: { dayNumber: "asc" },
+    where: { year },
   });
   return allDays;
 }
@@ -125,16 +125,16 @@ export async function add25Days(year: number = 2025): Promise<number> {
 
 export async function editDay(data: Prisma.DayUncheckedUpdateInput, id: string): Promise<Day> {
   const dayUpdated = await prisma.day.update({
-    where: { id },
     data,
+    where: { id },
   });
   return dayUpdated;
 }
 
 export async function deleteDay(id: string): Promise<DayWithTeaComplete> {
   const dayDeleted = await prisma.day.delete({
-    where: { id },
     include: { tea: { include: { story: { include: { images: { orderBy: { order: "asc" } } } } } } },
+    where: { id },
   });
   return dayDeleted;
 }

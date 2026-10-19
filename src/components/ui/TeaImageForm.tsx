@@ -1,17 +1,18 @@
 "use client";
-import Image from "next/image";
-import { ImageStoryForm } from "@/lib/types";
 import { CldImage } from "next-cloudinary";
-import { IoIosArrowUp, IoIosArrowDown } from "react-icons/io";
+import Image from "next/image";
+import { IoIosArrowDown, IoIosArrowUp } from "react-icons/io";
+
+import { ImageStoryForm } from "@/lib/types";
 
 interface TeaImageFormProps {
   image: ImageStoryForm;
-  totalImages: number;
-  onDelete: (id: string) => void;
   onChangeOrder: (id: string, newOrder: number) => void;
+  onDelete: (id: string) => void;
+  totalImages: number;
 }
 
-function TeaImageForm({ image, totalImages, onDelete, onChangeOrder }: TeaImageFormProps) {
+function TeaImageForm({ image, onChangeOrder, onDelete, totalImages }: TeaImageFormProps) {
   const handleIncreasePosition = () => {
     if (image.order < totalImages - 1) {
       onChangeOrder(image.id, image.order + 1);
@@ -29,19 +30,19 @@ function TeaImageForm({ image, totalImages, onDelete, onChangeOrder }: TeaImageF
       <div className="w-full h-32 overflow-hidden flex items-center justify-center">
         {image.isNew ? (
           <Image
-            src={image.previewURL}
             alt="User profile preview"
             className="object-cover w-full h-full"
-            width={96}
             height={96}
+            src={image.previewURL}
+            width={96}
           />
         ) : (
           <CldImage
-            src={image.publicId}
             alt="User profile preview"
             className="object-cover w-full h-full"
-            width={600}
             height={600}
+            src={image.publicId}
+            width={600}
           />
         )}
       </div>
@@ -50,22 +51,22 @@ function TeaImageForm({ image, totalImages, onDelete, onChangeOrder }: TeaImageF
         <div className="flex flex-row justify-center items-center w-full gap-1">
           <button
             className="btn btn-xs btn-soft btn-secondary"
-            type="button"
-            onClick={handleDecreasePosition}
             disabled={image.order === 0}
+            onClick={handleDecreasePosition}
+            type="button"
           >
             <IoIosArrowUp />
           </button>
           <button
             className="btn btn-xs btn-soft btn-secondary"
-            type="button"
-            onClick={handleIncreasePosition}
             disabled={image.order === totalImages - 1}
+            onClick={handleIncreasePosition}
+            type="button"
           >
             <IoIosArrowDown />
           </button>
         </div>
-        <button className="btn btn-soft btn-error" type="button" onClick={() => onDelete(image.id)}>
+        <button className="btn btn-soft btn-error" onClick={() => onDelete(image.id)} type="button">
           Borrar imagen
         </button>
       </div>

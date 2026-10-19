@@ -4,9 +4,9 @@ import { prisma } from "@/lib/prisma";
 export type DayAssignmentWithDayTeaAndUser = Prisma.DayAssignmentGetPayload<{
   include: { day: { include: { tea: true } }; user: true };
 }>;
-export type DayAssignmentWithDayAndUser = Prisma.DayAssignmentGetPayload<{ include: { user: true; day: true } }>;
+export type DayAssignmentWithDayAndUser = Prisma.DayAssignmentGetPayload<{ include: { day: true; user: true } }>;
 export type Assigners = Prisma.DayAssignmentGetPayload<{
-  select: { user: { select: { username: true } }; userId: true; guestName: true };
+  select: { guestName: true; user: { select: { username: true } }; userId: true };
 }>;
 
 export async function getDayAssignment(id: string): Promise<DayAssignmentWithDayTeaAndUser | null>;
@@ -19,8 +19,8 @@ export async function getDayAssignment(
   try {
     if (typeof yearOrId === "string") {
       const assignment = await prisma.dayAssignment.findUnique({
-        where: { id: yearOrId },
         include: { day: { include: { tea: true } }, user: true },
+        where: { id: yearOrId },
       });
       return assignment;
     }
@@ -34,8 +34,8 @@ export async function getDayAssignment(
     }
     const year = yearOrId;
     const assignment = await prisma.dayAssignment.findUnique({
-      where: { userId_year: { userId: user.id, year } },
       include: { day: { include: { tea: true } }, user: true },
+      where: { userId_year: { userId: user.id, year } },
     });
     return assignment;
   } catch (error) {
@@ -50,8 +50,8 @@ export async function getDayAssignmentByUserId(
 ): Promise<DayAssignmentWithDayTeaAndUser | null> {
   try {
     const assignment = await prisma.dayAssignment.findUnique({
-      where: { userId_year: { userId: userId, year } },
       include: { day: { include: { tea: true } }, user: true },
+      where: { userId_year: { userId: userId, year } },
     });
     return assignment;
   } catch (error: unknown) {
@@ -63,8 +63,8 @@ export async function getDayAssignmentByUserId(
 export async function getAllDayAssignment(year: number = 2025): Promise<Array<DayAssignmentWithDayTeaAndUser>> {
   try {
     const assignments = await prisma.dayAssignment.findMany({
-      where: { year },
       include: { day: { include: { tea: true } }, user: true },
+      where: { year },
     });
     return assignments;
   } catch (error) {
@@ -75,14 +75,14 @@ export async function getAllDayAssignment(year: number = 2025): Promise<Array<Da
 
 export async function getAllAssigners(): Promise<Array<Assigners> | null> {
   const result = await prisma.dayAssignment.findMany({
-    select: { user: { select: { username: true } }, userId: true, guestName: true },
+    select: { guestName: true, user: { select: { username: true } }, userId: true },
   });
   return result;
 }
 
 interface AssigneeInput {
-  userId?: string;
   guestName?: string;
+  userId?: string;
 }
 
 export async function addDayAssignment(
@@ -97,8 +97,8 @@ export async function addDayAssignment(
 
   const data: Prisma.DayAssignmentCreateInput = {
     day: { connect: { id: dayResponse.id } },
-    year,
     guestName: null,
+    year,
   };
 
   if (assignee.userId) {
@@ -121,9 +121,9 @@ export async function editDayAssignment(
   id: string,
 ): Promise<DayAssignmentWithDayAndUser> {
   const dayAssignmentUpdated = await prisma.dayAssignment.update({
-    where: { id: id },
-    include: { day: true, user: true },
     data,
+    include: { day: true, user: true },
+    where: { id: id },
   });
   return dayAssignmentUpdated;
 }
@@ -133,18 +133,18 @@ export async function upsertDayAssignment(
   assignment: Prisma.DayAssignmentUncheckedCreateInput,
 ): Promise<DayAssignmentWithDayAndUser> {
   const dayAssignment = await prisma.dayAssignment.upsert({
-    where: { dayId },
     create: assignment,
-    update: assignment,
     include: { day: true, user: true },
+    update: assignment,
+    where: { dayId },
   });
   return dayAssignment;
 }
 
 export async function deleteDayAssignment(id: string): Promise<DayAssignmentWithDayAndUser> {
   const dayAssignmentDeleted = await prisma.dayAssignment.delete({
-    where: { id },
     include: { day: true, user: true },
+    where: { id },
   });
   return dayAssignmentDeleted;
 }

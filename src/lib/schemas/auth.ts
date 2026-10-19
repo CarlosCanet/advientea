@@ -1,4 +1,5 @@
 import { z } from "zod";
+
 import { ALLOWED_IMAGE_TYPES } from "@/lib/types";
 
 const passwordSchema = z
@@ -16,7 +17,6 @@ const passwordSchema = z
   });
 
 const commonSchema = z.object({
-  username: z.string().trim().min(2, { error: "Introduce un nombre de al menos 2 caracteres." }),
   image: z
     .file()
     .max(2 * 1024 * 1024, {
@@ -24,6 +24,7 @@ const commonSchema = z.object({
     })
     .mime(ALLOWED_IMAGE_TYPES, { error: "Formato de archivo no permitido." })
     .optional(),
+  username: z.string().trim().min(2, { error: "Introduce un nombre de al menos 2 caracteres." }),
 });
 
 export const signupFormSchema = commonSchema

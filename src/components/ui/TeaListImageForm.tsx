@@ -1,7 +1,9 @@
 "use client";
-import { FaImages } from "react-icons/fa";
 import { Dispatch, SetStateAction, useState } from "react";
+import { FaImages } from "react-icons/fa";
+
 import { ALLOWED_IMAGE_TYPES, ImageStoryForm } from "@/lib/types";
+
 import TeaImageForm from "./TeaImageForm";
 
 interface TeaListImageFormProps {
@@ -22,10 +24,10 @@ function TeaListImageForm({ images, setImages }: TeaListImageFormProps) {
         return;
       }
       const newImage: ImageStoryForm = {
-        id: crypto.randomUUID(),
-        order: images.length,
-        isNew: true,
         file: imageFile,
+        id: crypto.randomUUID(),
+        isNew: true,
+        order: images.length,
         previewURL: URL.createObjectURL(imageFile),
       };
       const newState: Array<ImageStoryForm> = [...images, newImage];
@@ -72,18 +74,18 @@ function TeaListImageForm({ images, setImages }: TeaListImageFormProps) {
         {images &&
           images.map((img) => (
             <TeaImageForm
-              key={img.id}
               image={img}
-              totalImages={images.length}
-              onDelete={handleDeleteImage}
+              key={img.id}
               onChangeOrder={handleReorderImage}
+              onDelete={handleDeleteImage}
+              totalImages={images.length}
             />
           ))}
         <input
-          type="file"
+          aria-label="Seleccionar imagen"
           className="file-input file-input-primary place-self-center file-input-sm"
           onChange={onAddFile}
-          aria-label="Seleccionar imagen"
+          type="file"
         />
 
         {imageErrorMsg && <p className="text-xs text-error font-bold mt-1">{imageErrorMsg}</p>}

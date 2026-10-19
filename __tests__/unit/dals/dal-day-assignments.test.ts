@@ -1,14 +1,15 @@
-import { prismaMock } from "@/lib/__mocks__/prisma";
-import { describe, expect, it, vi, beforeAll, beforeEach } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+
 import { Day, Prisma, User } from "@/generated/prisma/client";
+import { prismaMock } from "@/lib/__mocks__/prisma";
 import {
-  getDayAssignment,
-  getAllDayAssignment,
   addDayAssignment,
-  editDayAssignment,
-  deleteDayAssignment,
-  DayAssignmentWithDayTeaAndUser,
   DayAssignmentWithDayAndUser,
+  DayAssignmentWithDayTeaAndUser,
+  deleteDayAssignment,
+  editDayAssignment,
+  getAllDayAssignment,
+  getDayAssignment,
 } from "@/lib/dal/dal-day-assignment";
 
 describe("DAL DayAssignment", () => {
@@ -21,34 +22,34 @@ describe("DAL DayAssignment", () => {
 
   describe("getDayAssignment", () => {
     const mockUser: User = {
-      id: "user-1",
-      username: "TestUser",
-      email: "test@example.com",
-      role: "USER",
-      image: null,
-      emailVerified: false,
-      name: null,
       createdAt: new Date(),
+      email: "test@example.com",
+      emailVerified: false,
+      id: "user-1",
+      image: null,
+      name: null,
+      role: "USER",
       updatedAt: new Date(),
+      username: "TestUser",
     };
 
     const mockAssignment: DayAssignmentWithDayTeaAndUser = {
-      id: "assignment-1",
-      userId: "user-1",
-      guestName: null,
-      dayId: "day-1",
-      year: 2025,
       createdAt: new Date(),
+      day: {
+        createdAt: new Date(),
+        dayNumber: 1,
+        id: "day-1",
+        tea: null,
+        updatedAt: new Date(),
+        year: 2025,
+      },
+      dayId: "day-1",
+      guestName: null,
+      id: "assignment-1",
       updatedAt: new Date(),
       user: mockUser,
-      day: {
-        id: "day-1",
-        dayNumber: 1,
-        year: 2025,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        tea: null,
-      },
+      userId: "user-1",
+      year: 2025,
     };
 
     it("should get assignment by ID string", async () => {
@@ -112,47 +113,47 @@ describe("DAL DayAssignment", () => {
 
   describe("addDayAssignment", () => {
     const mockUser: User = {
-      id: "user-1",
-      username: "TestUser",
-      email: "test@example.com",
-      role: "USER",
-      image: null,
-      emailVerified: false,
-      name: null,
       createdAt: new Date(),
+      email: "test@example.com",
+      emailVerified: false,
+      id: "user-1",
+      image: null,
+      name: null,
+      role: "USER",
       updatedAt: new Date(),
+      username: "TestUser",
     };
 
     const mockDay: Day = {
-      id: "day-5",
-      dayNumber: 5,
-      year: 2025,
       createdAt: new Date(),
+      dayNumber: 5,
+      id: "day-5",
       updatedAt: new Date(),
+      year: 2025,
     };
 
     const mockAssignmentWithUser: DayAssignmentWithDayAndUser = {
-      id: "user-id",
-      userId: "user-1",
-      guestName: null,
-      dayId: "day-5",
-      year: 2025,
       createdAt: new Date(),
+      day: mockDay,
+      dayId: "day-5",
+      guestName: null,
+      id: "user-id",
       updatedAt: new Date(),
       user: mockUser,
-      day: mockDay,
+      userId: "user-1",
+      year: 2025,
     };
 
     const mockAssignmentWithGuest: DayAssignmentWithDayAndUser = {
-      id: "user-id-2",
-      userId: null,
-      guestName: "Guest",
-      dayId: "day-5",
-      year: 2025,
       createdAt: new Date(),
+      day: mockDay,
+      dayId: "day-5",
+      guestName: "Guest",
+      id: "user-id-2",
       updatedAt: new Date(),
       user: null,
-      day: mockDay,
+      userId: null,
+      year: 2025,
     };
 
     it("should create assignment successfully with id", async () => {
@@ -214,8 +215,8 @@ describe("DAL DayAssignment", () => {
     it("should throw if user does not exist", async () => {
       prismaMock.day.findUnique.mockResolvedValue(mockDay);
       const p2025Error = new Prisma.PrismaClientKnownRequestError("Record not found", {
-        code: "P2025",
         clientVersion: "1",
+        code: "P2025",
       });
       prismaMock.dayAssignment.create.mockRejectedValue(p2025Error);
 
@@ -227,8 +228,8 @@ describe("DAL DayAssignment", () => {
       prismaMock.user.findUnique.mockResolvedValue(mockUser);
 
       const p2002Error = new Prisma.PrismaClientKnownRequestError("Unique constraint violation", {
-        code: "P2002",
         clientVersion: "1",
+        code: "P2002",
       });
 
       prismaMock.dayAssignment.create.mockRejectedValue(p2002Error);
@@ -240,15 +241,15 @@ describe("DAL DayAssignment", () => {
   describe("editDayAssignment", () => {
     it("should update assignment", async () => {
       const mockUpdated: DayAssignmentWithDayAndUser = {
-        id: "assign-1",
-        userId: "user-1",
-        guestName: "Guest",
-        dayId: "day-1",
-        year: 2025,
         createdAt: new Date(),
+        day: { id: "day-1" } as Day,
+        dayId: "day-1",
+        guestName: "Guest",
+        id: "assign-1",
         updatedAt: new Date(),
         user: { id: "user-1" } as User,
-        day: { id: "day-1" } as Day,
+        userId: "user-1",
+        year: 2025,
       };
 
       prismaMock.dayAssignment.update.mockResolvedValue(mockUpdated);
@@ -262,15 +263,15 @@ describe("DAL DayAssignment", () => {
   describe("deleteDayAssignment", () => {
     it("should delete assignment", async () => {
       const mockDeleted: DayAssignmentWithDayAndUser = {
-        id: "assign-1",
-        userId: "user-1",
-        guestName: null,
-        dayId: "day-1",
-        year: 2025,
         createdAt: new Date(),
+        day: { id: "day-1" } as Day,
+        dayId: "day-1",
+        guestName: null,
+        id: "assign-1",
         updatedAt: new Date(),
         user: { id: "user-1" } as User,
-        day: { id: "day-1" } as Day,
+        userId: "user-1",
+        year: 2025,
       };
 
       prismaMock.dayAssignment.delete.mockResolvedValue(mockDeleted);

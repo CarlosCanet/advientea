@@ -1,7 +1,9 @@
 "use client";
-import { deleteDayAction } from "@/app/actions/teaInfoActions";
 import { useRef, useTransition } from "react";
 import { FaTrashAlt } from "react-icons/fa";
+
+import { deleteDayAction } from "@/app/actions/teaInfoActions";
+
 import ActionToast, { useActionToast } from "./ActionToast";
 
 interface ButtonDeleteDayProps {
@@ -11,7 +13,7 @@ interface ButtonDeleteDayProps {
 export default function ButtonDeleteDay({ dayId }: ButtonDeleteDayProps) {
   const modalRef = useRef<HTMLDialogElement>(null);
   const [isPending, startTransition] = useTransition();
-  const { toast, showToast } = useActionToast();
+  const { showToast, toast } = useActionToast();
 
   const handleDelete = () => {
     startTransition(async () => {
@@ -27,10 +29,10 @@ export default function ButtonDeleteDay({ dayId }: ButtonDeleteDayProps) {
 
   return (
     <>
-      <button className="btn btn-ghost btn-error px-1" onClick={openModal} disabled={isPending}>
+      <button className="btn btn-ghost btn-error px-1" disabled={isPending} onClick={openModal}>
         <FaTrashAlt />
       </button>
-      <dialog ref={modalRef} className="modal">
+      <dialog className="modal" ref={modalRef}>
         <div className="modal-box">
           <h3 className="font-bold text-xl">Confirmación de borrado</h3>
           <p className="py-4 text-lg">
@@ -42,7 +44,7 @@ export default function ButtonDeleteDay({ dayId }: ButtonDeleteDayProps) {
               {/* if there is a button in form, it will close the modal */}
               <button className="btn btn-primary">Close</button>
             </form>
-            <button className="btn btn-error" onClick={handleDelete} disabled={isPending}>
+            <button className="btn btn-error" disabled={isPending} onClick={handleDelete}>
               Delete
             </button>
           </div>

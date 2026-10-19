@@ -1,8 +1,9 @@
 import { readdirSync } from "node:fs";
 import path from "node:path";
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { ForbiddenError, UnauthenticatedError } from "@/lib/errors";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import { Role } from "@/generated/prisma/enums";
+import { ForbiddenError, UnauthenticatedError } from "@/lib/errors";
 
 /**
  * Authorization sweep over EVERY module in src/app/actions (picked up by glob, not registered by hand).
@@ -15,21 +16,21 @@ import { Role } from "@/generated/prisma/enums";
 
 // Public by design. Adding a name here is a reviewable decision.
 const PUBLIC_ACTIONS: Record<string, string> = {
-  signup: "creates the account itself",
+  addTeaInfo: "guest submissions are allowed by product decision (2026-10-19); the only unauthenticated write path",
   signin: "authenticates; there is no session yet",
   signout: "ends the session; harmless without one",
-  addTeaInfo: "guest submissions are allowed by product decision (2026-10-19); the only unauthenticated write path",
+  signup: "creates the account itself",
 };
 
 // Require ADMIN or EXECUTEAVE. A USER must never get past the guard.
 const PRIVILEGED_ACTIONS: Record<string, string> = {
-  changeRoleAction: "ADMIN",
-  assignUserToDay: "ADMIN or EXECUTEAVE",
   addDaysAction: "ADMIN",
+  assignUserToDay: "ADMIN or EXECUTEAVE",
+  changeRoleAction: "ADMIN",
   deleteDayAction: "ADMIN",
 };
 
-const { GUARDS, DAL_FUNCTIONS, prismaTouched } = vi.hoisted(() => ({
+const { DAL_FUNCTIONS, GUARDS, prismaTouched } = vi.hoisted(() => ({
   GUARDS: ["requireSession", "requireRole", "verifySession"] as const,
   // Every DAL export the action modules import. Keep in sync with their `@/lib/dal` imports.
   DAL_FUNCTIONS: [
@@ -78,31 +79,31 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/auth", () => ({
   auth: {
     api: {
+      changePassword: vi.fn(),
       getSession: vi.fn().mockResolvedValue(null),
       signInEmail: vi.fn(),
-      signUpEmail: vi.fn(),
       signOut: vi.fn(),
-      changePassword: vi.fn(),
+      signUpEmail: vi.fn(),
     },
   },
 }));
-vi.mock("@/lib/cloudinary", () => ({ uploadImageFile: vi.fn(), deleteAsset: vi.fn() }));
+vi.mock("@/lib/cloudinary", () => ({ deleteAsset: vi.fn(), uploadImageFile: vi.fn() }));
 vi.mock("@/lib/services/user-service", () => ({ createUser: vi.fn() }));
 vi.mock("@/lib/services/tea-guess-service", () => ({
-  canUserGuessTea: vi.fn(),
-  canUserGuessPerson: vi.fn(),
-  validateTeaGuess: vi.fn().mockResolvedValue({ success: false, error: { errors: [] }, inputs: {} }),
   calculatePointsFromGuess: vi.fn(),
+  canUserGuessPerson: vi.fn(),
+  canUserGuessTea: vi.fn(),
+  validateTeaGuess: vi.fn().mockResolvedValue({ error: { errors: [] }, inputs: {}, success: false }),
 }));
 
-import * as dal from "@/lib/dal";
-import * as cloudinary from "@/lib/cloudinary";
 import * as authActions from "@/app/actions/authActions";
-import * as teaInfoActions from "@/app/actions/teaInfoActions";
 import * as teaGuessActions from "@/app/actions/teaGuessActions";
+import * as teaInfoActions from "@/app/actions/teaInfoActions";
+import * as cloudinary from "@/lib/cloudinary";
+import * as dal from "@/lib/dal";
 
 type ActionModule = Record<string, unknown>;
-const MODULES: Record<string, ActionModule> = { authActions, teaInfoActions, teaGuessActions };
+const MODULES: Record<string, ActionModule> = { authActions, teaGuessActions, teaInfoActions };
 // commonActions.ts holds form-parsing helpers, not Server Actions.
 const NON_ACTION_FILES = new Set(["commonActions"]);
 const ACTIONS_DIR = path.join(process.cwd(), "src", "app", "actions");
@@ -110,9 +111,9 @@ const ALL_ACTIONS = Object.entries(MODULES).flatMap(([moduleName, mod]) =>
   Object.entries(mod)
     .filter(([, value]) => typeof value === "function")
     .map(([actionName, action]) => ({
-      moduleName,
-      actionName,
       action: action as (...args: unknown[]) => Promise<unknown>,
+      actionName,
+      moduleName,
     })),
 );
 
@@ -135,18 +136,18 @@ function expectNoWrites(actionName: string) {
 
 const userSession = {
   isAuth: true as const,
-  userId: "user-id",
   role: Role.USER,
   user: {
-    id: "user-id",
-    email: "user@example.com",
-    name: "user",
-    username: "user",
-    role: Role.USER,
-    emailVerified: false,
     createdAt: new Date(),
+    email: "user@example.com",
+    emailVerified: false,
+    id: "user-id",
+    name: "user",
+    role: Role.USER,
     updatedAt: new Date(),
+    username: "user",
   },
+  userId: "user-id",
 };
 
 describe("authorization sweep", () => {
@@ -169,10 +170,10 @@ describe("authorization sweep", () => {
       vi.clearAllMocks();
       dalMock.requireSession.mockRejectedValue(new UnauthenticatedError());
       dalMock.requireRole.mockRejectedValue(new UnauthenticatedError());
-      dalMock.verifySession.mockResolvedValue({ isAuth: false, userId: null, role: null, user: null });
+      dalMock.verifySession.mockResolvedValue({ isAuth: false, role: null, user: null, userId: null });
     });
 
-    for (const { moduleName, actionName, action } of ALL_ACTIONS) {
+    for (const { action, actionName, moduleName } of ALL_ACTIONS) {
       if (actionName in PUBLIC_ACTIONS) {
         // Public actions are exercised with an empty form, which proves nothing about writes: they are documented, not asserted.
         it.skip(`${moduleName}.${actionName} is public: ${PUBLIC_ACTIONS[actionName]}`, () => {});
@@ -198,7 +199,7 @@ describe("authorization sweep", () => {
       });
     });
 
-    for (const { moduleName, actionName, action } of ALL_ACTIONS) {
+    for (const { action, actionName, moduleName } of ALL_ACTIONS) {
       if (!(actionName in PRIVILEGED_ACTIONS)) continue;
       it(`${moduleName}.${actionName} (${PRIVILEGED_ACTIONS[actionName]}) refuses a USER`, async () => {
         await action(...dummyArgs()).catch(() => undefined);
