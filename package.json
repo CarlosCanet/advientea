@@ -69,5 +69,9 @@
     "vitest": "^4.0.15",
     "vitest-mock-extended": "^3.1.0"
   },
-  "browserslist": "> 1%"
+  "browserslist": "> 1%",
+  "packageManager": "pnpm@10.28.2",
+  "engines": {
+    "node": "24.x"
+  }
 }
