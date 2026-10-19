@@ -62,13 +62,29 @@ vi.mock("@/lib/dal", () => {
 });
 // Any direct use of the Prisma client from an action is recorded and fails the sweep.
 vi.mock("@/lib/prisma", () => ({
-  prisma: new Proxy({}, { get: (_target, prop) => { prismaTouched(String(prop)); return () => undefined; } }),
+  prisma: new Proxy(
+    {},
+    {
+      get: (_target, prop) => {
+        prismaTouched(String(prop));
+        return () => undefined;
+      },
+    },
+  ),
 }));
 vi.mock("next/headers", () => ({ headers: vi.fn().mockResolvedValue(new Headers()) }));
 vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/auth", () => ({
-  auth: { api: { getSession: vi.fn().mockResolvedValue(null), signInEmail: vi.fn(), signUpEmail: vi.fn(), signOut: vi.fn(), changePassword: vi.fn() } },
+  auth: {
+    api: {
+      getSession: vi.fn().mockResolvedValue(null),
+      signInEmail: vi.fn(),
+      signUpEmail: vi.fn(),
+      signOut: vi.fn(),
+      changePassword: vi.fn(),
+    },
+  },
 }));
 vi.mock("@/lib/cloudinary", () => ({ uploadImageFile: vi.fn(), deleteAsset: vi.fn() }));
 vi.mock("@/lib/services/user-service", () => ({ createUser: vi.fn() }));
@@ -93,7 +109,11 @@ const ACTIONS_DIR = path.join(process.cwd(), "src", "app", "actions");
 const ALL_ACTIONS = Object.entries(MODULES).flatMap(([moduleName, mod]) =>
   Object.entries(mod)
     .filter(([, value]) => typeof value === "function")
-    .map(([actionName, action]) => ({ moduleName, actionName, action: action as (...args: unknown[]) => Promise<unknown> })),
+    .map(([actionName, action]) => ({
+      moduleName,
+      actionName,
+      action: action as (...args: unknown[]) => Promise<unknown>,
+    })),
 );
 
 // Arity differs between actions; every parameter gets a FormData so form-based ones parse an empty form
@@ -117,7 +137,16 @@ const userSession = {
   isAuth: true as const,
   userId: "user-id",
   role: Role.USER,
-  user: { id: "user-id", email: "user@example.com", name: "user", username: "user", role: Role.USER, emailVerified: false, createdAt: new Date(), updatedAt: new Date() },
+  user: {
+    id: "user-id",
+    email: "user@example.com",
+    name: "user",
+    username: "user",
+    role: Role.USER,
+    emailVerified: false,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  },
 };
 
 describe("authorization sweep", () => {

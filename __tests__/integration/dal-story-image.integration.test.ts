@@ -57,7 +57,12 @@ describe("dal StoryImage · replaceStoryImages", () => {
     expect(mineAfter.images.map((img) => img.id)).toEqual([mine.images[0].id]);
     expect(theirsAfter.images.map((img) => img.id)).toEqual([foreignImage.id]);
     expect(theirsAfter.images[0].order).toBe(foreignImage.order);
-    expect(removed.sort()).toEqual(mine.images.slice(1).map((img) => img.publicId).sort());
+    expect(removed.sort()).toEqual(
+      mine.images
+        .slice(1)
+        .map((img) => img.publicId)
+        .sort(),
+    );
   });
 
   it("deletes every image when the final list is empty", async () => {

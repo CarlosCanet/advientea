@@ -1,7 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Griffy&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Griffy&display=swap");
 @import "tailwindcss";
 @plugin "daisyui" {
-  themes: advientea-light --default, advientea-dark --prefersdark;
+  themes:
+    advientea-light --default,
+    advientea-dark --prefersdark;
 }
 
 /* Tema claro */
@@ -10,23 +12,23 @@
   default: true;
   prefersdark: false;
   color-scheme: "light";
-  --color-base-100: oklch(0.826 0.093 146.0);
-  --color-base-200: oklch(0.924 0.071 135.500);
+  --color-base-100: oklch(0.826 0.093 146);
+  --color-base-200: oklch(0.924 0.071 135.5);
   --color-base-300: oklch(0.98 0.04 130.29);
   --color-base-content: oklch(0.502 0.178 165.5);
   --color-primary: oklch(0.635 0.132 165.5);
-  --color-primary-content: oklch(1.000 0.094 146.0);
-  --color-secondary: oklch(0.349 0.369 175.500);
-  --color-secondary-content: oklch(1 0.143 143.000);
-  --color-accent: oklch(0.533 0.060 131.6);
+  --color-primary-content: oklch(1 0.094 146);
+  --color-secondary: oklch(0.349 0.369 175.5);
+  --color-secondary-content: oklch(1 0.143 143);
+  --color-accent: oklch(0.533 0.06 131.6);
   --color-accent-content: #f0ffe9;
-  --color-neutral: oklch(0.657 0.093 146.0);
-  --color-neutral-content: oklch(1.000 0.127 143.8);
-  --color-info: oklch(0.740 0.160 181.4);
+  --color-neutral: oklch(0.657 0.093 146);
+  --color-neutral-content: oklch(1 0.127 143.8);
+  --color-info: oklch(0.74 0.16 181.4);
   --color-info-content: oklch(29% 0.066 243.157);
   --color-success: oklch(0.821 0.122 163.2);
   --color-success-content: oklch(37% 0.077 168.94);
-  --color-warning: oklch(0.820 0.189 99.9);
+  --color-warning: oklch(0.82 0.189 99.9);
   --color-warning-content: oklch(41% 0.112 45.904);
   --color-error: oklch(0.6187 0.128 20);
   --color-error-content: oklch(0.27 0.105 12.094);
@@ -40,30 +42,29 @@
   --noise: 0;
 }
 
-
 /* Tema oscuro */
 @plugin "daisyui/theme" {
   name: "advientea-dark";
   default: false;
   prefersdark: true;
   color-scheme: "dark";
-  --color-base-100: oklch(0.826 0.093 146.0);
-  --color-base-200: oklch(0.924 0.071 135.500);
+  --color-base-100: oklch(0.826 0.093 146);
+  --color-base-200: oklch(0.924 0.071 135.5);
   --color-base-300: oklch(0.98 0.04 130.29);
   --color-base-content: oklch(0.502 0.178 165.5);
   --color-primary: oklch(0.635 0.132 165.5);
-  --color-primary-content: oklch(1.000 0.094 146.0);
-  --color-secondary: oklch(0.349 0.369 175.500);
-  --color-secondary-content: oklch(1 0.143 143.000);
-  --color-accent: oklch(0.533 0.060 131.6);
+  --color-primary-content: oklch(1 0.094 146);
+  --color-secondary: oklch(0.349 0.369 175.5);
+  --color-secondary-content: oklch(1 0.143 143);
+  --color-accent: oklch(0.533 0.06 131.6);
   --color-accent-content: #f0ffe9;
-  --color-neutral: oklch(0.657 0.093 146.0);
-  --color-neutral-content: oklch(1.000 0.127 143.8);
-  --color-info: oklch(0.740 0.160 181.4);
+  --color-neutral: oklch(0.657 0.093 146);
+  --color-neutral-content: oklch(1 0.127 143.8);
+  --color-info: oklch(0.74 0.16 181.4);
   --color-info-content: oklch(29% 0.066 243.157);
   --color-success: oklch(0.821 0.122 163.2);
   --color-success-content: oklch(37% 0.077 168.94);
-  --color-warning: oklch(0.820 0.189 99.9);
+  --color-warning: oklch(0.82 0.189 99.9);
   --color-warning-content: oklch(41% 0.112 45.904);
   --color-error: oklch(0.6187 0.128 20);
   --color-error-content: oklch(0.27 0.105 12.094);
@@ -97,7 +98,7 @@
   }
 } */
 
- /* body {
+/* body {
   /* background: var(--background); 
   /* color: var(--foreground);
   /* font-family: Arial, Helvetica, sans-serif;

@@ -1,4 +1,4 @@
-import EditTeaInfoForm from "@/components/EditTeaInfoForm"
+import EditTeaInfoForm from "@/components/EditTeaInfoForm";
 import WaitForDayAssignment from "@/components/ui/WaitForDayAssignment";
 import { Role } from "@/generated/prisma/enums";
 import { auth } from "@/lib/auth";
@@ -16,7 +16,7 @@ async function EditTeaInfoDayPage({ params }: { params: Promise<{ teaId: string 
   if (session.user.role === Role.USER) {
     const assignment = await getDayAssignment(2025, session.user.email);
     if (!assignment) {
-      return <WaitForDayAssignment />
+      return <WaitForDayAssignment />;
     } else if (!assignment.day.tea) {
       redirect("/add-tea-info");
     } else if (session.user.role === Role.USER && assignment.day.tea.id !== teaId) {
@@ -28,12 +28,17 @@ async function EditTeaInfoDayPage({ params }: { params: Promise<{ teaId: string 
     notFound();
   }
   const username = await getUsernameAssignedToTea(teaId);
-  
-  
+
   return (
     <div className="flex justify-center">
-      <EditTeaInfoForm username={username || ""} dayNumber={teaCompleteInfo.day?.dayNumber} teaCompleteInfo={teaCompleteInfo} isExecuTEAve={session.user.role !== Role.USER} teaId={teaId} />
+      <EditTeaInfoForm
+        username={username || ""}
+        dayNumber={teaCompleteInfo.day?.dayNumber}
+        teaCompleteInfo={teaCompleteInfo}
+        isExecuTEAve={session.user.role !== Role.USER}
+        teaId={teaId}
+      />
     </div>
-  )
+  );
 }
-export default EditTeaInfoDayPage
+export default EditTeaInfoDayPage;

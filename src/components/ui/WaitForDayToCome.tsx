@@ -12,5 +12,5 @@ export default function WaitForDayToCome({ dayNumber }: WaitForDayToComeProps) {
         </div>
       </div>
     </div>
-  )
+  );
 }

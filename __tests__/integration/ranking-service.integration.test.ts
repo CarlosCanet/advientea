@@ -26,13 +26,33 @@ describe("Ranking service", () => {
   describe("getDailyRanking", () => {
     it("should order users by points", async () => {
       // User2: good guess on name, wrong type (740 points) => 180 name + 180 person + 0 type + 180 ingredients + 200 time
-      await createTeaGuess(user2.id, day1.id, { teaName: "Ruta desierto", teaType: TeaType.HERBAL, ingredients: [apple.id], personName: "Deino" }, 740);
-      
+      await createTeaGuess(
+        user2.id,
+        day1.id,
+        { teaName: "Ruta desierto", teaType: TeaType.HERBAL, ingredients: [apple.id], personName: "Deino" },
+        740,
+      );
+
       // User1: perfect guess (1000 points) => 200 name + 200 person + 200 type + 200 ingredients + 200 time
-      await createTeaGuess(user1.id, day1.id, { teaName: "Ruta del desierto", teaType: TeaType.ROOIBOS, ingredients: [apple.id, lemon.id], personName: "Deinos" }, 1000);
+      await createTeaGuess(
+        user1.id,
+        day1.id,
+        {
+          teaName: "Ruta del desierto",
+          teaType: TeaType.ROOIBOS,
+          ingredients: [apple.id, lemon.id],
+          personName: "Deinos",
+        },
+        1000,
+      );
 
       // User3: partial guess (580 points) => 100 name + 160 person + 200 type + 0 ingredients + 120 time
-      await createTeaGuess(user3.id, day1.id, { teaName: "Desierto", teaType: TeaType.ROOIBOS, ingredients: [], personName: "David" }, 580);
+      await createTeaGuess(
+        user3.id,
+        day1.id,
+        { teaName: "Desierto", teaType: TeaType.ROOIBOS, ingredients: [], personName: "David" },
+        580,
+      );
 
       const ranking = await getDailyRanking(day1.id);
 
@@ -44,14 +64,29 @@ describe("Ranking service", () => {
 
     it("should break ties base on who guessed EARLIER", async () => {
       // User3: 780 points => 160 name + 200 person + 200 type + 20 ingredients + 200 time
-      const guess1 = await createTeaGuess(user3.id, day2.id, { teaName: "Té especial", teaType: TeaType.OOLONG, ingredients: [], personName: "Sony" }, 780);
-      
+      const guess1 = await createTeaGuess(
+        user3.id,
+        day2.id,
+        { teaName: "Té especial", teaType: TeaType.OOLONG, ingredients: [], personName: "Sony" },
+        780,
+      );
+
       // User2: 780 points => 140 name + 40 person + 200 type + 200 ingredients + 200 time
-      const guess2 = await createTeaGuess(user2.id, day2.id, { teaName: "Especial", teaType: TeaType.OOLONG, ingredients: [], personName: "miko" }, 780);
-      
+      const guess2 = await createTeaGuess(
+        user2.id,
+        day2.id,
+        { teaName: "Especial", teaType: TeaType.OOLONG, ingredients: [], personName: "miko" },
+        780,
+      );
+
       // User1: lower score (390 points) => 90 name + 0 person + 100 type + 0 ingredients + 200 time
-      const guess3 = await createTeaGuess(user1.id, day2.id, { teaName: "Oolong", teaType: TeaType.BLACK, ingredients: [] }, 390);
-      
+      const guess3 = await createTeaGuess(
+        user1.id,
+        day2.id,
+        { teaName: "Oolong", teaType: TeaType.BLACK, ingredients: [] },
+        390,
+      );
+
       const date = new Date();
       await Promise.all([
         prisma.teaGuess.update({ where: { id: guess1!.id }, data: { createdAt: date } }),
@@ -72,16 +107,36 @@ describe("Ranking service", () => {
 
     it("should only count the LAST guess of a user for that day", async () => {
       // User1: good guess (410 points) => 160 name + 0 person + 0 type + 200 ingredients + 50 time
-      const guess1 = await createTeaGuess(user1.id, day2.id, { teaName: "Pakistaní", teaType: TeaType.GREEN, ingredients: [] }, 410);
-      
+      const guess1 = await createTeaGuess(
+        user1.id,
+        day2.id,
+        { teaName: "Pakistaní", teaType: TeaType.GREEN, ingredients: [] },
+        410,
+      );
+
       // User2: moderate guess (446 points) => 80 name + 0 person + 200 type + 66 ingredients + 100 time
-      await createTeaGuess(user2.id, day2.id, { teaName: "Chai", teaType: TeaType.BLACK, ingredients: [cinnamon.id] }, 446);
-      
+      await createTeaGuess(
+        user2.id,
+        day2.id,
+        { teaName: "Chai", teaType: TeaType.BLACK, ingredients: [cinnamon.id] },
+        446,
+      );
+
       // User1: better guess (656 points) => 160 name + 180 person + 200 type + 66 ingredients + 50 time
-      const guess2 = await createTeaGuess(user1.id, day2.id, { teaName: "Pakistani", teaType: TeaType.BLACK, ingredients: [cinnamon.id], personName: "Ñita" }, 656);
-      
+      const guess2 = await createTeaGuess(
+        user1.id,
+        day2.id,
+        { teaName: "Pakistani", teaType: TeaType.BLACK, ingredients: [cinnamon.id], personName: "Ñita" },
+        656,
+      );
+
       // User1: Best guess (716 points) => 200 name + 200 person + 200 type + 66 ingredients + 50 time
-      const guess3 = await createTeaGuess(user1.id, day2.id, { teaName: "Té pakistaní", teaType: TeaType.BLACK, ingredients: [cinnamon.id], personName: "Anónimo" }, 716);
+      const guess3 = await createTeaGuess(
+        user1.id,
+        day2.id,
+        { teaName: "Té pakistaní", teaType: TeaType.BLACK, ingredients: [cinnamon.id], personName: "Anónimo" },
+        716,
+      );
 
       const date = new Date();
       await Promise.all([
@@ -100,17 +155,42 @@ describe("Ranking service", () => {
     });
   });
   describe("getOverallRanking", () => {
-    it("should order users by points", async () => { 
+    it("should order users by points", async () => {
       // User1 940 points: day1 -> 740 points, day2 -> 200 points
-      await createTeaGuess(user1.id, day1.id, { teaName: "Ruta del desierto", teaType: TeaType.ROOIBOS, ingredients: [apple.id], personName: "Dein" }, 740);
-      await createTeaGuess(user1.id, day2.id, { teaName: "Té Pakistaní", teaType: TeaType.ROOIBOS, ingredients: [apple.id, lemon.id], personName: "Deinos" }, 200);
+      await createTeaGuess(
+        user1.id,
+        day1.id,
+        { teaName: "Ruta del desierto", teaType: TeaType.ROOIBOS, ingredients: [apple.id], personName: "Dein" },
+        740,
+      );
+      await createTeaGuess(
+        user1.id,
+        day2.id,
+        { teaName: "Té Pakistaní", teaType: TeaType.ROOIBOS, ingredients: [apple.id, lemon.id], personName: "Deinos" },
+        200,
+      );
 
       // User2 1500 points: day1 -> 900 points, day2 -> 600 points
-      await createTeaGuess(user2.id, day1.id, { teaName: "Ruta desierto", teaType: TeaType.HERBAL, ingredients: [apple.id], personName: "Deino" }, 900);
-      await createTeaGuess(user2.id, day2.id, { teaName: "Té Pakistaní", teaType: TeaType.BLACK, ingredients: [apple.id], personName: "miko" }, 600);
-      
+      await createTeaGuess(
+        user2.id,
+        day1.id,
+        { teaName: "Ruta desierto", teaType: TeaType.HERBAL, ingredients: [apple.id], personName: "Deino" },
+        900,
+      );
+      await createTeaGuess(
+        user2.id,
+        day2.id,
+        { teaName: "Té Pakistaní", teaType: TeaType.BLACK, ingredients: [apple.id], personName: "miko" },
+        600,
+      );
+
       // User3 1000 points: day1-> 1000 points
-      await createTeaGuess(user3.id, day1.id, { teaName: "Ruta del desierto", teaType: TeaType.ROOIBOS, ingredients: [], personName: "David" }, 1000);
+      await createTeaGuess(
+        user3.id,
+        day1.id,
+        { teaName: "Ruta del desierto", teaType: TeaType.ROOIBOS, ingredients: [], personName: "David" },
+        1000,
+      );
 
       const ranking = await getOverallRanking();
 
@@ -123,16 +203,46 @@ describe("Ranking service", () => {
       expect(ranking![2].userId).toBe(user1.id);
     });
 
-    it("should only count the LAST guess of a user for every day", async () => { 
+    it("should only count the LAST guess of a user for every day", async () => {
       // User1 940 points: day1 -> 740 points, day2 -> 200 points
-      const guess111 = await createTeaGuess(user1.id, day1.id, { teaName: "Té especial", teaType: TeaType.ROOIBOS, ingredients: [apple.id], personName: "Adcc" }, 150);
-      const guess112 = await createTeaGuess(user1.id, day1.id, { teaName: "Ruta del desierto", teaType: TeaType.ROOIBOS, ingredients: [apple.id], personName: "Dein" }, 740);
-      await createTeaGuess(user1.id, day2.id, { teaName: "Té Pakistaní", teaType: TeaType.ROOIBOS, ingredients: [apple.id, lemon.id], personName: "Deinos" }, 200);
+      const guess111 = await createTeaGuess(
+        user1.id,
+        day1.id,
+        { teaName: "Té especial", teaType: TeaType.ROOIBOS, ingredients: [apple.id], personName: "Adcc" },
+        150,
+      );
+      const guess112 = await createTeaGuess(
+        user1.id,
+        day1.id,
+        { teaName: "Ruta del desierto", teaType: TeaType.ROOIBOS, ingredients: [apple.id], personName: "Dein" },
+        740,
+      );
+      await createTeaGuess(
+        user1.id,
+        day2.id,
+        { teaName: "Té Pakistaní", teaType: TeaType.ROOIBOS, ingredients: [apple.id, lemon.id], personName: "Deinos" },
+        200,
+      );
 
       // User2 1500 points: day1 -> 900 points, day2 -> 600 points
-      const guess211 = await createTeaGuess(user2.id, day1.id, { teaName: "Ascae té", teaType: TeaType.BLACK, ingredients: [cinnamon.id], personName: "Deino" }, 300);
-      const guess212 = await createTeaGuess(user2.id, day1.id, { teaName: "Ruta desierto", teaType: TeaType.HERBAL, ingredients: [apple.id], personName: "Deino" }, 900);
-      await createTeaGuess(user2.id, day2.id, { teaName: "Té Pakistaní", teaType: TeaType.BLACK, ingredients: [apple.id], personName: "miko" }, 600);
+      const guess211 = await createTeaGuess(
+        user2.id,
+        day1.id,
+        { teaName: "Ascae té", teaType: TeaType.BLACK, ingredients: [cinnamon.id], personName: "Deino" },
+        300,
+      );
+      const guess212 = await createTeaGuess(
+        user2.id,
+        day1.id,
+        { teaName: "Ruta desierto", teaType: TeaType.HERBAL, ingredients: [apple.id], personName: "Deino" },
+        900,
+      );
+      await createTeaGuess(
+        user2.id,
+        day2.id,
+        { teaName: "Té Pakistaní", teaType: TeaType.BLACK, ingredients: [apple.id], personName: "miko" },
+        600,
+      );
 
       const date = new Date();
       await Promise.all([
@@ -149,6 +259,6 @@ describe("Ranking service", () => {
       expect(ranking![0].userId).toBe(user2.id);
       expect(ranking![1].points).toBe(940);
       expect(ranking![1].userId).toBe(user1.id);
-    })
-  })
+    });
+  });
 });

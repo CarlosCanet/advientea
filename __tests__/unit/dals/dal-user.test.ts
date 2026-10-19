@@ -1,7 +1,15 @@
-import { prismaMock } from '@/lib/__mocks__/prisma';
-import { describe, expect, it, vi, beforeAll } from 'vitest'
+import { prismaMock } from "@/lib/__mocks__/prisma";
+import { describe, expect, it, vi, beforeAll } from "vitest";
 import { User, Role } from "@/generated/prisma/client";
-import { getUser, getAllUsers, editUser, changeUserRole, deleteUser, createPrismaUser, UserWithDayAssignedDay } from "@/lib/dal/dal-user";
+import {
+  getUser,
+  getAllUsers,
+  editUser,
+  changeUserRole,
+  deleteUser,
+  createPrismaUser,
+  UserWithDayAssignedDay,
+} from "@/lib/dal/dal-user";
 
 describe("DAL User", () => {
   beforeAll(() => {
@@ -63,7 +71,7 @@ describe("DAL User", () => {
             role: true,
             id: true,
           }),
-        })
+        }),
       );
     });
 
@@ -79,7 +87,7 @@ describe("DAL User", () => {
             role: false,
             id: true,
           }),
-        })
+        }),
       );
     });
   });

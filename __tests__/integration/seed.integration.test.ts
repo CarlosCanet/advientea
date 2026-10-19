@@ -4,7 +4,11 @@ import { Role } from "@/generated/prisma/client";
 
 describe("Database seed verification", () => {
   it("should populate the initial required state", async () => {
-    const [userCount, dayCount, teaCount] = await Promise.all([prisma.user.count(), prisma.day.count(), prisma.tea.count()]);
+    const [userCount, dayCount, teaCount] = await Promise.all([
+      prisma.user.count(),
+      prisma.day.count(),
+      prisma.tea.count(),
+    ]);
     expect(userCount).toBe(5);
     expect(dayCount).toBe(25);
     expect(teaCount).toBe(2);

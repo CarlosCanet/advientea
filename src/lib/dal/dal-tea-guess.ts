@@ -19,16 +19,21 @@ export async function getAllGuesses(userId: string, dayId: string): Promise<Arra
     where: { dayId, userId },
     include: { guessedIngredients: true },
     orderBy: { createdAt: "desc" },
-  })
+  });
   return result;
 }
 
-export async function createTeaGuess(userId: string, dayId: string, guessData: TeaGuessFormData, points: number): Promise<TeaGuessWithIngredients | null>{
+export async function createTeaGuess(
+  userId: string,
+  dayId: string,
+  guessData: TeaGuessFormData,
+  points: number,
+): Promise<TeaGuessWithIngredients | null> {
   const newGuess: TeaGuessCreateInput = {
     day: { connect: { id: dayId } },
     user: { connect: { id: userId } },
-    points
-  }
+    points,
+  };
 
   if (guessData.teaName) {
     newGuess.guessedTeaName = guessData.teaName;
@@ -38,9 +43,8 @@ export async function createTeaGuess(userId: string, dayId: string, guessData: T
     newGuess.guessedTeaType = guessData.teaType;
   }
 
-
   if (guessData.ingredients && guessData.ingredients.length > 0) {
-    newGuess.guessedIngredients = { connect: guessData.ingredients.map(ingredientId => ({ id: ingredientId })) };
+    newGuess.guessedIngredients = { connect: guessData.ingredients.map((ingredientId) => ({ id: ingredientId })) };
   }
 
   if (guessData.personName) {
@@ -52,7 +56,7 @@ export async function createTeaGuess(userId: string, dayId: string, guessData: T
     return result;
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2025') {
+      if (error.code === "P2025") {
         return null;
       }
     }

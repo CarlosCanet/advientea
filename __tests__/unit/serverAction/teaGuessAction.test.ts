@@ -4,7 +4,12 @@ import { Role, TeaType } from "@/generated/prisma/enums";
 import { createTeaGuess, requireSession, TeaGuessWithIngredients } from "@/lib/dal";
 import { UnauthenticatedError } from "@/lib/errors";
 import { TeaIngredient } from "@/generated/prisma/client";
-import { calculatePointsFromGuess, canUserGuessPerson, canUserGuessTea, validateTeaGuess } from "@/lib/services/tea-guess-service";
+import {
+  calculatePointsFromGuess,
+  canUserGuessPerson,
+  canUserGuessTea,
+  validateTeaGuess,
+} from "@/lib/services/tea-guess-service";
 import { revalidatePath } from "next/cache";
 
 vi.mock("@/lib/dal", () => ({
@@ -15,7 +20,7 @@ vi.mock("@/lib/services/tea-guess-service", () => ({
   canUserGuessTea: vi.fn(),
   canUserGuessPerson: vi.fn(),
   validateTeaGuess: vi.fn(),
-  calculatePointsFromGuess: vi.fn()
+  calculatePointsFromGuess: vi.fn(),
 }));
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
@@ -143,7 +148,7 @@ describe("teaGuessAction", () => {
         ingredients: ["i1-id", "i2-id"],
         personName: "user2-id",
       }),
-      expect.anything()
+      expect.anything(),
     );
     expect(revalidatePath).toHaveBeenCalledWith("/teaDay");
   });

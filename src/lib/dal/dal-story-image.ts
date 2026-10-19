@@ -7,9 +7,13 @@ import { deleteAsset } from "../cloudinary";
 export type StoryImageWithStory = Prisma.StoryImageGetPayload<{ include: { story: true } }>;
 
 export async function getStoryImage(id: string): Promise<StoryImage>;
-export async function getStoryImage(order: number, day: number, year: number ): Promise<StoryImage>;
+export async function getStoryImage(order: number, day: number, year: number): Promise<StoryImage>;
 
-export async function getStoryImage(idOrOrder: string | number, day?: number, year: number = 2025): Promise<StoryImage> {
+export async function getStoryImage(
+  idOrOrder: string | number,
+  day?: number,
+  year: number = 2025,
+): Promise<StoryImage> {
   if (typeof idOrOrder === "string") {
     const image = await prisma.storyImage.findUnique({ where: { id: idOrOrder } });
     if (!image) {
@@ -47,16 +51,16 @@ export async function addStoryImage(publicId: string, order: number, storyId: st
     } else {
       await tx.storyImage.updateMany({
         where: { storyTeaId: storyId, order: { gte: order } },
-        data: { order: { increment: 1 } }
+        data: { order: { increment: 1 } },
       });
     }
     const imageCreated = await tx.storyImage.create({
       data: {
         publicId,
         order: finalOrder,
-        story: { connect: { id: storyId } }
+        story: { connect: { id: storyId } },
       },
-      include: { story: true }
+      include: { story: true },
     });
     return imageCreated;
   });
@@ -87,7 +91,8 @@ export async function replaceStoryImages(storyTeaId: string, slots: StoryImageSl
     const current = await tx.storyImage.findMany({ where: { storyTeaId }, select: { id: true, publicId: true } });
     const currentIds = new Set(current.map((img) => img.id));
     const keptSlots = slots.filter(
-      (slot): slot is Extract<StoryImageSlot, { kind: "existing" }> => slot.kind === "existing" && currentIds.has(slot.id),
+      (slot): slot is Extract<StoryImageSlot, { kind: "existing" }> =>
+        slot.kind === "existing" && currentIds.has(slot.id),
     );
     const keptIds = new Set(keptSlots.map((slot) => slot.id));
     const removed = current.filter((img) => !keptIds.has(img.id));

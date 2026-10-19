@@ -1,7 +1,26 @@
 "use server";
 import { Role } from "@/generated/prisma/enums";
 import { Prisma } from "@/generated/prisma/client";
-import { add25Days, addDay, addDayAssignment, addStoryImage, addStoryTea, addTea, deleteDay, deleteDayAssignmentByDay, editStoryTea, editTea, getDayAssignmentByUserId, getTea, replaceStoryImages, requireRole, requireSession, StoryImageSlot, upsertDayAssignment, verifySession } from "@/lib/dal";
+import {
+  add25Days,
+  addDay,
+  addDayAssignment,
+  addStoryImage,
+  addStoryTea,
+  addTea,
+  deleteDay,
+  deleteDayAssignmentByDay,
+  editStoryTea,
+  editTea,
+  getDayAssignmentByUserId,
+  getTea,
+  replaceStoryImages,
+  requireRole,
+  requireSession,
+  StoryImageSlot,
+  upsertDayAssignment,
+  verifySession,
+} from "@/lib/dal";
 import { deleteAsset } from "@/lib/cloudinary";
 import { ForbiddenError, UnauthenticatedError } from "@/lib/errors";
 import { teaInfoFormSchema } from "@/lib/schemas/tea";
@@ -11,9 +30,12 @@ import { z } from "zod";
 import { getFormBoolean, getFormFilesByPrefix, getFormNumber, getFormString } from "./commonActions";
 import { uploadImageFile } from "@/lib/cloudinary";
 
-export async function addTeaInfo(prevState: TeaInfoActionResponse | null, formData: FormData): Promise<TeaInfoActionResponse> {
+export async function addTeaInfo(
+  prevState: TeaInfoActionResponse | null,
+  formData: FormData,
+): Promise<TeaInfoActionResponse> {
   try {
-    const {isAuth, userId} = await verifySession();
+    const { isAuth, userId } = await verifySession();
     const rawData: TeaInfoFormData = {
       personName: getFormString(formData, "personName"),
       dayNumber: getFormNumber(formData, "dayNumber"),
@@ -65,12 +87,19 @@ export async function addTeaInfo(prevState: TeaInfoActionResponse | null, formDa
         url: data.urlStore,
       },
       [],
-      day
+      day,
     );
     if (!teaCreated) {
       throw new Error("Cannot create tea");
     }
-    if (data.storyPart1 || data.storyPart2 || data.storyPart3 || data.youtubeURL || data.onlyMusic || (data.images && data.images.length > 0)) {
+    if (
+      data.storyPart1 ||
+      data.storyPart2 ||
+      data.storyPart3 ||
+      data.youtubeURL ||
+      data.onlyMusic ||
+      (data.images && data.images.length > 0)
+    ) {
       const storyCreated = await addStoryTea(
         {
           storyPart1: data.storyPart1,
@@ -79,7 +108,7 @@ export async function addTeaInfo(prevState: TeaInfoActionResponse | null, formDa
           youtubeURL: data.youtubeURL,
           onlyMusic: data.onlyMusic,
         },
-        teaCreated.id
+        teaCreated.id,
       );
       if (!storyCreated) {
         throw new Error("Cannot create story tea");
@@ -93,12 +122,14 @@ export async function addTeaInfo(prevState: TeaInfoActionResponse | null, formDa
         }
       }
     }
-    
+
     const dayAssignmentCreated = isAuth
       ? await addDayAssignment({ userId: userId }, day)
       : await addDayAssignment({ guestName: data.personName }, day);
     if (!dayAssignmentCreated) {
-      throw new Error(`Cannot create dayAssignment for user ${isAuth ? userId : data.personName} in day with id ${teaCreated.dayId}`);
+      throw new Error(
+        `Cannot create dayAssignment for user ${isAuth ? userId : data.personName} in day with id ${teaCreated.dayId}`,
+      );
     }
     return {
       success: true,
@@ -120,10 +151,13 @@ export async function addTeaInfo(prevState: TeaInfoActionResponse | null, formDa
   }
 }
 
-export async function editTeaInfoAction(prevState: TeaInfoActionResponse | null, formData: FormData): Promise<TeaInfoActionResponse> {
+export async function editTeaInfoAction(
+  prevState: TeaInfoActionResponse | null,
+  formData: FormData,
+): Promise<TeaInfoActionResponse> {
   try {
     const { role, userId } = await requireSession();
-    
+
     const rawData: TeaInfoFormData = {
       personName: getFormString(formData, "personName"),
       dayNumber: getFormNumber(formData, "dayNumber"),
@@ -157,10 +191,10 @@ export async function editTeaInfoAction(prevState: TeaInfoActionResponse | null,
         inputs: rawData,
       };
     }
-    
+
     const data = validatedFields.data;
     if (!data.teaId) throw new Error("Tea id is missing.");
-    
+
     const day = data.dayNumber;
     const currentTea = await getTea(data.teaId);
     if (!currentTea) throw new Error(`Cannot find tea with id ${data.teaId}`);
@@ -179,18 +213,22 @@ export async function editTeaInfoAction(prevState: TeaInfoActionResponse | null,
     if (isPrivileged) {
       newDayNumber = currentTea.day?.dayNumber === day ? undefined : day;
     }
-    const editedTea = await editTea({
-      name: data.teaName,
-      infusionTime: data.infusionTime,
-      temperature: data.temperature,
-      hasTheine: data.hasTheine,
-      canReinfuse: data.canReinfuse,
-      reinfuseNumber: data.reinfuseNumber,
-      moreIndications: data.moreIndications,
-      addMilk: data.addMilk,
-      storeName: data.storeName,
-      url: data.urlStore,
-    }, data.teaId, newDayNumber);
+    const editedTea = await editTea(
+      {
+        name: data.teaName,
+        infusionTime: data.infusionTime,
+        temperature: data.temperature,
+        hasTheine: data.hasTheine,
+        canReinfuse: data.canReinfuse,
+        reinfuseNumber: data.reinfuseNumber,
+        moreIndications: data.moreIndications,
+        addMilk: data.addMilk,
+        storeName: data.storeName,
+        url: data.urlStore,
+      },
+      data.teaId,
+      newDayNumber,
+    );
     if (!editedTea) {
       throw new Error("Cannot edit tea");
     }
@@ -202,12 +240,12 @@ export async function editTeaInfoAction(prevState: TeaInfoActionResponse | null,
         storyPart3: data.storyPart3,
         youtubeURL: data.youtubeURL,
         onlyMusic: data.onlyMusic,
-      }
+      };
       if (currentTea.story) {
-        const editedStory = await editStoryTea( formStoryTea, currentTea.story.id);
+        const editedStory = await editStoryTea(formStoryTea, currentTea.story.id);
         if (!editedStory) throw new Error("Cannot edit story tea");
       } else {
-        const addedStory = await addStoryTea(formStoryTea, currentTea.id)
+        const addedStory = await addStoryTea(formStoryTea, currentTea.id);
         if (!addedStory) throw new Error("Cannot edit story tea");
         storyId = addedStory.id;
       }
@@ -257,7 +295,12 @@ export async function editTeaInfoAction(prevState: TeaInfoActionResponse | null,
   }
 }
 
-export async function assignUserToDay(dayId: string, userId: string, year: number = 2025, guestName?: string): Promise<ActionResponse> {
+export async function assignUserToDay(
+  dayId: string,
+  userId: string,
+  year: number = 2025,
+  guestName?: string,
+): Promise<ActionResponse> {
   try {
     await requireRole(Role.ADMIN, Role.EXECUTEAVE);
     if (!userId && !guestName) {

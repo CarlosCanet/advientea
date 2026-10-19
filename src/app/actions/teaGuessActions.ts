@@ -1,11 +1,20 @@
 "use server";
 import { createTeaGuess, requireSession } from "@/lib/dal";
 import { ForbiddenError, UnauthenticatedError } from "@/lib/errors";
-import { calculatePointsFromGuess, canUserGuessPerson, canUserGuessTea, validateTeaGuess } from "@/lib/services/tea-guess-service";
+import {
+  calculatePointsFromGuess,
+  canUserGuessPerson,
+  canUserGuessTea,
+  validateTeaGuess,
+} from "@/lib/services/tea-guess-service";
 import { TeaGuessActionResponse } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 
-export async function submitTeaGuess(dayId: string, prevState: TeaGuessActionResponse | null, formData: FormData): Promise<TeaGuessActionResponse> {
+export async function submitTeaGuess(
+  dayId: string,
+  prevState: TeaGuessActionResponse | null,
+  formData: FormData,
+): Promise<TeaGuessActionResponse> {
   try {
     const { userId } = await requireSession();
     const validatedFields = await validateTeaGuess(formData);
@@ -17,7 +26,8 @@ export async function submitTeaGuess(dayId: string, prevState: TeaGuessActionRes
         inputs: validatedFields.inputs,
       };
     }
-    const userGuessTea = validatedFields.data.ingredients || validatedFields.data.teaName || validatedFields.data.teaType;
+    const userGuessTea =
+      validatedFields.data.ingredients || validatedFields.data.teaName || validatedFields.data.teaType;
     const userGuessPerson = validatedFields.data.personName;
     const canGuessPerson = await canUserGuessPerson(dayId, userId);
     const canGuessTea = await canUserGuessTea(dayId, userId);

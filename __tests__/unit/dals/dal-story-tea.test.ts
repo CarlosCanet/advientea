@@ -1,5 +1,5 @@
-import { prismaMock } from '@/lib/__mocks__/prisma';
-import { describe, expect, it, vi, beforeAll } from 'vitest'
+import { prismaMock } from "@/lib/__mocks__/prisma";
+import { describe, expect, it, vi, beforeAll } from "vitest";
 import { Tea, TeaType } from "@/generated/prisma/client";
 import {
   getStoryTea,
@@ -238,7 +238,7 @@ describe("DAL StoryTea", () => {
         expect.objectContaining({
           where: { id: "s1" },
           data: { storyPart1: "Updated" },
-        })
+        }),
       );
     });
   });

@@ -16,10 +16,7 @@ const passwordSchema = z
   });
 
 const commonSchema = z.object({
-  username: z
-    .string()
-    .trim()
-    .min(2, { error: "Introduce un nombre de al menos 2 caracteres." }),
+  username: z.string().trim().min(2, { error: "Introduce un nombre de al menos 2 caracteres." }),
   image: z
     .file()
     .max(2 * 1024 * 1024, {
@@ -31,7 +28,10 @@ const commonSchema = z.object({
 
 export const signupFormSchema = commonSchema
   .extend({
-    email: z.string().trim().pipe(z.email({ error: "Introduce un email correcto." })),
+    email: z
+      .string()
+      .trim()
+      .pipe(z.email({ error: "Introduce un email correcto." })),
     password: passwordSchema,
     passwordConfirmation: z.string().trim(),
   })

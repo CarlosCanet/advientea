@@ -14,7 +14,7 @@
 //     password: "Admin123!"
 //   });
 //   await prisma.user.update({ where: { email: "carlos@carlos.com" }, data: { role: Role.ADMIN } });
-  
+
 //   // Create user1
 //   await createUser({
 //     username: "Deinos",
@@ -118,7 +118,7 @@
 //   await addStoryImage("samples/dessert-on-a-plate", 0, 1, 2025);
 //   await addStoryImage("samples/coffee", 1, 1, 2025);
 //   await addStoryImage("samples/cup-on-a-table", 2, 1, 2025);
-  
+
 //   await addStoryImage("samples/breakfast", 0, 2, 2025);
 // }
 

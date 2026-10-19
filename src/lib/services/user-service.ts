@@ -42,6 +42,6 @@ function canAssignRole(requestedRole: Role, callerRole?: Role): boolean {
 
 export async function deleteUserService(id: string, callerRole?: Role) {
   if (callerRole !== Role.ADMIN) throw new Error("Only admins can delete users");
-  const result = await deleteUser(id)
+  const result = await deleteUser(id);
   return result;
 }

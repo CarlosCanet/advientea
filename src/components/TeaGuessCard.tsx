@@ -27,11 +27,20 @@ export default async function TeaGuessCard({ dayId }: TeaGuessCardProps) {
     }))
     .toSorted((type1, type2) => type1.name.localeCompare(type2.name));
 
-  const [ingredients, dayForGuessing, users] = await Promise.all([getAllIngredients(), getDayForGuessing(dayId), getAllAssigners()]);
+  const [ingredients, dayForGuessing, users] = await Promise.all([
+    getAllIngredients(),
+    getDayForGuessing(dayId),
+    getAllAssigners(),
+  ]);
 
-  const ingredientList: Array<SelectOption> = ingredients?.map((ingredient) => ({ id: ingredient.id, name: ingredient.name })) ?? [];
-  const teaHasIngredients: boolean = Array.isArray(dayForGuessing?.tea?.ingredients) && dayForGuessing.tea.ingredients.length > 0;
-  const userList: Array<SelectOption> = users?.map((user) => ({ id: user.userId ?? "", name: user.user?.username ?? user.guestName ?? "" })).toSorted((user1, user2) => user1.name.localeCompare(user2.name)) ?? [];
+  const ingredientList: Array<SelectOption> =
+    ingredients?.map((ingredient) => ({ id: ingredient.id, name: ingredient.name })) ?? [];
+  const teaHasIngredients: boolean =
+    Array.isArray(dayForGuessing?.tea?.ingredients) && dayForGuessing.tea.ingredients.length > 0;
+  const userList: Array<SelectOption> =
+    users
+      ?.map((user) => ({ id: user.userId ?? "", name: user.user?.username ?? user.guestName ?? "" }))
+      .toSorted((user1, user2) => user1.name.localeCompare(user2.name)) ?? [];
   const canGuessTea = await canUserGuessTea(dayId, session.user.id);
   const canGuessPerson = await canUserGuessPerson(dayId, session.user.id);
   const day = await getDay(dayId);
@@ -46,14 +55,18 @@ export default async function TeaGuessCard({ dayId }: TeaGuessCardProps) {
       <div className="card-body items-center">
         <h2 className="card-title font-semibold gap-4 text-4xl items">
           <BsFillPatchQuestionFill />
-          <div className="flex gap-0">Adivina<span className="italic">Té</span></div>
+          <div className="flex gap-0">
+            Adivina<span className="italic">Té</span>
+          </div>
           <BsFillPatchQuestionFill />
         </h2>
 
         {isAssignee ? (
           <div className="text-center p-4">
             <div className="text-xl font-bold mb-2">¡Gracias por aportar tu granito de té!</div>
-            <p className="text-md">Como eres le proponen<span className="italic">Té</span> de hoy, no puedes participar en el juego.</p>
+            <p className="text-md">
+              Como eres le proponen<span className="italic">Té</span> de hoy, no puedes participar en el juego.
+            </p>
           </div>
         ) : (
           <>

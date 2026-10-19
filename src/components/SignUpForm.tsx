@@ -37,10 +37,8 @@ export default function SignUpForm() {
     }
   }, [state.errors]);
   console.log(state.success);
-  const passwordError = 
-    password && passwordConfirmation && password !== passwordConfirmation
-      ? "Las contraseñas no coinciden."
-      : "";
+  const passwordError =
+    password && passwordConfirmation && password !== passwordConfirmation ? "Las contraseñas no coinciden." : "";
 
   const onAddFile = (event: React.ChangeEvent<HTMLInputElement>) => {
     setImageErrorMsg("");
@@ -62,15 +60,36 @@ export default function SignUpForm() {
         <div className="items-center mt-2">
           <label className="input input-bordered flex items-center gap-2 mb-2 w-full">
             <FaUser />
-            <input type="text" name="username" className="grow" placeholder="Username" required defaultValue={state?.inputs?.username}/>
+            <input
+              type="text"
+              name="username"
+              className="grow"
+              placeholder="Username"
+              required
+              defaultValue={state?.inputs?.username}
+            />
           </label>
-          {state?.errors?.properties?.username && <p className="text-xs text-error font-bold -mt-2 mb-2">{state.errors.properties.username.errors.join(" ")}</p>}
+          {state?.errors?.properties?.username && (
+            <p className="text-xs text-error font-bold -mt-2 mb-2">
+              {state.errors.properties.username.errors.join(" ")}
+            </p>
+          )}
 
           <label className="input input-bordered flex items-center gap-2 mb-2 w-full">
             <MdEmail />
-            <input type="email" name="email" className="grow" placeholder="Email" autoComplete="username" required defaultValue={state?.inputs?.email} />
+            <input
+              type="email"
+              name="email"
+              className="grow"
+              placeholder="Email"
+              autoComplete="username"
+              required
+              defaultValue={state?.inputs?.email}
+            />
           </label>
-          {state?.errors?.properties?.email && <p className="text-xs text-error font-bold -mt-2 mb-2">{state.errors.properties.email.errors.join(" ")}</p>}
+          {state?.errors?.properties?.email && (
+            <p className="text-xs text-error font-bold -mt-2 mb-2">{state.errors.properties.email.errors.join(" ")}</p>
+          )}
 
           <label className="input input-bordered flex items-center gap-2 mb-2 w-full">
             <IoKeySharp />
@@ -89,7 +108,11 @@ export default function SignUpForm() {
               {showPassword ? <FaEyeSlash /> : <FaEye />}
             </button>
           </label>
-          {state?.errors?.properties?.password && <p className="text-xs text-error font-bold -mt-2 mb-2">{state.errors.properties.password.errors.join(" ")}</p>}
+          {state?.errors?.properties?.password && (
+            <p className="text-xs text-error font-bold -mt-2 mb-2">
+              {state.errors.properties.password.errors.join(" ")}
+            </p>
+          )}
 
           <label className="input input-bordered flex items-center gap-2 mb-2 w-full">
             <IoKeySharp />
@@ -106,20 +129,45 @@ export default function SignUpForm() {
             />
           </label>
           {passwordError && <p className="text-xs text-error font-bold -mt-2 mb-2">{passwordError}</p>}
-          {!passwordError && state.errors?.properties?.passwordConfirmation && <p className="text-xs text-error font-bold -mt-2 mb-2">{state.errors.properties.passwordConfirmation.errors.join(" ")}</p>}
+          {!passwordError && state.errors?.properties?.passwordConfirmation && (
+            <p className="text-xs text-error font-bold -mt-2 mb-2">
+              {state.errors.properties.passwordConfirmation.errors.join(" ")}
+            </p>
+          )}
 
           <div className="flex items-center gap-4 mt-4">
             <div className="w-24 h-24 rounded-full overflow-hidden flex items-center justify-center">
               {!imagePreviewURL ? (
-                <Image src="/TeaLeavesImage.jpg" alt="User profile preview" className="object-cover w-full h-full" width={96} height={96} />
+                <Image
+                  src="/TeaLeavesImage.jpg"
+                  alt="User profile preview"
+                  className="object-cover w-full h-full"
+                  width={96}
+                  height={96}
+                />
               ) : (
-                <Image src={imagePreviewURL} alt="User profile preview" className="object-cover w-full h-full" width={96} height={96} />
+                <Image
+                  src={imagePreviewURL}
+                  alt="User profile preview"
+                  className="object-cover w-full h-full"
+                  width={96}
+                  height={96}
+                />
               )}
             </div>
             <div className="flex-1 max-w-md">
               <div className="text-sm opacity-80 mb-1">Seleccionar imagen</div>
-              <input id="signup-profile-file" name="image" type="file" className="file-input file-input-bordered file-input-primary file-input-sm w-full max-w-xs" onChange={onAddFile} aria-label="Seleccionar imagen de perfil" />
-              {state?.errors?.properties?.image && <p className="text-xs text-error font-bold mt-1">{state.errors.properties.image.errors.join(" ")}</p>}
+              <input
+                id="signup-profile-file"
+                name="image"
+                type="file"
+                className="file-input file-input-bordered file-input-primary file-input-sm w-full max-w-xs"
+                onChange={onAddFile}
+                aria-label="Seleccionar imagen de perfil"
+              />
+              {state?.errors?.properties?.image && (
+                <p className="text-xs text-error font-bold mt-1">{state.errors.properties.image.errors.join(" ")}</p>
+              )}
               {imageErrorMsg && <p className="text-xs text-error font-bold mt-1">{imageErrorMsg}</p>}
             </div>
           </div>
@@ -129,11 +177,18 @@ export default function SignUpForm() {
             {isPending ? <span className="loading loading-spinner"></span> : "Registrarme"}
           </button>
         </div>
-        {state?.success ? <p className="text-sm text-success">{state.message}</p> : <p className="text-sm text-error">{state.errors?.errors.join(" ")}</p>}
+        {state?.success ? (
+          <p className="text-sm text-success">{state.message}</p>
+        ) : (
+          <p className="text-sm text-error">{state.errors?.errors.join(" ")}</p>
+        )}
         <div className="divider"></div>
         <div className="flex gap-2 items-center justify-center">
           <GiBrainLeak />
-          <Link href="/reset-password" className="link-neutral"> He olvidado mi contraseña</Link>
+          <Link href="/reset-password" className="link-neutral">
+            {" "}
+            He olvidado mi contraseña
+          </Link>
         </div>
       </Form>
     </div>

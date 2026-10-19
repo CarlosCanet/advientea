@@ -23,7 +23,10 @@ import { changeUserRole, editUser, requireRole, requireSession } from "@/lib/dal
 import { ForbiddenError, UnauthenticatedError } from "@/lib/errors";
 import { signupFormSchema, updateProfileFormSchema } from "@/lib/schemas/auth";
 
-export async function signup(prevState: SignUpActionResponse | null, formData: FormData): Promise<SignUpActionResponse> {
+export async function signup(
+  prevState: SignUpActionResponse | null,
+  formData: FormData,
+): Promise<SignUpActionResponse> {
   try {
     const rawData: SignUpFormData = {
       username: getFormString(formData, "username"),
@@ -61,13 +64,18 @@ export async function signup(prevState: SignUpActionResponse | null, formData: F
     }
   } catch (error) {
     // Match the stable error code, not the message; startsWith covers both USER_ALREADY_EXISTS variants.
-    const isDuplicateUser = error instanceof APIError && typeof error.body?.code === "string" && error.body.code.startsWith("USER_ALREADY_EXISTS");
+    const isDuplicateUser =
+      error instanceof APIError &&
+      typeof error.body?.code === "string" &&
+      error.body.code.startsWith("USER_ALREADY_EXISTS");
     if (isDuplicateUser) {
       console.warn("[signup] rejected: email already registered");
     } else {
       console.error("[signup] unexpected error", error);
     }
-    const message = isDuplicateUser ? "Ya existe una cuenta con ese email" : "No se pudo crear la cuenta. Inténtalo de nuevo.";
+    const message = isDuplicateUser
+      ? "Ya existe una cuenta con ese email"
+      : "No se pudo crear la cuenta. Inténtalo de nuevo.";
     return {
       success: false,
       message,
@@ -78,7 +86,10 @@ export async function signup(prevState: SignUpActionResponse | null, formData: F
   redirect("/");
 }
 
-export async function signin(prevState: SignInActionResponse | null, formData: FormData): Promise<SignInActionResponse> {
+export async function signin(
+  prevState: SignInActionResponse | null,
+  formData: FormData,
+): Promise<SignInActionResponse> {
   try {
     const rawData: SignInFormData = {
       email: getFormString(formData, "email"),
@@ -129,7 +140,9 @@ export async function changeRoleAction(id: string, role: Role): Promise<ActionRe
   } catch (error: unknown) {
     const isGuardError = error instanceof UnauthenticatedError || error instanceof ForbiddenError;
     if (isGuardError) {
-      console.warn(`[changeRoleAction] rejected: ${error.name} — target=${JSON.stringify(id)} role=${JSON.stringify(role)} — ${error.message}`);
+      console.warn(
+        `[changeRoleAction] rejected: ${error.name} — target=${JSON.stringify(id)} role=${JSON.stringify(role)} — ${error.message}`,
+      );
     } else {
       console.error("[changeRoleAction] unexpected error", error);
     }
@@ -140,7 +153,10 @@ export async function changeRoleAction(id: string, role: Role): Promise<ActionRe
   }
 }
 
-export async function updateUserProfile(prevState: UpdateProfileActionResponse | null, formData: FormData): Promise<UpdateProfileActionResponse> {
+export async function updateUserProfile(
+  prevState: UpdateProfileActionResponse | null,
+  formData: FormData,
+): Promise<UpdateProfileActionResponse> {
   let newImageId: string | null = null;
   let passwordChanged = false;
   let profilePersisted = false;
@@ -197,7 +213,10 @@ export async function updateUserProfile(prevState: UpdateProfileActionResponse |
     return { success: true, message: "Perfil actualizado" };
   } catch (error: unknown) {
     const isGuardError = error instanceof UnauthenticatedError || error instanceof ForbiddenError;
-    const isWrongPassword = error instanceof APIError && typeof error.body?.code === "string" && error.body.code.startsWith("INVALID_PASSWORD");
+    const isWrongPassword =
+      error instanceof APIError &&
+      typeof error.body?.code === "string" &&
+      error.body.code.startsWith("INVALID_PASSWORD");
     const isDuplicateUsername = error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
     if (isGuardError || isWrongPassword || isDuplicateUsername) {
       console.warn(`[updateUserProfile] rejected: ${error.name} — ${error.message}`);

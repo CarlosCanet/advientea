@@ -4,9 +4,10 @@
 
 ## Overview
 
-This project is an Advent Tea Calendar built with Next.js 16.0 (App Router), React 19.2, TypeScript 5, Tailwind CSS v4, and daisyUI 5.3.9. 
+This project is an Advent Tea Calendar built with Next.js 16.0 (App Router), React 19.2, TypeScript 5, Tailwind CSS v4, and daisyUI 5.3.9.
 
 **Core Features:**
+
 - **Authentication System:** Secure user registration, login, and password recovery using BetterAuth and Resend for email delivery
 - **Tea Calendar:** Interactive advent calendar (grid layout) with daily tea reveals at 21:00 UTC
 - **Gamification:** Users guess tea names daily, earning points based on accuracy and timing
@@ -24,12 +25,14 @@ The project emphasizes server components, performance, security, and maintainabi
 ## Agent Roles & Responsibilities
 
 ### 1. UI/UX Agent
+
 - Implements user interfaces using daisyUI v5 and Tailwind CSS v4
 - Ensures responsive, accessible, and visually consistent components
 - Follows the design system and color variables defined in `globals.css`
 - Uses Geist fonts and applies font variables in layouts
 
 ### 2. Server Component Agent
+
 - Builds server components by default ("use client" only when needed)
 - Handles data fetching, static optimization, and error boundaries
 - Implements Server Actions for form handling (native Next.js 16 pattern)
@@ -38,27 +41,32 @@ The project emphasizes server components, performance, security, and maintainabi
 - Uses async params pattern in dynamic routes: `const { id } = await params`
 
 ### 3. Client Component Agent
+
 - Adds interactivity with React hooks and client-side state
 - Implements loading and error states using Suspense and `loading.tsx`/`error.tsx`
 - Keeps state close to where it is used
 
 ### 4. TypeScript Agent
+
 - Defines clear interfaces and types for all data and props
 - Uses strict mode and type guards
 - Validates runtime data as needed (Zod can be added post-MVP)
 
 ### 5. Styling Agent
+
 - Applies Tailwind v4 and daisyUI v5 classes for all components
 - Uses utility classes for layout, spacing, and responsiveness
 - Supports dark mode and container queries
 
 ### 6. Performance Agent
+
 - Optimizes images with `next/image`
 - Implements code splitting and route prefetching
 - Uses Turbopack for builds and dev
 - Monitors bundle size and static optimization
 
 ### 7. Security Agent
+
 - Validates and sanitizes all user input
 - Implements authentication with BetterAuth (registration, login, password recovery)
 - Manages password hashing with bcryptjs
@@ -68,6 +76,7 @@ The project emphasizes server components, performance, security, and maintainabi
 - Implements CSRF protection and rate limiting in API routes
 
 ### 8. Database Agent
+
 - Manages Prisma schema and migrations
 - Implements data models: User, Day, StoryTea, TeaGuess, Badge, UserBadge, DayImage
 - Handles database queries in Server Components
@@ -76,6 +85,7 @@ The project emphasizes server components, performance, security, and maintainabi
 - Uses PostgreSQL for development (configurable for other environments)
 
 ### 9. Media Integration Agent
+
 - Handles YouTube embed integration for ambient music/videos
 - Implements Cloudinary integration for image uploads (avatars, tea day images)
 - Manages responsive media players
@@ -83,6 +93,7 @@ The project emphasizes server components, performance, security, and maintainabi
 - Implements secure upload flows (signed URLs, public_id management)
 
 ### 10. Testing Agent
+
 - Implements Test-Driven Development (TDD) approach
 - Writes and maintains unit and integration tests using Vitest and React Testing Library
 - Tests business logic: scoring algorithm, string similarity, badge awarding
@@ -92,6 +103,7 @@ The project emphasizes server components, performance, security, and maintainabi
 - Mocks dependencies and services as needed
 
 ### 11. Authentication Agent
+
 - Implements BetterAuth configuration and setup
 - Handles user registration with email verification
 - Manages login/logout flows
@@ -100,6 +112,7 @@ The project emphasizes server components, performance, security, and maintainabi
 - Integrates auth state with Next.js Server Components and Client Components
 
 ### 12. Gamification Agent
+
 - Implements tea name guessing logic and scoring algorithm
 - Calculates points based on string similarity (Levenshtein distance using fastest-levenshtein library)
 - Awards points considering timing (earlier guesses may get bonus points)
@@ -108,12 +121,14 @@ The project emphasizes server components, performance, security, and maintainabi
 - Reveals scores at 21:00 UTC daily (REVEAL_HOUR constant)
 
 ### 13. Email Agent
+
 - Configures and manages Resend for transactional emails
 - Sends password recovery emails with secure tokens
 - Handles email templates for user communications
 - Ensures email delivery reliability and error handling
 
 ### 14. Documentation Agent
+
 - **ALWAYS** consult Context7 MCP Server (`mcp_context7_*` tools) for:
   - Package documentation (resolve library ID first with `resolve-library-id`, then use `get-library-docs`)
   - API references and function signatures
@@ -123,6 +138,7 @@ The project emphasizes server components, performance, security, and maintainabi
 - Use `mode='info'` for conceptual guides and architectural questions
 
 ### 15. Issue Management Agent
+
 - **ALWAYS** consult GitHub MCP Server (`mcp_github_*` tools) for:
   - Retrieving issue details (`mcp_github_search_issues` with specific query)
   - Checking issue requirements, tasks, and acceptance criteria
@@ -132,6 +148,7 @@ The project emphasizes server components, performance, security, and maintainabi
 - Use structured queries: `repo:owner/repo is:issue number:X` or `in:title "Issue Title"`
 
 ## Agent Collaboration
+
 - Agents communicate via clear TypeScript interfaces and props
 - Shared logic and types are placed in common modules
 - All agents follow the standards in `.github/copilot-instructions.md`
@@ -139,6 +156,7 @@ The project emphasizes server components, performance, security, and maintainabi
 - Issue Management Agent must be consulted before starting work on any issue
 
 ## File Structure Reference
+
 ## Canonical File Structure Strategy
 
 Instead of maintaining a rigid file tree, follow these architectural patterns:
@@ -153,17 +171,20 @@ Instead of maintaining a rigid file tree, follow these architectural patterns:
 ## Database Schema
 
 ### Multi-Year Support
+
 The schema supports multiple calendar editions (2025, 2026, etc.) through the `year` field in Day and DayAssignment models.
 
 ### MVP Models (Active)
 
 #### User Model
+
 - Authentication and profile information
 - Fields: username, email, password (hashed with bcryptjs), isAdmin, image (Cloudinary URL), createdAt, updatedAt
 - Relations: daysAssigned (DayAssignment[]), guesses (TeaGuess[] - BONUS P1), badges (UserBadge[] - Production)
 - Unique constraints: username, email
 
 #### Day Model
+
 - Represents a single day in the tea advent calendar
 - Fields: dayNumber (1-25), year (default 2025)
 - Relations: tea (Tea, 1-to-1), story (StoryTea, 1-to-1), assignment (DayAssignment, 1-to-1), guesses (TeaGuess[] - BONUS P1)
@@ -171,6 +192,7 @@ The schema supports multiple calendar editions (2025, 2026, etc.) through the `y
 - Reveal time is constant at 21:00 UTC (defined in src/lib/constants.ts)
 
 #### Tea Model
+
 - Tea information (separated from Day for better normalization)
 - Fields: dayId, name, infusionTime (minutes), temperature (celsius), hasTheine, canReinfuse, reinfuseNumber, moreIndications, addMilk, storeName, url
 - Relations: day (Day, 1-to-1)
@@ -179,6 +201,7 @@ The schema supports multiple calendar editions (2025, 2026, etc.) through the `y
 - Note: Intentional duplication allowed (users upload their own tea data without checking for existing teas)
 
 #### DayAssignment Model
+
 - Manages user-to-day assignments with multi-year support
 - Fields: userId, dayId, year
 - Relations: user (User), day (Day)
@@ -187,6 +210,7 @@ The schema supports multiple calendar editions (2025, 2026, etc.) through the `y
 - Cascade delete: if User or Day is deleted, assignment is deleted
 
 #### StoryTea Model
+
 - Contains narrative content for each tea day
 - Fields: dayId, storyPart1, storyPart2, storyPart3, youtubeURL, onlyMusic
 - Relations: day (Day, 1-to-1), images (StoryImage[])
@@ -194,6 +218,7 @@ The schema supports multiple calendar editions (2025, 2026, etc.) through the `y
 - Cascade delete/update with parent Day
 
 #### StoryImage Model
+
 - Images for tea day stories (formerly DayImage)
 - Fields: storyTeaId, url (Cloudinary URL), publicId (for management), order (default 0), createdAt
 - Relations: story (StoryTea)
@@ -205,6 +230,7 @@ The schema supports multiple calendar editions (2025, 2026, etc.) through the `y
 ### BONUS P1 Models (Phase 2.2 - Commented in schema)
 
 #### TeaGuess Model
+
 - Stores user attempts to guess tea names
 - Fields: userId, dayId, guessedName, timestamp, points
 - Relations: user (User), day (Day)
@@ -217,6 +243,7 @@ The schema supports multiple calendar editions (2025, 2026, etc.) through the `y
 ### Production Models (Phase 3.2 - Commented in schema)
 
 #### Badge Model
+
 - Achievement definitions
 - Fields: name, description, icon (Cloudinary URL or emoji)
 - Relations: users (UserBadge[]) - many-to-many
@@ -224,6 +251,7 @@ The schema supports multiple calendar editions (2025, 2026, etc.) through the `y
 - Examples: "First Blood" (first correct guess), "Tea Master" (highest score), etc.
 
 #### UserBadge Model
+
 - Junction table for User ↔ Badge many-to-many relation
 - Fields: userId, badgeId, earnedAt
 - Relations: user (User), badge (Badge)
@@ -233,12 +261,15 @@ The schema supports multiple calendar editions (2025, 2026, etc.) through the `y
 ## Development Workflow
 
 ### Git & GitHub Workflow
+
 **Branching Strategy:**
+
 - **main:** Production branch (Netlify deploys from here)
 - **develop:** Active development branch (work happens here)
 - **No feature branches:** Commit directly to develop for speed
 
 **Commit Convention:**
+
 - **Format:** `<type>: <description>`
 - **Issue numbers:** If the commit is associated with a tracked issue, append the issue reference as ` (#issue-number)`; include the issue number for any commit that resolves, implements, or is intended to be tracked by an issue.
 - **Max length:** 72 characters (strict)
@@ -261,6 +292,7 @@ Add User, Day, StoryTea, TeaGuess, Badge models
 ```
 
 **Deploy Workflow:**
+
 ```bash
 # Daily work on develop
 git checkout develop
@@ -276,12 +308,14 @@ gh pr create --base main --head develop --title "chore: MVP milestone release"
 ```
 
 **GitHub Projects:**
+
 - Track all 45 issues in Project #17 "AdvienTea Calendar"
 - Update issue status as you work (Todo → In Progress → Done)
 - Close issues in commit messages: `Closes #8`
 - 3 Milestones: MVP (Nov 18), BONUS P1 (Nov 23), Production (Nov 26)
 
 ### Code Development Workflow
+
 1. **Pick issue from GitHub Project** (follow phase order)
 2. **TDD cycle:**
    - Write failing tests (red)
@@ -294,6 +328,7 @@ gh pr create --base main --head develop --title "chore: MVP milestone release"
 7. **PR to main** when milestone complete
 
 ### Feature Implementation Workflow
+
 1. Plan component hierarchy and agent boundaries
 2. Define types/interfaces
 3. Write tests first (TDD)
@@ -305,6 +340,7 @@ gh pr create --base main --head develop --title "chore: MVP milestone release"
 9. Commit and push
 
 ## References
+
 - See `.github/copilot-instructions.md` for full standards
 - See `README.md` for project setup and scripts
 - See GitHub Project #17 for issue tracking: https://github.com/users/CarlosCanet/projects/17

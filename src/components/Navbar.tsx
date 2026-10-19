@@ -16,9 +16,9 @@ async function Navbar() {
 
   return (
     <nav className="navbar bg-neutral shadow-sm fixed z-50 h-16">
-      <div className="navbar-start ml-4" >
+      <div className="navbar-start ml-4">
         <Link href="/" className="btn btn-ghost btn-circle btn-xl text-xl text-neutral-content w-12 h-12">
-          <Image src="/LogoAdvientea.png" alt="Logo de advienté" width={48} height={48}/>
+          <Image src="/LogoAdvientea.png" alt="Logo de advienté" width={48} height={48} />
         </Link>
       </div>
       <div className="navbar-center">
@@ -36,22 +36,61 @@ async function Navbar() {
                 <ProfileImage name={session.user.name} image={session.user.image || DEFAULT_IMAGE_PROFILE} />
               </div>
             ) : (
-                <RxHamburgerMenu />
+              <RxHamburgerMenu />
             )}
           </div>
           {/* <ul tabIndex={-1} className="menu menu-sm dropdown-content bg-base-100 rounded-box z-1 mt-3 w-30 p-2 shadow"> */}
-          <ul tabIndex={-1} className="menu menu-sm dropdown-content bg-base-100 rounded-box z-1 mt-3 w-max min-w-28 whitespace-nowrap px-2 py-2 shadow items-end">
-            {session && <li className="menu-title -ml-2 px-4"><Link href="/profile">¡Hola, {session.user.username}!</Link></li> }
-            <li><Link href="/teaDay">Advienté</Link></li>
-            {!session && <li><Link href="/sign-in">Login</Link></li>}
-            {!session && <li><Link href="/sign-up">Registro</Link></li>}
-            {session && <li><Link href="/ranking">Ranking</Link></li>}
-            {session && <li><Link href="/profile">Perfil</Link></li>}
+          <ul
+            tabIndex={-1}
+            className="menu menu-sm dropdown-content bg-base-100 rounded-box z-1 mt-3 w-max min-w-28 whitespace-nowrap px-2 py-2 shadow items-end"
+          >
+            {session && (
+              <li className="menu-title -ml-2 px-4">
+                <Link href="/profile">¡Hola, {session.user.username}!</Link>
+              </li>
+            )}
+            <li>
+              <Link href="/teaDay">Advienté</Link>
+            </li>
+            {!session && (
+              <li>
+                <Link href="/sign-in">Login</Link>
+              </li>
+            )}
+            {!session && (
+              <li>
+                <Link href="/sign-up">Registro</Link>
+              </li>
+            )}
+            {session && (
+              <li>
+                <Link href="/ranking">Ranking</Link>
+              </li>
+            )}
+            {session && (
+              <li>
+                <Link href="/profile">Perfil</Link>
+              </li>
+            )}
             {/* <li><Link href="/teaDay">Té del día</Link></li> */}
-            <li><Link href="/add-tea-info">Añadir tu té</Link></li>
-            {session && session.user.role !== Role.USER && <li><Link href="/edit-tea-info">Editar tu té</Link></li>}
-            <li><Link href="/timer">Temporizador</Link></li>
-            {session && <li><form action={signout}><button type="submit">Cerrar sesión</button></form></li>}
+            <li>
+              <Link href="/add-tea-info">Añadir tu té</Link>
+            </li>
+            {session && session.user.role !== Role.USER && (
+              <li>
+                <Link href="/edit-tea-info">Editar tu té</Link>
+              </li>
+            )}
+            <li>
+              <Link href="/timer">Temporizador</Link>
+            </li>
+            {session && (
+              <li>
+                <form action={signout}>
+                  <button type="submit">Cerrar sesión</button>
+                </form>
+              </li>
+            )}
           </ul>
         </div>
       </div>

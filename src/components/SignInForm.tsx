@@ -24,7 +24,9 @@ export default function SignInForm() {
             <MdEmail />
             <input type="email" name="email" className="grow" placeholder="Email" autoComplete="username" required />
           </label>
-          {state?.errors?.email && <p className="text-xs text-error font-bold -mt-2 mb-2">{state.errors.email.join(", ")}</p>}
+          {state?.errors?.email && (
+            <p className="text-xs text-error font-bold -mt-2 mb-2">{state.errors.email.join(", ")}</p>
+          )}
 
           <label className="input input-bordered flex items-center gap-2 mb-2 w-full">
             <IoKeySharp />
@@ -42,7 +44,9 @@ export default function SignInForm() {
               {showPassword ? <FaEyeSlash /> : <FaEye />}
             </button>
           </label>
-          {state?.errors?.password && <p className="text-xs text-error font-bold -mt-2 mb-2">{state.errors.password.join(", ")}</p>}
+          {state?.errors?.password && (
+            <p className="text-xs text-error font-bold -mt-2 mb-2">{state.errors.password.join(", ")}</p>
+          )}
         </div>
         <div className="card-actions justify-center mt-4">
           <button className="btn btn-primary w-full" type="submit" disabled={isPending}>
@@ -52,7 +56,10 @@ export default function SignInForm() {
         <div className="divider"></div>
         <div className="flex gap-2 items-center justify-center">
           <GiBrainLeak />
-          <Link href="/reset-password" className="link-neutral"> He olvidado mi contraseña</Link>
+          <Link href="/reset-password" className="link-neutral">
+            {" "}
+            He olvidado mi contraseña
+          </Link>
         </div>
       </Form>
     </div>

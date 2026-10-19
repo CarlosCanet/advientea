@@ -15,7 +15,11 @@ export default async function ProfilePage() {
     <div className="flex flex-col justify-center items-center mx-5 mt-5 pb-5 gap-3">
       <div className="card w-full max-w-xl bg-neutral text-neutral-content card-md shadow-sm">
         <div className="card-body items-center">
-          <div className="card-title text-4xl"><span>Tu Cuen<span className="italic">Té</span></span></div>
+          <div className="card-title text-4xl">
+            <span>
+              Tu Cuen<span className="italic">Té</span>
+            </span>
+          </div>
         </div>
       </div>
       <div className="card w-full max-w-xl bg-base-100 text-neutral-content card-xl shadow-sm">
@@ -24,5 +28,5 @@ export default async function ProfilePage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

@@ -1,6 +1,6 @@
 ---
-description: 'Adviente - Next.js 16 + Tailwind CSS v4 + daisyUI 5 development standards'
-applyTo: '**/*.tsx, **/*.ts, **/*.jsx, **/*.js, **/*.css'
+description: "Adviente - Next.js 16 + Tailwind CSS v4 + daisyUI 5 development standards"
+applyTo: "**/*.tsx, **/*.ts, **/*.jsx, **/*.js, **/*.css"
 ---
 
 # Copilot Instructions for Adviente
@@ -12,6 +12,7 @@ This is a Next.js 16.0 project using the App Router pattern with TypeScript, fea
 **Project Type:** Advent Tea Calendar with gamification, user authentication, and daily challenges.
 
 **Key Stack:**
+
 - Next.js 16.0 with App Router (`src/app/` structure)
 - React 19.2 with TypeScript 5
 - Tailwind CSS v4.1.13+ + daisyUI 5.3.9+
@@ -26,6 +27,7 @@ This is a Next.js 16.0 project using the App Router pattern with TypeScript, fea
 - Vitest + React Testing Library for TDD
 
 **Critical Next.js 16 Changes:**
+
 - ⚠️ Dynamic route params are now async: `const { id } = await params`
 - ✅ Server Actions are stable and recommended for forms
 - ✅ Turbopack is production-ready
@@ -33,6 +35,7 @@ This is a Next.js 16.0 project using the App Router pattern with TypeScript, fea
 ## Development Workflows
 
 ### Build & Dev Commands
+
 ```bash
 npm run dev    # Uses --turbopack flag for faster development
 npm run build  # Production build with --turbopack
@@ -46,7 +49,9 @@ npm run test   # Run tests with Vitest
 ## CSS & Styling Conventions
 
 ### Tailwind CSS v4 Syntax
+
 The project uses **Tailwind CSS v4** with new syntax in `globals.css`:
+
 ```css
 @import "tailwindcss";        /* New v4 import syntax */
 @plugin "daisyui";           /* New v4 plugin syntax */
@@ -56,12 +61,15 @@ The project uses **Tailwind CSS v4** with new syntax in `globals.css`:
 **Important:** Use daisyUI component classes following the v5 conventions as defined in `.github/instructions/daisyui.instructions.md`.
 
 ### Color System
+
 Custom CSS variables are integrated with Tailwind:
+
 - `--background` / `--foreground` for theme-aware colors
 - Dark mode support via `prefers-color-scheme`
 - Font variables: `--font-geist-sans`, `--font-geist-mono`
 
 ### Component Patterns
+
 - Use daisyUI component classes (e.g., `btn`, `card`, `modal`) as primary styling approach
 - Combine with Tailwind utilities for customization: `btn px-10`
 - Use `!` suffix for CSS specificity override when needed: `btn bg-red-500!`
@@ -77,12 +85,14 @@ src/app/
 ```
 
 **Layout Requirements:**
+
 - Always include Geist font variables in className: `${geistSans.variable} ${geistMono.variable}`
 - Root layout handles global font loading and CSS imports
 
 ## Development Standards & Architecture
 
 ### App Router Architecture
+
 - Use Server Components by default (add "use client" only when necessary)
 - Group routes by feature/domain in `src/app/` structure
 - Implement proper error boundaries with `error.tsx` files
@@ -90,6 +100,7 @@ src/app/
 - Use `loading.tsx` for loading states
 
 ### TypeScript Best Practices
+
 - Strict mode enabled with Next.js TypeScript config
 - Define clear interfaces and types for props and data
 - Use `Metadata` type for page metadata exports
@@ -98,6 +109,7 @@ src/app/
 - Consider Zod for runtime type validation when handling external data
 
 ### State Management Patterns
+
 - React Server Components for server state and data fetching
 - React hooks (useState, useReducer) for client-side state
 - Implement proper loading and error states
@@ -105,12 +117,14 @@ src/app/
 - Keep state as close to components that need it as possible
 
 ### Testing
+
 - The project uses Vitest for unit and integration testing.
 - Run tests using the `npm run test` command.
 - Write tests for new components and logic to ensure they are working as expected.
 - Use React Testing Library for testing components.
 
 ### Data Fetching & Performance
+
 - Direct database queries in Server Components using Prisma
 - Use React Suspense for loading states with fallback UI
 - Implement proper error handling and retry logic
@@ -120,6 +134,7 @@ src/app/
 - Database queries should use indexes for performance (see schema)
 
 ### Database & Prisma Patterns
+
 - Prisma Client generated to `src/generated/prisma/`
 - Use `@prisma/client` imports from generated location
 - Server Components can query database directly
@@ -128,6 +143,7 @@ src/app/
 - Respect cascade delete/update relations defined in schema
 
 ### Authentication & Authorization
+
 - BetterAuth handles authentication flows (registration, login, password recovery)
 - Password hashing uses bcryptjs
 - User roles: `admin` (full access) and `user` (restricted to assigned day)
@@ -138,6 +154,7 @@ src/app/
 - Password recovery emails sent via Resend
 
 ### Gamification & Business Logic
+
 - Tea guessing: Users submit guesses, points calculated immediately but revealed at 21:00 UTC
 - Scoring algorithm in `src/lib/scoring.ts` (Levenshtein distance using fastest-levenshtein)
 - Points stored in `TeaGuess` model, only last guess per user/day counts
@@ -146,12 +163,14 @@ src/app/
 - Reveal time constant: `REVEAL_HOUR` (in `src/lib/constants.ts`)
 
 ### Form Handling (MVP)
+
 - Server Actions for all form submissions (native Next.js 16)
 - HTML5 validation for MVP (required, email, pattern attributes)
 - Progressive enhancement approach: forms work without JavaScript
 - Consider adding Zod validation and react-hook-form post-MVP for enhanced UX
 
 ### Image Management
+
 - Cloudinary for all image uploads (avatars, tea day images)
 - Store Cloudinary URL in database
 - Store `publicId` for image management/deletion
@@ -159,6 +178,7 @@ src/app/
 - Multiple images per StoryTea supported via DayImage model
 
 ### Security Considerations
+
 - Input validation and sanitization for user data
 - Proper authentication checks in middleware or route handlers
 - CSRF protection for forms and API routes
@@ -171,6 +191,7 @@ src/app/
 - Email tokens for password recovery must expire and be single-use
 
 ### CSS & Styling Standards
+
 - Mobile-first responsive design with Tailwind breakpoints
 - Use responsive prefixes: `sm:`, `md:`, `lg:`
 - Grid/flex layouts should be responsive: `flex-col sm:flex-row`
@@ -181,23 +202,28 @@ src/app/
 ## External Dependencies & Integration
 
 ### Key Dependencies
+
 - **daisyUI 5.1.23**: Component library with specific v5 syntax rules
 - **@tailwindcss/postcss**: Required for Tailwind v4 processing
 - **eslint-config-next**: Integrated linting with TypeScript support
 
 ### Browser Support
+
 - Target: `> 1%` (defined in package.json browserslist)
 - Modern browser features available due to Next.js 15 baseline
 
 ## Development Environment Setup
 
 ### VSCode Configuration
+
 Project includes `.vscode/settings.json` with:
+
 - CSS lint rules configured for Tailwind v4 at-rules
 - Tailwind CSS IntelliSense settings
 - TypeScript/React language support
 
 ### PostCSS Configuration
+
 Minimal setup in `postcss.config.mjs` using only `@tailwindcss/postcss` plugin for v4 compatibility.
 
 ## Implementation Process
@@ -236,24 +262,26 @@ Instead of maintaining a rigid file tree, follow these architectural patterns:
 ### Required Pages
 
 #### Authentication Pages
+
 - **Registration (`/sign-up`)**: Secure form with email, username, password validation
 - **Login (`/sign-in`)**: Email/username + password authentication
 - **Password Recovery (`/reset-password`)**: Email-based password reset flow
 
 #### User Pages
-- **Profile (`/profile`)**: 
+
+- **Profile (`/profile`)**:
   - View and edit user information
   - Upload avatar image (Cloudinary)
   - Display earned badges
   - Show user statistics
 
-- **Calendar (`/teaDay`)**: 
+- **Calendar (`/teaDay`)**:
   - Grid layout showing all 25 days
   - Visual indicators for current day, past days, future days
   - Click on past days to view their content
   - Highlight user's assigned day
 
-- **Tea Day Detail (`/teaDay/[dayId]`)**: 
+- **Tea Day Detail (`/teaDay/[dayId]`)**:
   - Progressive story reveal (storyPart1, storyPart2, storyPart3)
   - Tea information (name revealed at 21:00 UTC, brewing instructions)
   - Guess form (input for tea name)
@@ -261,7 +289,7 @@ Instead of maintaining a rigid file tree, follow these architectural patterns:
   - Multiple images from Cloudinary
   - Display user's guess and points (after 21:00 UTC)
 
-- **Rankings (`/ranking`)**: 
+- **Rankings (`/ranking`)**:
   - Toggle between Daily and Overall views
   - Highlight top 3 users with avatars
   - Display all users with points
@@ -269,12 +297,13 @@ Instead of maintaining a rigid file tree, follow these architectural patterns:
   - Real-time updates after 21:00 UTC reveals
 
 #### Admin Pages (`src/app/admin-dashboard/`)
-- **Day Management (`/admin-dashboard/days`)**: 
+
+- **Day Management (`/admin-dashboard/days`)**:
   - CRUD operations for all days
   - Edit tea information and story content
   - Upload images for any day
 
-- **User Management (`/admin-dashboard/users`)**: 
+- **User Management (`/admin-dashboard/users`)**:
   - Assign users to specific days (one-to-one)
   - View user statistics
   - Manage user roles
@@ -282,6 +311,7 @@ Instead of maintaining a rigid file tree, follow these architectural patterns:
 ### Core Workflows
 
 #### Guessing Tea Names
+
 1. User visits tea day page
 2. Submits guess via Server Action form (multiple attempts allowed)
 3. Points calculated immediately using Levenshtein distance algorithm (fastest-levenshtein)
@@ -290,6 +320,7 @@ Instead of maintaining a rigid file tree, follow these architectural patterns:
 6. Only last guess per user/day counts for scoring
 
 #### Scoring Algorithm
+
 - Located in `src/lib/tea-guess-scoring.ts`
 - Levenshtein distance comparison using `fastest-levenshtein` library
 - Normalized string matching (lowercase, trimmed)
@@ -298,6 +329,7 @@ Instead of maintaining a rigid file tree, follow these architectural patterns:
 - Formula: `similarity = 1 - (distance / maxLength)`, then `points = Math.round(similarity * 100)`
 
 #### Badge System
+
 - Badges defined in `Badge` model
 - Awarded automatically based on achievements:
   - "First Blood": First correct guess of the day
@@ -307,6 +339,7 @@ Instead of maintaining a rigid file tree, follow these architectural patterns:
 - Displayed on user profile and rankings
 
 #### Daily Reveal Cycle
+
 - Constant: `REVEAL_HOUR` (in `src/lib/advientea-rules.ts`)
 - At 21:00 UTC daily:
   - Tea name revealed
@@ -318,6 +351,7 @@ Instead of maintaining a rigid file tree, follow these architectural patterns:
 ### Form Requirements
 
 #### Story Content Form (User/Admin)
+
 - Server Action form with progressive enhancement
 - Fields: storyPart1, storyPart2, storyPart3, youtubeURL, onlyMusic
 - HTML5 validation for required fields
@@ -326,6 +360,7 @@ Instead of maintaining a rigid file tree, follow these architectural patterns:
 - Admins: Edit any day
 
 #### Tea Information Form (Admin)
+
 - Server Action form with HTML5 validation
 - Fields: dayNumber, name, infusionTime, hasTheine, canReinfuse, reinfuseNumber, moreIndications, addMilk
 - Validation for required fields
@@ -334,17 +369,20 @@ Instead of maintaining a rigid file tree, follow these architectural patterns:
 ### Testing Strategy (TDD)
 
 #### Unit Tests
+
 - Scoring algorithm logic
 - String similarity functions
 - Badge awarding conditions
 - Date/time utilities (reveal time checks)
 
 #### Integration Tests
+
 - Authentication flows (register, login, password recovery)
 - API routes (guess submission, image upload)
 - Database operations (CRUD, relations)
 
 #### Component Tests
+
 - Form validation and submission
 - Conditional rendering (before/after 19:00)
 - User permission checks (admin vs user)
@@ -353,4 +391,3 @@ Instead of maintaining a rigid file tree, follow these architectural patterns:
 ## Development Workflow
 
 For detailed Git workflow, branching strategy, and GitHub Project tracking, see [AGENTS.md](../AGENTS.md).
-

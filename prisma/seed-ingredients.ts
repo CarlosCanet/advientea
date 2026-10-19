@@ -152,4 +152,4 @@ export async function seedIngredients() {
   }
 }
 
-seedIngredients()
+seedIngredients();

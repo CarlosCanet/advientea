@@ -2,7 +2,9 @@ import { Prisma, Role, User } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 
 export type UserBasic = Prisma.UserGetPayload<{ select: { id: true; username: true } }>;
-type UserBase = Prisma.UserGetPayload<{ select: { id: true; username: true; image: true; daysAssigned: { include: { day: true } } } }>;
+type UserBase = Prisma.UserGetPayload<{
+  select: { id: true; username: true; image: true; daysAssigned: { include: { day: true } } };
+}>;
 type SafeUser = UserBase & { email?: string | null; role?: Role };
 export type UserWithDayAssignedDay = Prisma.UserGetPayload<{
   select: { id: true; username: true; image: true; email: true; role: true; daysAssigned: { include: { day: true } } };
@@ -19,7 +21,14 @@ export async function getUser(email: string): Promise<User> {
 export async function getAllUsers(isAdmin: boolean): Promise<Array<UserWithDayAssignedDay>> {
   const data = await prisma.user.findMany({
     orderBy: { username: "asc" },
-    select: { id: true, username: true, image: true, email: isAdmin, role: isAdmin, daysAssigned: { include: { day: true } } },
+    select: {
+      id: true,
+      username: true,
+      image: true,
+      email: isAdmin,
+      role: isAdmin,
+      daysAssigned: { include: { day: true } },
+    },
   });
   return data;
 }

@@ -1,5 +1,5 @@
 interface YoutubeComponentProps {
-  youtubeURL: string
+  youtubeURL: string;
 }
 
 export default function YoutubeComponent({ youtubeURL }: YoutubeComponentProps) {

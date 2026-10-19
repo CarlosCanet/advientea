@@ -1,5 +1,5 @@
-import { prismaMock } from '@/lib/__mocks__/prisma';
-import { describe, expect, it, vi } from 'vitest'
+import { prismaMock } from "@/lib/__mocks__/prisma";
+import { describe, expect, it, vi } from "vitest";
 import { Day, Role, TeaIngredient, TeaType } from "@/generated/prisma/client";
 import { DayWithAssignmentAndTeaComplete, DayWithTeaComplete } from "@/lib/dal";
 import {
@@ -20,19 +20,19 @@ vi.mock("@/lib/dal/dal-day");
 const dalDayMock = vi.mocked(dalDay);
 
 describe("DAL Tea", () => {
-    const mockIngredient1: TeaIngredient = {
+  const mockIngredient1: TeaIngredient = {
     id: "i1-cuid",
     name: "ingredient1",
     createdAt: new Date(),
     updatedAt: new Date(),
-  }
+  };
 
   const mockIngredient2: TeaIngredient = {
     id: "i2-cuid",
     name: "ingredient2",
     createdAt: new Date(),
     updatedAt: new Date(),
-  }
+  };
 
   describe("getTea", () => {
     it("should get tea by CUID id", async () => {
@@ -107,7 +107,7 @@ describe("DAL Tea", () => {
         day: mockDay,
         story: null,
       };
-      
+
       dalDayMock.getDay.mockResolvedValue({ ...mockDay, tea: mockTea });
       prismaMock.tea.findUnique.mockResolvedValue(mockTea);
 
@@ -433,7 +433,7 @@ describe("DAL Tea", () => {
         },
         ["ingredient1"],
         15,
-        2025
+        2025,
       );
 
       expect(result?.id).toBe("new-tea-cuid");
@@ -444,10 +444,10 @@ describe("DAL Tea", () => {
             name: "New Tea",
             ingredients: {
               connect: [{ id: "ingredient1" }],
-            }
+            },
           }),
           include: expect.objectContaining({ ingredients: true }),
-        })
+        }),
       );
     });
 
@@ -536,8 +536,8 @@ describe("DAL Tea", () => {
             url: "https://tea.example.com",
           },
           ["ingredient1"],
-          1
-        )
+          1,
+        ),
       ).rejects.toThrow("already has a tea assigned");
     });
   });
@@ -597,7 +597,7 @@ describe("DAL Tea", () => {
         },
         [{ publicId: "cloudinary-id-1", order: 0 }],
         15,
-        2025
+        2025,
       );
 
       expect(result?.name).toBe("Complete Tea");
@@ -648,7 +648,7 @@ describe("DAL Tea", () => {
         createdAt: new Date(),
         updatedAt: new Date(),
       },
-    };  
+    };
 
     it("should update tea successfully", async () => {
       prismaMock.tea.findUnique.mockResolvedValue(mockCurrentTea);
@@ -664,7 +664,7 @@ describe("DAL Tea", () => {
           storeName: "New Store",
           url: "https://newstore.com",
         },
-        "tea-cuid"
+        "tea-cuid",
       );
 
       expect(result?.name).toBe("Updated Tea Name");
@@ -672,7 +672,7 @@ describe("DAL Tea", () => {
     });
 
     it("should throw error if target day does not exist on editTea", async () => {
-      prismaMock.tea.findUnique.mockResolvedValue((mockCurrentTea));
+      prismaMock.tea.findUnique.mockResolvedValue(mockCurrentTea);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       prismaMock.$transaction.mockImplementation((cb: any) => cb(prismaMock));
       prismaMock.day.findFirst.mockResolvedValue(null);
@@ -692,13 +692,10 @@ describe("DAL Tea", () => {
           data: expect.objectContaining({
             name: "Updated Tea Name",
             ingredients: {
-              set: [
-                { id: "ingredient1" },
-                { id: "ingredient2" }
-              ], 
+              set: [{ id: "ingredient1" }, { id: "ingredient2" }],
             },
           }),
-        })
+        }),
       );
     });
   });
@@ -748,7 +745,7 @@ describe("DAL Tea", () => {
         "tea-cuid",
         {
           name: "Updated Tea",
-          ingredientIds: ["ingredient1"]
+          ingredientIds: ["ingredient1"],
         },
         {
           storyPart1: "Updated Part 1",
@@ -756,7 +753,7 @@ describe("DAL Tea", () => {
           storyPart3: "Updated Part 3",
           youtubeURL: "https://youtube.com/new",
         },
-        []
+        [],
       );
 
       expect(result.name).toBe("Updated Tea");
@@ -765,10 +762,10 @@ describe("DAL Tea", () => {
         expect.objectContaining({
           data: expect.objectContaining({
             ingredients: {
-              set: [{ id: "ingredient1" }]
-            }
-          })
-        })
+              set: [{ id: "ingredient1" }],
+            },
+          }),
+        }),
       );
     });
   });

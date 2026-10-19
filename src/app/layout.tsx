@@ -37,11 +37,10 @@ export default function RootLayout({
           backgroundRepeat: "repeat",
           backgroundAttachment: "scroll",
           minHeight: "100vh",
-        }}>
+        }}
+      >
         <Navbar />
-        <main className="pt-16">
-          {children}
-        </main>
+        <main className="pt-16">{children}</main>
       </body>
     </html>
   );

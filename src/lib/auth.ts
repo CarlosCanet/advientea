@@ -1,4 +1,4 @@
-import "@/envConfig"
+import "@/envConfig";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { prisma } from "@/lib/prisma";
@@ -15,15 +15,15 @@ export const auth = betterAuth({
       username: {
         type: "string",
         required: true,
-        input: true
+        input: true,
       },
       role: {
         type: Object.values(Role),
         required: true,
         input: false,
-        defaultValue: Role.USER
-      }
-    }
+        defaultValue: Role.USER,
+      },
+    },
   },
   // socialProviders: {
   //   google: {
@@ -34,17 +34,17 @@ export const auth = betterAuth({
   // },
   rateLimit: {
     window: 10,
-    max: 100
+    max: 100,
   },
   session: {
     expiresIn: 60 * 60 * 24 * 31,
     updateAge: 60 * 60 * 24,
   },
   advanced: {
-    cookiePrefix: "advientea"
+    cookiePrefix: "advientea",
   },
   // trustedOrigins: ["http://localhost:3000", "https://adviente.netlify.app/"],
   secret: process.env.BETTER_AUTH_SECRET,
   baseURL: process.env.BETTER_AUTH_URL,
-  plugins: [nextCookies()]
+  plugins: [nextCookies()],
 });

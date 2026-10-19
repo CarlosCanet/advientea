@@ -22,18 +22,18 @@ export interface SignUpActionResponse {
     properties?: {
       [K in keyof SignUpFormData]?: {
         errors: Array<string>;
-      }
-    }
+      };
+    };
   };
-  inputs?: SignUpFormData
+  inputs?: SignUpFormData;
 }
 
-export const initialSignUpActionResponse: SignUpActionResponse = {  
+export const initialSignUpActionResponse: SignUpActionResponse = {
   success: false,
   message: "",
-}
+};
 
-export type SignInFormData = Pick<SignUpFormData, "email" | "password">
+export type SignInFormData = Pick<SignUpFormData, "email" | "password">;
 export interface SignInActionResponse {
   success: boolean;
   message: string;
@@ -42,15 +42,15 @@ export interface SignInActionResponse {
   };
 }
 
-export const initialSignInActionResponse: SignInActionResponse = {  
+export const initialSignInActionResponse: SignInActionResponse = {
   success: false,
   message: "",
-}
+};
 
 export interface TeaInfoFormData {
   personName: string;
   dayNumber: number;
-  
+
   teaName: string;
   temperature: number;
   infusionTime: number;
@@ -62,13 +62,13 @@ export interface TeaInfoFormData {
   storeName?: string;
   urlStore?: string;
   teaId?: string;
-  
+
   storyPart1: string;
   storyPart2: string;
   storyPart3: string;
   youtubeURL?: string;
   onlyMusic: boolean;
-  
+
   images?: Array<File>;
   imagesOrder?: Array<string>;
   keptImages?: Array<string>;
@@ -83,8 +83,8 @@ export interface TeaInfoActionResponse {
     properties?: {
       [K in keyof TeaInfoFormData]?: {
         errors: Array<string>;
-      }
-    }
+      };
+    };
   };
   inputs?: TeaInfoFormData;
 }
@@ -92,25 +92,25 @@ export interface TeaInfoActionResponse {
 export const initialTeaInfoActionResponse: TeaInfoActionResponse = {
   success: false,
   message: "",
-}
+};
 
 type ImageStoryFormOld = {
-  id: string,
-  order: number,
-  isNew: false,
-  publicId: string
-  previewURL?: never,
-  file?: never,
-}
+  id: string;
+  order: number;
+  isNew: false;
+  publicId: string;
+  previewURL?: never;
+  file?: never;
+};
 
 type ImageStoryFormNew = {
-  id: string,
-  order: number,
-  isNew: true,
-  previewURL: string
-  file: File,
-  publicId?: never
-}
+  id: string;
+  order: number;
+  isNew: true;
+  previewURL: string;
+  file: File;
+  publicId?: never;
+};
 
 export type ImageStoryForm = ImageStoryFormOld | ImageStoryFormNew;
 
@@ -119,7 +119,7 @@ export const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "ima
 export interface UpdateProfileFormData {
   username: string;
   // email: string;
-  currentPassword?: string,
+  currentPassword?: string;
   newPassword?: string;
   newPasswordConfirmation?: string;
   image?: File;
@@ -133,16 +133,16 @@ export interface UpdateProfileActionResponse {
     properties?: {
       [K in keyof UpdateProfileFormData]?: {
         errors: Array<string>;
-      }
-    }
+      };
+    };
   };
-  inputs?: UpdateProfileFormData
+  inputs?: UpdateProfileFormData;
 }
 
 export const initialUpdateProfileActionResponse: UpdateProfileActionResponse = {
   success: false,
   message: "",
-}
+};
 
 export interface TeaGuessFormData {
   teaName?: string;
@@ -159,21 +159,21 @@ export interface TeaGuessActionResponse {
     properties?: {
       [K in keyof TeaGuessFormData]?: {
         errors: Array<string>;
-      }
-    }
+      };
+    };
   };
   inputs?: Omit<TeaGuessFormData, "teaType"> & { teaType?: string };
 }
 
-export const initialTeaGuessActionResponse: TeaGuessActionResponse = {  
+export const initialTeaGuessActionResponse: TeaGuessActionResponse = {
   success: false,
   message: "",
-}
+};
 
 export type SelectOption = {
   id: string;
   name: string;
-}
+};
 
 export interface RankingEntry {
   userId: string;

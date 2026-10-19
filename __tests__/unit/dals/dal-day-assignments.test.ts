@@ -1,16 +1,24 @@
-import { prismaMock } from '@/lib/__mocks__/prisma';
-import { describe, expect, it, vi, beforeAll, beforeEach } from 'vitest'
+import { prismaMock } from "@/lib/__mocks__/prisma";
+import { describe, expect, it, vi, beforeAll, beforeEach } from "vitest";
 import { Day, Prisma, User } from "@/generated/prisma/client";
-import { getDayAssignment, getAllDayAssignment, addDayAssignment, editDayAssignment, deleteDayAssignment, DayAssignmentWithDayTeaAndUser, DayAssignmentWithDayAndUser } from "@/lib/dal/dal-day-assignment";
+import {
+  getDayAssignment,
+  getAllDayAssignment,
+  addDayAssignment,
+  editDayAssignment,
+  deleteDayAssignment,
+  DayAssignmentWithDayTeaAndUser,
+  DayAssignmentWithDayAndUser,
+} from "@/lib/dal/dal-day-assignment";
 
 describe("DAL DayAssignment", () => {
   beforeAll(() => {
     vi.spyOn(console, "error").mockImplementation(() => {});
   });
   beforeEach(() => {
-    vi.restoreAllMocks()
-  })
-  
+    vi.restoreAllMocks();
+  });
+
   describe("getDayAssignment", () => {
     const mockUser: User = {
       id: "user-1",
@@ -49,7 +57,9 @@ describe("DAL DayAssignment", () => {
       const result = await getDayAssignment("assignment-1");
 
       expect(result).toEqual(mockAssignment);
-      expect(prismaMock.dayAssignment.findUnique).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "assignment-1" } }));
+      expect(prismaMock.dayAssignment.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: "assignment-1" } }),
+      );
     });
 
     it("should return null if assignment ID not found", async () => {
@@ -69,7 +79,7 @@ describe("DAL DayAssignment", () => {
       expect(prismaMock.dayAssignment.findUnique).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { userId_year: { userId: "user-1", year: 2025 } },
-        })
+        }),
       );
     });
 
@@ -80,7 +90,9 @@ describe("DAL DayAssignment", () => {
     it("should throw if user not found by email", async () => {
       prismaMock.user.findUnique.mockResolvedValue(null);
 
-      await expect(getDayAssignment(2025, "ghost@example.com")).rejects.toThrow("The user with email ghost@example.com doesn't exist");
+      await expect(getDayAssignment(2025, "ghost@example.com")).rejects.toThrow(
+        "The user with email ghost@example.com doesn't exist",
+      );
     });
   });
 
@@ -92,7 +104,9 @@ describe("DAL DayAssignment", () => {
       const result = await getAllDayAssignment(2025);
 
       expect(result).toEqual([]);
-      expect(prismaMock.dayAssignment.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { year: 2025 } }));
+      expect(prismaMock.dayAssignment.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { year: 2025 } }),
+      );
     });
   });
 
@@ -139,8 +153,7 @@ describe("DAL DayAssignment", () => {
       updatedAt: new Date(),
       user: null,
       day: mockDay,
-    }
-
+    };
 
     it("should create assignment successfully with id", async () => {
       prismaMock.day.findUnique.mockResolvedValue(mockDay);
@@ -157,7 +170,7 @@ describe("DAL DayAssignment", () => {
             user: { connect: { id: "user-id" } },
             year: 2025,
           }),
-        })
+        }),
       );
     });
 
@@ -188,7 +201,7 @@ describe("DAL DayAssignment", () => {
             guestName: "Guest",
             year: 2025,
           }),
-        })
+        }),
       );
     });
 
@@ -200,10 +213,10 @@ describe("DAL DayAssignment", () => {
 
     it("should throw if user does not exist", async () => {
       prismaMock.day.findUnique.mockResolvedValue(mockDay);
-      const p2025Error = new Prisma.PrismaClientKnownRequestError(
-        "Record not found",
-        { code: "P2025", clientVersion: "1" }
-      );
+      const p2025Error = new Prisma.PrismaClientKnownRequestError("Record not found", {
+        code: "P2025",
+        clientVersion: "1",
+      });
       prismaMock.dayAssignment.create.mockRejectedValue(p2025Error);
 
       await expect(addDayAssignment({ userId: "wrong-id" }, 5)).rejects.toThrow("Record not found");
@@ -213,7 +226,10 @@ describe("DAL DayAssignment", () => {
       prismaMock.day.findUnique.mockResolvedValue(mockDay);
       prismaMock.user.findUnique.mockResolvedValue(mockUser);
 
-      const p2002Error = new Prisma.PrismaClientKnownRequestError("Unique constraint violation", { code: "P2002", clientVersion: "1" });
+      const p2002Error = new Prisma.PrismaClientKnownRequestError("Unique constraint violation", {
+        code: "P2002",
+        clientVersion: "1",
+      });
 
       prismaMock.dayAssignment.create.mockRejectedValue(p2002Error);
 

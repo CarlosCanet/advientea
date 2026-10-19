@@ -12,6 +12,6 @@ async function SignInPage() {
     <div className="flex justify-center mx-5">
       <SignInForm />
     </div>
-  )
+  );
 }
-export default SignInPage
+export default SignInPage;

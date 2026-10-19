@@ -20,7 +20,11 @@ export default function ButtonAddDays({ daysNumber }: ButtonAddDaysProps) {
 
   return (
     <>
-      {daysNumber < 25 && <button className="btn btn-primary" type="button" onClick={addDays} disabled={isPending}>Crear 25 días</button>}
+      {daysNumber < 25 && (
+        <button className="btn btn-primary" type="button" onClick={addDays} disabled={isPending}>
+          Crear 25 días
+        </button>
+      )}
       <ActionToast toast={toast} />
     </>
   );

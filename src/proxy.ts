@@ -19,24 +19,24 @@ export async function proxy(request: NextRequest) {
           cookie: request.headers.get("cookie") || "",
         },
       });
-  
+
       if (!sessionResponse.ok) {
         const loginUrl = new URL("/sign-in", request.url);
         return NextResponse.redirect(loginUrl);
       }
-  
+
       const sessionData = await sessionResponse.json();
       if (!sessionData || !sessionData.session || !sessionData.user) {
         const loginUrl = new URL("/sign-in", request.url);
         return NextResponse.redirect(loginUrl);
       }
       const { session, user } = sessionData;
-  
+
       if (!session || !user) {
         const loginUrl = new URL("/sign-in", request.url);
         return NextResponse.redirect(loginUrl);
       }
-  
+
       // Verify route permissions
       if (isExecuteave && user.role === Role.USER) {
         return NextResponse.rewrite(new URL("/", request.url));
@@ -44,7 +44,7 @@ export async function proxy(request: NextRequest) {
       if (isAdmin && user.role !== Role.ADMIN) {
         return NextResponse.rewrite(new URL("/", request.url));
       }
-  
+
       return NextResponse.next();
     } catch (error) {
       console.error("Middleware error:", error);

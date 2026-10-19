@@ -44,7 +44,7 @@ export async function seedDatabase() {
     },
     [apple.id, lemon.id],
     1,
-    2025
+    2025,
   );
   if (tea1) {
     const storyOne = await addStoryTea(
@@ -55,7 +55,7 @@ export async function seedDatabase() {
         youtubeURL: "https://www.youtube.com/watch?v=jfKfPfyJRdk",
         onlyMusic: false,
       },
-      tea1.id
+      tea1.id,
     );
     await addStoryImage("samples/dessert-on-a-plate", 0, storyOne.id);
     await addStoryImage("samples/coffee", 1, storyOne.id);
@@ -78,7 +78,7 @@ export async function seedDatabase() {
     },
     [clove.id, cinnamon.id, cardamon.id],
     2,
-    2025
+    2025,
   );
   if (tea2) {
     const storyTwo = await addStoryTea(
@@ -88,7 +88,7 @@ export async function seedDatabase() {
         storyPart3: "pillarás",
         youtubeURL: "https://www.youtube.com/watch?v=jfKfPfyJRdk",
       },
-      tea2.id
+      tea2.id,
     );
     await addStoryImage("samples/breakfast", 0, storyTwo.id);
   }

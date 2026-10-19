@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 
 interface TimerProps {
   seconds: number;
-  isPlayingSound?: boolean
+  isPlayingSound?: boolean;
 }
 
 export default function Timer({ seconds, isPlayingSound = true }: TimerProps) {
@@ -64,16 +64,24 @@ export default function Timer({ seconds, isPlayingSound = true }: TimerProps) {
   return (
     <>
       <div className="flex gap-6 justify-center items-center">
-        <div className="bg-info text-info-content font-bold text-2xl py-2 px-4 rounded-md border-4 border-secondary">{formatTime(timeLeft)}</div>
+        <div className="bg-info text-info-content font-bold text-2xl py-2 px-4 rounded-md border-4 border-secondary">
+          {formatTime(timeLeft)}
+        </div>
         {!isRunning ? (
-          <button className="btn btn-primary text-2xl w-25 h-13" onClick={startTimer} disabled={isRunning}>Start</button>
+          <button className="btn btn-primary text-2xl w-25 h-13" onClick={startTimer} disabled={isRunning}>
+            Start
+          </button>
         ) : (
-          <button className="btn btn-warning text-2xl w-25 h-13" onClick={resetTimer} disabled={!isRunning}>Reset</button>
+          <button className="btn btn-warning text-2xl w-25 h-13" onClick={resetTimer} disabled={!isRunning}>
+            Reset
+          </button>
         )}
       </div>
       <dialog ref={modalRef} className="modal">
         <div className="modal-box">
-          <h3 className="font-bold text-xl place-self-center">Es la hora de servir<span className="italic">Té</span></h3>
+          <h3 className="font-bold text-xl place-self-center">
+            Es la hora de servir<span className="italic">Té</span>
+          </h3>
           <div className="modal-action place-self-center">
             <form method="dialog">
               <button className="btn btn-primary">Close</button>

@@ -1,12 +1,19 @@
-import { prismaMock } from '@/lib/__mocks__/prisma';
-import { describe, expect, it, vi, beforeAll } from 'vitest'
+import { prismaMock } from "@/lib/__mocks__/prisma";
+import { describe, expect, it, vi, beforeAll } from "vitest";
 import { StoryImage, TeaType } from "@/generated/prisma/client";
-import { getStoryImage, getAllStoryImages, addStoryImage, editStoryImage, deleteStoryImage, StoryImageWithStory } from "@/lib/dal/dal-story-image";
+import {
+  getStoryImage,
+  getAllStoryImages,
+  addStoryImage,
+  editStoryImage,
+  deleteStoryImage,
+  StoryImageWithStory,
+} from "@/lib/dal/dal-story-image";
 
 // dal-tea MOCK
 import * as dalTea from "@/lib/dal/dal-tea";
 vi.mock("@/lib/dal/dal-tea");
-const dalTeaMock = vi.mocked(dalTea)
+const dalTeaMock = vi.mocked(dalTea);
 
 describe("DAL StoryImage", () => {
   beforeAll(() => {
@@ -185,9 +192,9 @@ describe("DAL StoryImage", () => {
           data: expect.objectContaining({
             order: 0,
             publicId: "pid",
-            story: { connect: { id: "story-1" } }
+            story: { connect: { id: "story-1" } },
           }),
-        })
+        }),
       );
     });
 
@@ -206,7 +213,7 @@ describe("DAL StoryImage", () => {
             order: 0,
             publicId: "pid",
           }),
-        })
+        }),
       );
       expect(prismaMock.storyImage.updateMany).not.toHaveBeenCalled();
     });
@@ -228,14 +235,21 @@ describe("DAL StoryImage", () => {
       expect(prismaMock.storyImage.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({ order: 0 }),
-        })
+        }),
       );
     });
   });
 
   describe("editStoryImage", () => {
     it("should update image", async () => {
-      const mockImg: StoryImage = { id: "i1", order: 0, storyTeaId: "s1", publicId: "p1", createdAt: new Date(), updatedAt: new Date() };
+      const mockImg: StoryImage = {
+        id: "i1",
+        order: 0,
+        storyTeaId: "s1",
+        publicId: "p1",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
       prismaMock.storyImage.update.mockResolvedValue(mockImg);
 
       const result = await editStoryImage({ publicId: "new-p1" }, "i1");
@@ -250,7 +264,14 @@ describe("DAL StoryImage", () => {
 
   describe("deleteStoryImage", () => {
     it("should delete image", async () => {
-      const mockImg: StoryImage = { id: "i1", order: 0, storyTeaId: "s1", publicId: "p1", createdAt: new Date(), updatedAt: new Date() };
+      const mockImg: StoryImage = {
+        id: "i1",
+        order: 0,
+        storyTeaId: "s1",
+        publicId: "p1",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
       prismaMock.storyImage.delete.mockResolvedValue(mockImg);
 
       const result = await deleteStoryImage("i1");

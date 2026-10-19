@@ -28,19 +28,22 @@ export default async function RankingPage({ params }: RankingPageProps) {
     <div className="flex flex-col justify-center items-center mx-5 mt-5 gap-3">
       <div className="card w-full max-w-xl bg-neutral text-neutral-content card-xl shadow-sm">
         <div className="card-body items-center">
-          <h2 className="card-title text-4xl"><FaAward />Día {day.dayNumber}<FaAward /></h2>
+          <h2 className="card-title text-4xl">
+            <FaAward />
+            Día {day.dayNumber}
+            <FaAward />
+          </h2>
           <h2 className="card-title text-lg">Ranking diario</h2>
         </div>
       </div>
       {advienteaDayState.isTeaReleased ? (
-        <RankingList ranking={ranking} currentUserId={session.user.id}/>
+        <RankingList ranking={ranking} currentUserId={session.user.id} />
       ) : (
         <div className="bg-base-100 w-full max-w-xl p-5 rounded-2xl justify-center items-center text-center text-xl font-[Griffy]">
           <div className="skeleton skeleton-text text-base-200">El ranking aún no está disponible.</div>
           <div className="skeleton skeleton-text text-base-200">Ten paciencia y vuelve pronto.</div>
         </div>
       )}
-      
     </div>
-  )
+  );
 }

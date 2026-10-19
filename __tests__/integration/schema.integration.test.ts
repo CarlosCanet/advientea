@@ -29,13 +29,21 @@ describe("Schema rules & constrains", () => {
 
   describe("Unique Constraints", () => {
     it("should NOT allow two Teas for the same Day", async () => {
-      const day = await prisma.day.findFirst({ where: { tea: { isNot: null } } });      
+      const day = await prisma.day.findFirst({ where: { tea: { isNot: null } } });
       expect(day).not.toBeNull();
-      
+
       await expect(
         prisma.tea.create({
-          data: { name: "T2", dayId: day!.id, infusionTime: 1, temperature: 100, hasTheine: true, canReinfuse: false, addMilk: false },
-        })
+          data: {
+            name: "T2",
+            dayId: day!.id,
+            infusionTime: 1,
+            temperature: 100,
+            hasTheine: true,
+            canReinfuse: false,
+            addMilk: false,
+          },
+        }),
       ).rejects.toThrow(/Unique constraint/);
     });
   });

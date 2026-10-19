@@ -1,5 +1,5 @@
-import { prismaMock } from '@/lib/__mocks__/prisma';
-import { describe, expect, it, vi, beforeAll } from 'vitest'
+import { prismaMock } from "@/lib/__mocks__/prisma";
+import { describe, expect, it, vi, beforeAll } from "vitest";
 import { Day, Prisma, TeaType } from "@/generated/prisma/client";
 import {
   getDay,
@@ -15,7 +15,7 @@ import {
 
 describe("DAL Day", () => {
   beforeAll(() => {
-    vi.spyOn(console, "error").mockImplementation(() => { });
+    vi.spyOn(console, "error").mockImplementation(() => {});
   });
 
   describe("getDay", () => {
@@ -65,7 +65,7 @@ describe("DAL Day", () => {
       expect(prismaMock.day.findUnique).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: "day-1" },
-        })
+        }),
       );
     });
 
@@ -78,7 +78,7 @@ describe("DAL Day", () => {
       expect(prismaMock.day.findUnique).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { dayNumber_year: { dayNumber: 1, year: 2025 } },
-        })
+        }),
       );
     });
 
@@ -92,8 +92,24 @@ describe("DAL Day", () => {
   describe("getAllDays", () => {
     it("should return array of days ordered by number", async () => {
       const mockDays: DayWithAssignmentAndTeaComplete[] = [
-        { id: "day-1", dayNumber: 1, year: 2025, tea: null, assignment: null, createdAt: new Date(), updatedAt: new Date() },
-        { id: "day-2", dayNumber: 2, year: 2025, tea: null, assignment: null, createdAt: new Date(), updatedAt: new Date() },
+        {
+          id: "day-1",
+          dayNumber: 1,
+          year: 2025,
+          tea: null,
+          assignment: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        {
+          id: "day-2",
+          dayNumber: 2,
+          year: 2025,
+          tea: null,
+          assignment: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
       ];
 
       prismaMock.day.findMany.mockResolvedValue(mockDays);
@@ -105,7 +121,7 @@ describe("DAL Day", () => {
         expect.objectContaining({
           where: { year: 2025 },
           orderBy: { dayNumber: "asc" },
-        })
+        }),
       );
     });
   });
@@ -126,7 +142,10 @@ describe("DAL Day", () => {
     });
 
     it("should return null (and log error) on P2002 unique constraint violation", async () => {
-      const p2002Error = new Prisma.PrismaClientKnownRequestError("Unique constraint failed", { code: "P2002", clientVersion: "1" });
+      const p2002Error = new Prisma.PrismaClientKnownRequestError("Unique constraint failed", {
+        code: "P2002",
+        clientVersion: "1",
+      });
       prismaMock.day.create.mockRejectedValue(p2002Error);
       const result = await addDay(5, 2025);
 
@@ -193,7 +212,10 @@ describe("DAL Day", () => {
         _count: {},
       });
 
-      const p2002Error = new Prisma.PrismaClientKnownRequestError("Unique constraint", { code: "P2002", clientVersion: "1" });
+      const p2002Error = new Prisma.PrismaClientKnownRequestError("Unique constraint", {
+        code: "P2002",
+        clientVersion: "1",
+      });
       prismaMock.day.create.mockRejectedValue(p2002Error);
 
       const result = await addNextDay(2025);
@@ -217,7 +239,7 @@ describe("DAL Day", () => {
       });
     });
   });
-  
+
   describe("editDay", () => {
     it("should update a day successfully", async () => {
       const mockUpdatedDay: Day = {
@@ -234,7 +256,7 @@ describe("DAL Day", () => {
       const result = await editDay(updateData, "day-1");
 
       expect(result).toEqual(mockUpdatedDay);
-      
+
       expect(prismaMock.day.update).toHaveBeenCalledWith({
         where: { id: "day-1" },
         data: updateData,
@@ -242,16 +264,14 @@ describe("DAL Day", () => {
     });
 
     it("should throw error if day to update does not exist", async () => {
-      const p2025Error = new Prisma.PrismaClientKnownRequestError(
-        "Record to update not found.",
-        { code: "P2025", clientVersion: "1" }
-      );
-      
+      const p2025Error = new Prisma.PrismaClientKnownRequestError("Record to update not found.", {
+        code: "P2025",
+        clientVersion: "1",
+      });
+
       prismaMock.day.update.mockRejectedValue(p2025Error);
 
-      await expect(editDay({ dayNumber: 20 }, "missing-id"))
-        .rejects
-        .toThrow("Record to update not found.");
+      await expect(editDay({ dayNumber: 20 }, "missing-id")).rejects.toThrow("Record to update not found.");
     });
   });
 
@@ -272,7 +292,7 @@ describe("DAL Day", () => {
         expect.objectContaining({
           where: { id: "day-1" },
           include: expect.anything(),
-        })
+        }),
       );
     });
   });

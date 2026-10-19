@@ -30,21 +30,21 @@ export async function getDailyRanking(dayId: string): Promise<Array<RankingEntry
     })
     .map((guess, index) => {
       if (!isPersonNameReleased && guess.guessedPersonName && !guess.guessedTeaName && !guess.guessedTeaType) {
-        return ({
+        return {
           userId: guess.userId,
           avatar: guess.user.image ?? DEFAULT_IMAGE_PROFILE,
           username: guess.user.username,
           points: -1,
           rank: index + 1,
-        })
+        };
       } else {
-        return ({
+        return {
           userId: guess.userId,
           avatar: guess.user.image ?? DEFAULT_IMAGE_PROFILE,
           username: guess.user.username,
           points: guess.points,
           rank: index + 1,
-        })
+        };
       }
     });
   return rankingList;
@@ -59,16 +59,16 @@ export async function getOverallRanking(year: number = 2025): Promise<Array<Rank
   });
   const uniqueGuesses = new Map<string, (typeof allGuesses)[0]>();
   for (const guess of allGuesses) {
-    const compositeKey = `${guess.userId}_${guess.dayId}`
+    const compositeKey = `${guess.userId}_${guess.dayId}`;
     if (!uniqueGuesses.has(compositeKey)) {
       uniqueGuesses.set(compositeKey, guess);
     }
   }
   const uniqueUserGuesses = new Map<string, (typeof allGuesses)[0]>();
-  uniqueGuesses.forEach(guess => {
+  uniqueGuesses.forEach((guess) => {
     const currentPoints = uniqueUserGuesses.get(guess.userId)?.points ?? 0;
     uniqueUserGuesses.set(guess.userId, { ...guess, points: currentPoints + guess.points });
-  })
+  });
 
   const rankingList: Array<RankingEntry> = Array.from(uniqueUserGuesses.values())
     .toSorted((pos1, pos2) => {

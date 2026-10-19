@@ -6,23 +6,15 @@ export const teaInfoFormSchema = z
     personName: z.string().trim().min(1, "El nombre es requerido"),
     dayNumber: z.number().min(0, "Día mínimo: 0"),
     teaName: z.string().trim().min(1, "El nombre del té es requerido"),
-    temperature: z
-      .number()
-      .min(30, "Temperatura mínima: 30°C")
-      .max(150, "Temperatura máxima: 150°C"),
-    infusionTime: z
-      .number()
-      .min(1, "Tiempo mínimo: 1 min")
-      .max(30, "Tiempo máximo: 30 min"),
+    temperature: z.number().min(30, "Temperatura mínima: 30°C").max(150, "Temperatura máxima: 150°C"),
+    infusionTime: z.number().min(1, "Tiempo mínimo: 1 min").max(30, "Tiempo máximo: 30 min"),
     hasTheine: z.boolean(),
     addMilk: z.boolean(),
     canReinfuse: z.boolean(),
     reinfuseNumber: z.number().min(0, "Mínimo 0 veces").optional(),
     moreIndications: z.string().optional(),
     storeName: z.string().optional(),
-    urlStore: z
-      .url("URL inválida. Debe empezar por http:// o https://.")
-      .optional(),
+    urlStore: z.url("URL inválida. Debe empezar por http:// o https://.").optional(),
     storyPart1: z.string().optional(),
     storyPart2: z.string().optional(),
     storyPart3: z.string().optional(),
@@ -32,10 +24,7 @@ export const teaInfoFormSchema = z
         try {
           const { hostname } = new URL(url);
           const cleanHostname = hostname.replace(/^www\./, "");
-          return (
-            cleanHostname.startsWith("youtube.com") ||
-            cleanHostname.startsWith("youtu.be")
-          );
+          return cleanHostname.startsWith("youtube.com") || cleanHostname.startsWith("youtu.be");
         } catch {
           return false;
         }
@@ -59,12 +48,7 @@ export const teaInfoFormSchema = z
     keptImagesOrder: z.array(z.coerce.number()).optional(),
     teaId: z.string().optional(),
   })
-  .refine(
-    (data) =>
-      !data.canReinfuse ||
-      (data.canReinfuse && data.reinfuseNumber && data.reinfuseNumber > 0),
-    {
-      error: "Si reinfusiona 0 veces, no reinfusiona.",
-      path: ["reinfuseNumber"],
-    },
-  );
+  .refine((data) => !data.canReinfuse || (data.canReinfuse && data.reinfuseNumber && data.reinfuseNumber > 0), {
+    error: "Si reinfusiona 0 veces, no reinfusiona.",
+    path: ["reinfuseNumber"],
+  });
