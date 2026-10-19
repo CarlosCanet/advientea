@@ -58,6 +58,7 @@
     "eslint": "^9",
     "eslint-config-next": "^16.0.7",
     "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-perfectionist": "^5.12.1",
     "jsdom": "^27.2.0",
     "prettier": "^3.9.10",
     "prisma": "^7.1.0",
