@@ -1,0 +1,7 @@
+# Mechanical commits: git blame skips them when configured with blame.ignoreRevsFile.
+# Enable locally with: git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# style: format codebase with prettier
+f043cd024fa585713a81b806d7e3a8a1226eb762
+# style: sort imports, objects and types
+9efa28ce84cf091d58002746520a0ac7212e8449
