@@ -31,7 +31,7 @@
     "daisyui": "^5.7.50",
     "fastest-levenshtein": "^1.0.16",
     "import-in-the-middle": "^2.0.6",
-    "next": "16.4.2",
+    "next": "^16.4.2",
     "next-cloudinary": "^6.19.3",
     "pg": "^8.23.1",
     "react": "^19.3.1",
