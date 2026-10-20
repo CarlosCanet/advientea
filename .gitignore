@@ -52,3 +52,6 @@ dev.db
 
 # Sentry Config File
 .env.sentry-build-plugin
+
+# lefthook per-machine overrides (e.g. no_tty on Windows)
+lefthook-local.yml
