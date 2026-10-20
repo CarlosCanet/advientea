@@ -9,7 +9,7 @@ export async function setup() {
     throw e;
   }
 
-  console.log("⏳ [Global Setup] Waiting for DB...");  
+  console.log("⏳ [Global Setup] Waiting for DB...");
   const maxRetries = 10;
   let retries = 0;
   let ready = false;
@@ -18,7 +18,7 @@ export async function setup() {
     try {
       execSync("docker exec integration-tests pg_isready -U postgres", { stdio: "ignore" });
       ready = true;
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (e) {
       retries++;
       await new Promise((r) => setTimeout(r, 5000));

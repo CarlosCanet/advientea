@@ -1,3 +1,9 @@
+import { headers } from "next/headers";
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { FaEye } from "react-icons/fa";
+import { FaPencil } from "react-icons/fa6";
+
 import AssignmentSelect from "@/components/ui/AssignmentSelect";
 import ButtonAddDays from "@/components/ui/ButtonAddDays";
 import ButtonDeleteDay from "@/components/ui/ButtonDeleteDay";
@@ -5,11 +11,6 @@ import WaitForDayAssignment from "@/components/ui/WaitForDayAssignment";
 import { Role } from "@/generated/prisma/client";
 import { auth } from "@/lib/auth";
 import { getAllDays, getAllUsers, getDayAssignment } from "@/lib/dal";
-import { headers } from "next/headers";
-import Link from "next/link";
-import { redirect } from "next/navigation";
-import { FaEye } from "react-icons/fa";
-import { FaPencil } from "react-icons/fa6";
 
 async function EditTeaInfo() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -24,7 +25,7 @@ async function EditTeaInfo() {
       return <WaitForDayAssignment />;
     }
   }
-  
+
   const users = await getAllUsers(isUserPrivileged);
   const days = await getAllDays(2025);
 
@@ -32,7 +33,9 @@ async function EditTeaInfo() {
     <div className="flex justify-center">
       <div className="card w-100 lg:w-180 m-5 bg-base-100 shadow-xl p-5 before:content-[''] before:absolute before:inset-0 before:bg-[url('/BackgroundSemiCircleLeaves.svg')] before:bg-no-repeat before:opacity-15 before:pointer-events-none">
         <div className="flex gap-5 w-full justify-center items-center">
-          <div className="text-center text-xl font-bold tracking-tight text-heading md:text-3xl lg:text-4xl">Lista para GerenTés</div>
+          <div className="text-center text-xl font-bold tracking-tight text-heading md:text-3xl lg:text-4xl">
+            Lista para GerenTés
+          </div>
           <ButtonAddDays daysNumber={days.length} />
         </div>
         <div className="overflow-x-auto">
@@ -51,12 +54,26 @@ async function EditTeaInfo() {
                   <tr key={day.id}>
                     <th>{day.dayNumber}</th>
                     <td>
-                      {<AssignmentSelect key={`${day.id}-${day.assignment?.user?.id ?? day.assignment?.guestName}`} dayId={day.id} userId={day.assignment?.user?.id ?? ""} users={users} guestName={day.assignment?.guestName ?? undefined} />}
+                      {
+                        <AssignmentSelect
+                          dayId={day.id}
+                          guestName={day.assignment?.guestName ?? undefined}
+                          key={`${day.id}-${day.assignment?.user?.id ?? day.assignment?.guestName}`}
+                          userId={day.assignment?.user?.id ?? ""}
+                          users={users}
+                        />
+                      }
                     </td>
-                    <td><Link href={`/edit-tea-info/${day.tea?.id}`}>{day.tea?.name}</Link></td>
+                    <td>
+                      <Link href={`/edit-tea-info/${day.tea?.id}`}>{day.tea?.name}</Link>
+                    </td>
                     <td className="flex gap-3 items-center justify-center flex-nowrap">
-                      <Link href={`/teaDay/${day.id}?simulated=true`}><FaEye /></Link>
-                      <Link href={`/edit-tea-info/${day.tea?.id}`}><FaPencil /></Link>
+                      <Link href={`/teaDay/${day.id}?simulated=true`}>
+                        <FaEye />
+                      </Link>
+                      <Link href={`/edit-tea-info/${day.tea?.id}`}>
+                        <FaPencil />
+                      </Link>
                       <ButtonDeleteDay dayId={day.id} />
                     </td>
                   </tr>

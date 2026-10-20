@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from "vitest";
+
 import { Role } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/prisma";
 
@@ -16,5 +17,5 @@ describe("Integration test test", () => {
     expect(execUsers[0].username).toBe("Deinos");
     expect(execUsers[0].email).toBe("jorgedeinos@gmail.com");
     expect(execUsers[0].image).toBe("94_dtpyjy");
-  })
+  });
 });

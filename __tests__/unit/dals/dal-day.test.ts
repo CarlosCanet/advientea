@@ -1,59 +1,60 @@
-import { prismaMock } from '@/lib/__mocks__/prisma';
-import { describe, expect, it, vi, beforeAll } from 'vitest'
+import { beforeAll, describe, expect, it, vi } from "vitest";
+
 import { Day, Prisma, TeaType } from "@/generated/prisma/client";
+import { prismaMock } from "@/lib/__mocks__/prisma";
 import {
-  getDay,
-  getAllDays,
+  add25Days,
   addDay,
   addNextDay,
-  add25Days,
-  editDay,
-  deleteDay,
-  DayWithTeaComplete,
   DayWithAssignmentAndTeaComplete,
+  DayWithTeaComplete,
+  deleteDay,
+  editDay,
+  getAllDays,
+  getDay,
 } from "@/lib/dal/dal-day";
 
 describe("DAL Day", () => {
   beforeAll(() => {
-    vi.spyOn(console, "error").mockImplementation(() => { });
+    vi.spyOn(console, "error").mockImplementation(() => {});
   });
 
   describe("getDay", () => {
     const mockDayComplete: DayWithTeaComplete = {
-      id: "day-1",
-      dayNumber: 1,
-      year: 2025,
       createdAt: new Date(),
-      updatedAt: new Date(),
+      dayNumber: 1,
+      id: "day-1",
       tea: {
-        id: "tea-1",
-        dayId: "day-1",
-        name: "Test Tea",
-        teaType: TeaType.GREEN,
-        infusionTime: 3,
-        temperature: 80,
-        hasTheine: true,
-        canReinfuse: false,
-        reinfuseNumber: null,
-        moreIndications: null,
         addMilk: false,
-        storeName: null,
-        url: null,
+        canReinfuse: false,
         createdAt: new Date(),
-        updatedAt: new Date(),
+        dayId: "day-1",
+        hasTheine: true,
+        id: "tea-1",
+        infusionTime: 3,
+        moreIndications: null,
+        name: "Test Tea",
+        reinfuseNumber: null,
+        storeName: null,
         story: {
+          createdAt: new Date(),
           id: "story-1",
-          teaId: "tea-1",
+          images: [],
+          onlyMusic: false,
           storyPart1: "Text",
           storyPart2: null,
           storyPart3: null,
-          youtubeURL: null,
-          onlyMusic: false,
-          createdAt: new Date(),
+          teaId: "tea-1",
           updatedAt: new Date(),
-          images: [],
+          youtubeURL: null,
         },
+        teaType: TeaType.GREEN,
+        temperature: 80,
+        updatedAt: new Date(),
+        url: null,
       },
+      updatedAt: new Date(),
+      year: 2025,
     };
 
     it("should get day by UUID string", async () => {
@@ -65,7 +66,7 @@ describe("DAL Day", () => {
       expect(prismaMock.day.findUnique).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: "day-1" },
-        })
+        }),
       );
     });
 
@@ -78,7 +79,7 @@ describe("DAL Day", () => {
       expect(prismaMock.day.findUnique).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { dayNumber_year: { dayNumber: 1, year: 2025 } },
-        })
+        }),
       );
     });
 
@@ -92,8 +93,24 @@ describe("DAL Day", () => {
   describe("getAllDays", () => {
     it("should return array of days ordered by number", async () => {
       const mockDays: DayWithAssignmentAndTeaComplete[] = [
-        { id: "day-1", dayNumber: 1, year: 2025, tea: null, assignment: null, createdAt: new Date(), updatedAt: new Date() },
-        { id: "day-2", dayNumber: 2, year: 2025, tea: null, assignment: null, createdAt: new Date(), updatedAt: new Date() },
+        {
+          assignment: null,
+          createdAt: new Date(),
+          dayNumber: 1,
+          id: "day-1",
+          tea: null,
+          updatedAt: new Date(),
+          year: 2025,
+        },
+        {
+          assignment: null,
+          createdAt: new Date(),
+          dayNumber: 2,
+          id: "day-2",
+          tea: null,
+          updatedAt: new Date(),
+          year: 2025,
+        },
       ];
 
       prismaMock.day.findMany.mockResolvedValue(mockDays);
@@ -103,9 +120,9 @@ describe("DAL Day", () => {
       expect(result).toHaveLength(2);
       expect(prismaMock.day.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { year: 2025 },
           orderBy: { dayNumber: "asc" },
-        })
+          where: { year: 2025 },
+        }),
       );
     });
   });
@@ -113,11 +130,11 @@ describe("DAL Day", () => {
   describe("addDay", () => {
     it("should create day successfully", async () => {
       const mockCreatedDay: Day = {
-        id: "day-new",
-        dayNumber: 5,
-        year: 2025,
         createdAt: new Date(),
+        dayNumber: 5,
+        id: "day-new",
         updatedAt: new Date(),
+        year: 2025,
       };
       prismaMock.day.create.mockResolvedValue(mockCreatedDay);
 
@@ -126,7 +143,10 @@ describe("DAL Day", () => {
     });
 
     it("should return null (and log error) on P2002 unique constraint violation", async () => {
-      const p2002Error = new Prisma.PrismaClientKnownRequestError("Unique constraint failed", { code: "P2002", clientVersion: "1" });
+      const p2002Error = new Prisma.PrismaClientKnownRequestError("Unique constraint failed", {
+        clientVersion: "1",
+        code: "P2002",
+      });
       prismaMock.day.create.mockRejectedValue(p2002Error);
       const result = await addDay(5, 2025);
 
@@ -145,19 +165,19 @@ describe("DAL Day", () => {
   describe("addNextDay", () => {
     it("should increment max day number", async () => {
       prismaMock.day.aggregate.mockResolvedValue({
+        _avg: {},
+        _count: {},
         _max: { dayNumber: 4 },
         _min: {},
-        _avg: {},
         _sum: {},
-        _count: {},
       });
 
       const mockNewDay: Day = {
-        id: "day-5",
-        dayNumber: 5,
-        year: 2025,
         createdAt: new Date(),
+        dayNumber: 5,
+        id: "day-5",
         updatedAt: new Date(),
+        year: 2025,
       };
       prismaMock.day.create.mockResolvedValue(mockNewDay);
 
@@ -170,11 +190,11 @@ describe("DAL Day", () => {
 
     it("should start at 1 if no days exist", async () => {
       prismaMock.day.aggregate.mockResolvedValue({
+        _avg: {},
+        _count: {},
         _max: { dayNumber: null },
         _min: {},
-        _avg: {},
         _sum: {},
-        _count: {},
       });
 
       await addNextDay(2025);
@@ -186,14 +206,17 @@ describe("DAL Day", () => {
 
     it("should handle P2002 conflict in addNextDay", async () => {
       prismaMock.day.aggregate.mockResolvedValue({
+        _avg: {},
+        _count: {},
         _max: { dayNumber: 4 },
         _min: {},
-        _avg: {},
         _sum: {},
-        _count: {},
       });
 
-      const p2002Error = new Prisma.PrismaClientKnownRequestError("Unique constraint", { code: "P2002", clientVersion: "1" });
+      const p2002Error = new Prisma.PrismaClientKnownRequestError("Unique constraint", {
+        clientVersion: "1",
+        code: "P2002",
+      });
       prismaMock.day.create.mockRejectedValue(p2002Error);
 
       const result = await addNextDay(2025);
@@ -217,15 +240,15 @@ describe("DAL Day", () => {
       });
     });
   });
-  
+
   describe("editDay", () => {
     it("should update a day successfully", async () => {
       const mockUpdatedDay: Day = {
-        id: "day-1",
-        dayNumber: 10,
-        year: 2025,
         createdAt: new Date(),
+        dayNumber: 10,
+        id: "day-1",
         updatedAt: new Date(),
+        year: 2025,
       };
 
       prismaMock.day.update.mockResolvedValue(mockUpdatedDay);
@@ -234,35 +257,33 @@ describe("DAL Day", () => {
       const result = await editDay(updateData, "day-1");
 
       expect(result).toEqual(mockUpdatedDay);
-      
+
       expect(prismaMock.day.update).toHaveBeenCalledWith({
-        where: { id: "day-1" },
         data: updateData,
+        where: { id: "day-1" },
       });
     });
 
     it("should throw error if day to update does not exist", async () => {
-      const p2025Error = new Prisma.PrismaClientKnownRequestError(
-        "Record to update not found.",
-        { code: "P2025", clientVersion: "1" }
-      );
-      
+      const p2025Error = new Prisma.PrismaClientKnownRequestError("Record to update not found.", {
+        clientVersion: "1",
+        code: "P2025",
+      });
+
       prismaMock.day.update.mockRejectedValue(p2025Error);
 
-      await expect(editDay({ dayNumber: 20 }, "missing-id"))
-        .rejects
-        .toThrow("Record to update not found.");
+      await expect(editDay({ dayNumber: 20 }, "missing-id")).rejects.toThrow("Record to update not found.");
     });
   });
 
   describe("deleteDay", () => {
     it("should delete day and return relations", async () => {
       const mockDeleted: Day = {
-        id: "day-1",
-        dayNumber: 1,
-        year: 2025,
         createdAt: new Date(),
+        dayNumber: 1,
+        id: "day-1",
         updatedAt: new Date(),
+        year: 2025,
       };
       prismaMock.day.delete.mockResolvedValue(mockDeleted);
 
@@ -270,9 +291,9 @@ describe("DAL Day", () => {
 
       expect(prismaMock.day.delete).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { id: "day-1" },
           include: expect.anything(),
-        })
+          where: { id: "day-1" },
+        }),
       );
     });
   });

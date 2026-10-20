@@ -145,11 +145,11 @@ const INGREDIENTS = [
 export async function seedIngredients() {
   for (const name of INGREDIENTS) {
     await prisma.teaIngredient.upsert({
-      where: { name },
       create: { name },
       update: {},
+      where: { name },
     });
   }
 }
 
-seedIngredients()
+seedIngredients();

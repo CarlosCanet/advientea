@@ -1,0 +1,6 @@
+# Toolchain pins for local development and CI (jdx/mise-action reads this file).
+# Vercel does not read mise: it builds with Node 24.x (project setting) and pnpm 10.x
+# (chosen from the lockfile; pnpm 11+ is not supported there), so these must match it.
+[tools]
+node = "24"
+pnpm = "10.28.2"

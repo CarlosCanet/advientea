@@ -1,9 +1,10 @@
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+
 import AddTeaInfoForm from "@/components/AddTeaInfoForm";
 import { Role } from "@/generated/prisma/client";
 import { auth } from "@/lib/auth";
 import { getAllDayAssignment, getAllUsers, getDayAssignment } from "@/lib/dal";
-import { headers } from "next/headers";
-import { redirect } from "next/navigation";
 
 async function AddTeaInfo() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -15,18 +16,24 @@ async function AddTeaInfo() {
     if (isUserPrivileged) {
       const allAssignments = await getAllDayAssignment();
       const allUsers = await getAllUsers(isUserPrivileged);
-      const usersWithAssignments = allAssignments.map(assignment => assignment.user?.username);
-      users = allUsers.map(user => user.username).filter(user => !usersWithAssignments.includes(user));
+      const usersWithAssignments = allAssignments.map((assignment) => assignment.user?.username);
+      users = allUsers.map((user) => user.username).filter((user) => !usersWithAssignments.includes(user));
     }
-    if (assignment &&  assignment.day.tea) {
-      redirect("/edit-tea-info")
+    if (assignment && assignment.day.tea) {
+      redirect("/edit-tea-info");
     }
   }
 
   return (
     <>
       <div className="flex justify-center">
-        <AddTeaInfoForm username={session?.user.name ?? ""} dayNumber={assignment?.day.dayNumber ?? 0} isLoggedIn={!!session?.user} canAssign={isUserPrivileged} users={users} />
+        <AddTeaInfoForm
+          canAssign={isUserPrivileged}
+          dayNumber={assignment?.day.dayNumber ?? 0}
+          isLoggedIn={!!session?.user}
+          username={session?.user.name ?? ""}
+          users={users}
+        />
       </div>
     </>
   );

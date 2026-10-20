@@ -2,10 +2,12 @@ import { Prisma, Role, User } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 
 export type UserBasic = Prisma.UserGetPayload<{ select: { id: true; username: true } }>;
-type UserBase = Prisma.UserGetPayload<{ select: { id: true; username: true; image: true; daysAssigned: { include: { day: true } } } }>;
-type SafeUser = UserBase & { email?: string | null; role?: Role };
+type UserBase = Prisma.UserGetPayload<{
+  select: { daysAssigned: { include: { day: true } }; id: true; image: true; username: true };
+}>;
+type SafeUser = UserBase & { email?: null | string; role?: Role };
 export type UserWithDayAssignedDay = Prisma.UserGetPayload<{
-  select: { id: true; username: true; image: true; email: true; role: true; daysAssigned: { include: { day: true } } };
+  select: { daysAssigned: { include: { day: true } }; email: true; id: true; image: true; role: true; username: true };
 }>;
 
 export async function getUser(email: string): Promise<User> {
@@ -19,23 +21,30 @@ export async function getUser(email: string): Promise<User> {
 export async function getAllUsers(isAdmin: boolean): Promise<Array<UserWithDayAssignedDay>> {
   const data = await prisma.user.findMany({
     orderBy: { username: "asc" },
-    select: { id: true, username: true, image: true, email: isAdmin, role: isAdmin, daysAssigned: { include: { day: true } } },
+    select: {
+      daysAssigned: { include: { day: true } },
+      email: isAdmin,
+      id: true,
+      image: true,
+      role: isAdmin,
+      username: true,
+    },
   });
   return data;
 }
 
 export async function editUser(id: string, data: Prisma.UserUpdateInput): Promise<User> {
   const updated = await prisma.user.update({
-    where: { id },
     data: data,
+    where: { id },
   });
   return updated;
 }
 
 export async function changeUserRole(id: string, role: Role): Promise<User> {
   const result = await prisma.user.update({
-    where: { id },
     data: { role },
+    where: { id },
   });
   return result;
 }

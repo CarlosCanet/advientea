@@ -1,34 +1,40 @@
+import { Prisma } from "@/generated/prisma/client";
 import { TeaGuessCreateInput, TeaGuessGetPayload } from "@/generated/prisma/models";
 import { prisma } from "@/lib/prisma";
+
 import { TeaGuessFormData } from "../types";
-import { Prisma } from "@/generated/prisma/client";
 
 export type TeaGuessWithIngredients = TeaGuessGetPayload<{ include: { guessedIngredients: true } }>;
 
-export async function getLastGuess(userId: string, dayId: string): Promise<TeaGuessWithIngredients | null> {
+export async function getLastGuess(userId: string, dayId: string): Promise<null | TeaGuessWithIngredients> {
   const result = await prisma.teaGuess.findFirst({
-    where: { dayId, userId },
     include: { guessedIngredients: true },
     orderBy: { createdAt: "desc" },
+    where: { dayId, userId },
   });
   return result;
 }
 
 export async function getAllGuesses(userId: string, dayId: string): Promise<Array<TeaGuessWithIngredients>> {
   const result = await prisma.teaGuess.findMany({
-    where: { dayId, userId },
     include: { guessedIngredients: true },
     orderBy: { createdAt: "desc" },
-  })
+    where: { dayId, userId },
+  });
   return result;
 }
 
-export async function createTeaGuess(userId: string, dayId: string, guessData: TeaGuessFormData, points: number): Promise<TeaGuessWithIngredients | null>{
+export async function createTeaGuess(
+  userId: string,
+  dayId: string,
+  guessData: TeaGuessFormData,
+  points: number,
+): Promise<null | TeaGuessWithIngredients> {
   const newGuess: TeaGuessCreateInput = {
     day: { connect: { id: dayId } },
+    points,
     user: { connect: { id: userId } },
-    points
-  }
+  };
 
   if (guessData.teaName) {
     newGuess.guessedTeaName = guessData.teaName;
@@ -38,9 +44,8 @@ export async function createTeaGuess(userId: string, dayId: string, guessData: T
     newGuess.guessedTeaType = guessData.teaType;
   }
 
-
   if (guessData.ingredients && guessData.ingredients.length > 0) {
-    newGuess.guessedIngredients = { connect: guessData.ingredients.map(ingredientId => ({ id: ingredientId })) };
+    newGuess.guessedIngredients = { connect: guessData.ingredients.map((ingredientId) => ({ id: ingredientId })) };
   }
 
   if (guessData.personName) {
@@ -52,7 +57,7 @@ export async function createTeaGuess(userId: string, dayId: string, guessData: T
     return result;
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2025') {
+      if (error.code === "P2025") {
         return null;
       }
     }

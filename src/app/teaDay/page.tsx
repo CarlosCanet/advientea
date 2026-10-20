@@ -1,12 +1,13 @@
+import { headers } from "next/headers";
+import Link from "next/link";
+import { BsCupHot, BsCupHotFill } from "react-icons/bs";
+import { MdBackHand } from "react-icons/md";
+
 import TeaInfusionInfo from "@/components/ui/TeaInfusionInfo";
 import { Role } from "@/generated/prisma/enums";
 import { getAdvienteaDayState, isDateTodayOrPast } from "@/lib/advientea-rules";
 import { auth } from "@/lib/auth";
 import { getAllDays } from "@/lib/dal";
-import { headers } from "next/headers";
-import Link from "next/link";
-import { BsCupHot, BsCupHotFill } from "react-icons/bs";
-import { MdBackHand } from "react-icons/md";
 
 export default async function DaysList() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -37,44 +38,49 @@ export default async function DaysList() {
               </div>
             </div>
             <div className="list-col-grow">
-              <div className="font-[Griffy] text-lg">Vuelve el 1 de <br /> diciembre de 2025</div>
+              <div className="font-[Griffy] text-lg">
+                Vuelve el 1 de <br /> diciembre de 2025
+              </div>
             </div>
-              <MdBackHand />
+            <MdBackHand />
           </li>
         )}
-        {days.toSorted((day1,day2) => day2.dayNumber - day1.dayNumber).map((day) => {
-          const advienteaDayState = getAdvienteaDayState(day.dayNumber, day.year, session?.user.role as Role, false);
-          const assigneeName = day.assignment?.guestName ?? day.assignment?.user?.username;
-          const advienteaDayTitle = isNameReleased && assigneeName ? `${day.tea?.name} - ${assigneeName}` : day.tea?.name;
-          return (
-            <li key={day.id} className="rounded-none border-b border-b-secondary/70">
-              <Link href={`teaDay/${day.id}`} className="list-row items-center justify-center text-center gap-1 ">
-                <div className="flex flex-col items-center rounded-lg shadow-md overflow-hidden border border-base-200">
-                  {/* Calendar header */}
-                  <div className="w-full h-2 bg-secondary"></div>
+        {days
+          .toSorted((day1, day2) => day2.dayNumber - day1.dayNumber)
+          .map((day) => {
+            const advienteaDayState = getAdvienteaDayState(day.dayNumber, day.year, session?.user.role as Role, false);
+            const assigneeName = day.assignment?.guestName ?? day.assignment?.user?.username;
+            const advienteaDayTitle =
+              isNameReleased && assigneeName ? `${day.tea?.name} - ${assigneeName}` : day.tea?.name;
+            return (
+              <li className="rounded-none border-b border-b-secondary/70" key={day.id}>
+                <Link className="list-row items-center justify-center text-center gap-1 " href={`teaDay/${day.id}`}>
+                  <div className="flex flex-col items-center rounded-lg shadow-md overflow-hidden border border-base-200">
+                    {/* Calendar header */}
+                    <div className="w-full h-2 bg-secondary"></div>
 
-                  {/* Calendar day */}
-                  <div className="flex items-center justify-center px-2 py-2 ">
-                    <span className="text-lg font-bold text-base-content tabular-nums leading-none">{day.dayNumber.toString().padStart(2, "0")}</span>
+                    {/* Calendar day */}
+                    <div className="flex items-center justify-center px-2 py-2 ">
+                      <span className="text-lg font-bold text-base-content tabular-nums leading-none">
+                        {day.dayNumber.toString().padStart(2, "0")}
+                      </span>
+                    </div>
                   </div>
-                </div>
-                <div className="list-col-grow">
-                  {advienteaDayState.isTeaReleased ? (
-                    <div className="font-[Griffy] text-md">{advienteaDayTitle}</div>
-                  ): (
-                    <div className="skeleton skeleton-text font-[Griffy] text-lg">Té desconocido</div>
-                  )}
-                  {day.tea && advienteaDayState.isPart1Released &&
-                    <TeaInfusionInfo tea={day.tea} hasMoreIndication={false} xs={true} />
-                  }
-                </div>
-                <div className="text-2xl">
-                  {day.dayNumber % 2 === 0 ? <BsCupHot /> : <BsCupHotFill />}
-                </div>
-              </Link>
-            </li>
-          );
-        })}
+                  <div className="list-col-grow">
+                    {advienteaDayState.isTeaReleased ? (
+                      <div className="font-[Griffy] text-md">{advienteaDayTitle}</div>
+                    ) : (
+                      <div className="skeleton skeleton-text font-[Griffy] text-lg">Té desconocido</div>
+                    )}
+                    {day.tea && advienteaDayState.isPart1Released && (
+                      <TeaInfusionInfo hasMoreIndication={false} tea={day.tea} xs={true} />
+                    )}
+                  </div>
+                  <div className="text-2xl">{day.dayNumber % 2 === 0 ? <BsCupHot /> : <BsCupHotFill />}</div>
+                </Link>
+              </li>
+            );
+          })}
       </ul>
     </div>
   );

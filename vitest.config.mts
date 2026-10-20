@@ -1,30 +1,29 @@
-import { defineConfig } from 'vitest/config'
-import react from '@vitejs/plugin-react'
-import tsconfigPaths from 'vite-tsconfig-paths'
+import react from "@vitejs/plugin-react";
+import { defineConfig } from "vitest/config";
 
 export default defineConfig({
-  plugins: [tsconfigPaths(), react()],
+  plugins: [react()],
+  // Vite 8 resolves tsconfig `paths` natively; it replaced the vite-tsconfig-paths plugin.
+  resolve: { tsconfigPaths: true },
   test: {
-    environment: 'jsdom',
+    environment: "jsdom",
     projects: [
       {
-        extends: true,
         test: {
+          include: ["__tests__/unit/**/*.test.{ts,tsx}"],
           name: "unit",
-          include: ["__tests__/unit/**/*.test.ts"]
-        }
+        },
       },
       {
-        extends: true,
         test: {
-          name: "integration",
-          include: ["__tests__/integration/**/*.test.ts"],
-          globalSetup: ["src/lib/tests/global-setup.ts"],
-          setupFiles: ["src/lib/tests/setup.ts"],
           fileParallelism: false,
-          maxWorkers: 1
-        }
-      }
-    ]
+          globalSetup: ["src/lib/tests/global-setup.ts"],
+          include: ["__tests__/integration/**/*.test.ts"],
+          maxWorkers: 1,
+          name: "integration",
+          setupFiles: ["src/lib/tests/setup.ts"],
+        },
+      },
+    ],
   },
-})
+});

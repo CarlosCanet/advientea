@@ -1,11 +1,11 @@
 import { Role } from "@/generated/prisma/enums";
 
 export interface AdvienteaDayState {
-  isReleased: boolean;
   isPart1Released: boolean;
   isPart2Released: boolean;
   isPart3Released: boolean;
   isPersonNameReleased: boolean;
+  isReleased: boolean;
   isTeaReleased: boolean;
 }
 
@@ -31,22 +31,27 @@ export function isDateTodayOrPast(targetDate: Date): boolean {
   return today >= target;
 }
 
-export function getAdvienteaDayState(dayNumber: number, year: number, userRole: Role, isSimulated = false): AdvienteaDayState {
+export function getAdvienteaDayState(
+  dayNumber: number,
+  year: number,
+  userRole: Role,
+  isSimulated = false,
+): AdvienteaDayState {
   const HOURS = {
+    NAME: 20,
     PART1: 7,
     PART2: 13,
     PART3: 18,
     TEA: 20,
-    NAME: 20,
   };
   const RELEASE_NAME_DAY = new Date(year, 11, 21);
 
   const state: AdvienteaDayState = {
-    isReleased: false,
     isPart1Released: false,
     isPart2Released: false,
     isPart3Released: false,
     isPersonNameReleased: false,
+    isReleased: false,
     isTeaReleased: false,
   };
 
@@ -61,9 +66,9 @@ export function getAdvienteaDayState(dayNumber: number, year: number, userRole: 
 
   const isDayReached = today >= effectiveDate;
   const isPastDate = isDatePast(effectiveDate);
-  
+
   state.isReleased = isDayReached;
-  
+
   if (isPastDate && !isSimulated) {
     state.isPart1Released = true;
     state.isPart2Released = true;
@@ -76,7 +81,8 @@ export function getAdvienteaDayState(dayNumber: number, year: number, userRole: 
     state.isTeaReleased = currentHour >= HOURS.TEA;
   }
 
-  state.isPersonNameReleased = isDatePast(RELEASE_NAME_DAY) || (isDateTodayOrPast(RELEASE_NAME_DAY) && currentHour >= HOURS.NAME);
+  state.isPersonNameReleased =
+    isDatePast(RELEASE_NAME_DAY) || (isDateTodayOrPast(RELEASE_NAME_DAY) && currentHour >= HOURS.NAME);
 
   return state;
 }

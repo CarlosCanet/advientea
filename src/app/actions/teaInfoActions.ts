@@ -1,97 +1,71 @@
 "use server";
-import { z } from "zod";
-import { uploadImageCloudinary } from "./uploadActions";
-import { TeaInfoActionResponse, TeaInfoFormData } from "@/lib/types";
-import { getFormBoolean, getFormFilesByPrefix, getFormNumber, getFormString } from "./commonActions";
-import { add25Days, addDay, addDayAssignment, addStoryImage, addStoryTea, addTea, deleteDay, deleteStoryImage, editStoryTea, editTea, getTea } from "@/lib/dal";
-import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
+import { z } from "zod";
 
-// Schema de validación con Zod
-const TeaInfoFormSchema = z.object({
-  personName: z.string().trim().min(1, "El nombre es requerido"),
-  dayNumber: z.number().min(0, "Día mínimo: 0"),
-  teaName: z.string().trim().min(1, "El nombre del té es requerido"),
-  temperature: z.number().min(30, "Temperatura mínima: 30°C").max(150, "Temperatura máxima: 150°C"),
-  infusionTime: z.number().min(1, "Tiempo mínimo: 1 min").max(30, "Tiempo máximo: 30 min"),
-  hasTheine: z.boolean(),
-  addMilk: z.boolean(),
-  canReinfuse: z.boolean(),
-  reinfuseNumber: z.number().min(0, "Mínimo 0 veces").optional(),
-  moreIndications: z.string().optional(),
-  storeName: z.string().optional(),
-  urlStore: z.url("URL inválida. Debe empezar por http:// o https://.").optional(),
-  storyPart1: z.string().optional(),
-  storyPart2: z.string().optional(),
-  storyPart3: z.string().optional(),
-  youtubeURL: z
-    .url("Debe ser una URL válida que empiece por http:// o https://.")
-    .refine(url => {
-      try {
-        const { hostname } = new URL(url);
-        const cleanHostname = hostname.replace(/^www\./, "")
-        return cleanHostname.startsWith("youtube.com") || cleanHostname.startsWith("youtu.be");
-      } catch {
-        return false;
-      }
-    }, "Sólo URL de youtube.com o youtu.be")
-    .optional(),
-  onlyMusic: z.boolean(),
-  images: z
-    .array(
-      z
-        .file()
-        .max(2 * 1024 * 1024, { error: "Tamaño de imagen demasiado grande (max 2 MB)." })
-        .mime(["image/jpeg", "image/png", "image/gif", "image/svg+xml", "image/webp"], {
-          error: "Formato de archivo no permitido.",
-        })
-    )
-    .optional(),
-  imagesOrder: z.array(z.coerce.number()).optional(),
-  keptImages: z.array(z.string()).optional(),
-  keptImagesOrder: z.array(z.coerce.number()).optional(),
-  deleteImages: z.array(z.string()).optional(),
-  teaId: z.string().optional(),
-}).refine(data => (!data.canReinfuse || data.canReinfuse && data.reinfuseNumber && data.reinfuseNumber > 0), { 
-    error: "Si reinfusiona 0 veces, no reinfusiona.",
-    path: ["reinfuseNumber"],
-});
+import { Prisma } from "@/generated/prisma/client";
+import { Role } from "@/generated/prisma/enums";
+import { deleteAsset } from "@/lib/cloudinary";
+import { uploadImageFile } from "@/lib/cloudinary";
+import {
+  add25Days,
+  addDay,
+  addDayAssignment,
+  addStoryImage,
+  addStoryTea,
+  addTea,
+  deleteDay,
+  deleteDayAssignmentByDay,
+  editStoryTea,
+  editTea,
+  getDayAssignmentByUserId,
+  getTea,
+  replaceStoryImages,
+  requireRole,
+  requireSession,
+  StoryImageSlot,
+  upsertDayAssignment,
+  verifySession,
+} from "@/lib/dal";
+import { ForbiddenError, UnauthenticatedError } from "@/lib/errors";
+import { teaInfoFormSchema } from "@/lib/schemas/tea";
+import { ActionResponse, TeaInfoActionResponse, TeaInfoFormData } from "@/lib/types";
 
-export async function addTeaInfo(prevState: TeaInfoActionResponse | null, formData: FormData): Promise<TeaInfoActionResponse> {
+import { getFormBoolean, getFormFilesByPrefix, getFormNumber, getFormString } from "./commonActions";
+
+export async function addTeaInfo(
+  prevState: null | TeaInfoActionResponse,
+  formData: FormData,
+): Promise<TeaInfoActionResponse> {
   try {
+    const { isAuth, userId } = await verifySession();
     const rawData: TeaInfoFormData = {
-      personName: getFormString(formData, "personName"),
-      dayNumber: getFormNumber(formData, "dayNumber"),
-      teaName: getFormString(formData, "teaName"),
-      temperature: getFormNumber(formData, "temperature"),
-      infusionTime: getFormNumber(formData, "infusionTime"),
-      hasTheine: getFormBoolean(formData, "hasTheine"),
       addMilk: getFormBoolean(formData, "addMilk"),
       canReinfuse: getFormBoolean(formData, "canReinfuse"),
-      reinfuseNumber: getFormNumber(formData, "reinfuseNumber") || undefined,
+      dayNumber: getFormNumber(formData, "dayNumber"),
+      hasTheine: getFormBoolean(formData, "hasTheine"),
+      images: getFormFilesByPrefix(formData, "image"),
+      infusionTime: getFormNumber(formData, "infusionTime"),
       moreIndications: getFormString(formData, "moreIndications") || undefined,
+      onlyMusic: getFormBoolean(formData, "onlyMusic"),
+      personName: getFormString(formData, "personName"),
+      reinfuseNumber: getFormNumber(formData, "reinfuseNumber") || undefined,
       storeName: getFormString(formData, "storeName") || undefined,
-      urlStore: getFormString(formData, "urlStore") || undefined,
       storyPart1: getFormString(formData, "storyPart1"),
       storyPart2: getFormString(formData, "storyPart2"),
       storyPart3: getFormString(formData, "storyPart3"),
+      teaName: getFormString(formData, "teaName"),
+      temperature: getFormNumber(formData, "temperature"),
+      urlStore: getFormString(formData, "urlStore") || undefined,
       youtubeURL: getFormString(formData, "youtubeURL") || undefined,
-      onlyMusic: getFormBoolean(formData, "onlyMusic"),
-      images: getFormFilesByPrefix(formData, "image"),
     };
-    const validatedFields = TeaInfoFormSchema.safeParse(rawData);
+    const validatedFields = teaInfoFormSchema.safeParse(rawData);
 
     if (!validatedFields.success) {
-      const myErrors = z.treeifyError(validatedFields.error);
-      console.log("Validation errors:");
-      console.dir(myErrors, { depth: null });
       return {
-        success: false,
-        message: "Hay errores en el formulario",
         errors: z.treeifyError(validatedFields.error),
         inputs: rawData,
+        message: "Hay errores en el formulario",
+        success: false,
       };
     }
 
@@ -103,39 +77,46 @@ export async function addTeaInfo(prevState: TeaInfoActionResponse | null, formDa
     }
     const teaCreated = await addTea(
       {
-        name: data.teaName,
-        infusionTime: data.infusionTime,
-        temperature: data.temperature,
-        hasTheine: data.hasTheine,
-        canReinfuse: data.canReinfuse,
-        reinfuseNumber: data.reinfuseNumber,
-        moreIndications: data.moreIndications,
         addMilk: data.addMilk,
+        canReinfuse: data.canReinfuse,
+        hasTheine: data.hasTheine,
+        infusionTime: data.infusionTime,
+        moreIndications: data.moreIndications,
+        name: data.teaName,
+        reinfuseNumber: data.reinfuseNumber,
         storeName: data.storeName,
+        temperature: data.temperature,
         url: data.urlStore,
       },
       [],
-      day
+      day,
     );
     if (!teaCreated) {
       throw new Error("Cannot create tea");
     }
-    if (data.storyPart1 || data.storyPart2 || data.storyPart3 || data.youtubeURL || data.onlyMusic || (data.images && data.images.length > 0)) {
+    if (
+      data.storyPart1 ||
+      data.storyPart2 ||
+      data.storyPart3 ||
+      data.youtubeURL ||
+      data.onlyMusic ||
+      (data.images && data.images.length > 0)
+    ) {
       const storyCreated = await addStoryTea(
         {
+          onlyMusic: data.onlyMusic,
           storyPart1: data.storyPart1,
           storyPart2: data.storyPart2,
           storyPart3: data.storyPart3,
           youtubeURL: data.youtubeURL,
-          onlyMusic: data.onlyMusic,
         },
-        teaCreated.id
+        teaCreated.id,
       );
       if (!storyCreated) {
         throw new Error("Cannot create story tea");
       }
       if (data.images) {
-        const publicIds = await Promise.all(data.images.map(async (image) => await uploadImageCloudinary(image, "teaDay")));
+        const publicIds = await Promise.all(data.images.map(async (image) => await uploadImageFile(image, "teaDay")));
         for (const [i, publicId] of publicIds.entries()) {
           if (publicId) {
             await addStoryImage(publicId, i, storyCreated.id);
@@ -143,219 +124,252 @@ export async function addTeaInfo(prevState: TeaInfoActionResponse | null, formDa
         }
       }
     }
-    const session = await auth.api.getSession({ headers: await headers() });
-    const dayAssignmentCreated = session
-      ? await addDayAssignment({ userId: session.user.id }, day)
+
+    const dayAssignmentCreated = isAuth
+      ? await addDayAssignment({ userId: userId }, day)
       : await addDayAssignment({ guestName: data.personName }, day);
     if (!dayAssignmentCreated) {
-      throw new Error(`Cannot create dayAssignment for user ${session ? session.user.id : data.personName} in day with id ${teaCreated.dayId}`);
+      throw new Error(
+        `Cannot create dayAssignment for user ${isAuth ? userId : data.personName} in day with id ${teaCreated.dayId}`,
+      );
     }
-    console.log(`Tea with name ${data.teaName} for day ${day}/2025 added successfully.`);
     return {
+      message: "Té guardado",
       success: true,
-      message: "Tea created successfully",
     };
-  } catch (error) {
-    console.error("Validation error:", error);
-    let errorMsg = "";
-    if (error && typeof error === "object" && "message" in error) {
-      errorMsg = error.message === "User already exists. Use another email." ? "Ya existe un usuario con ese email" : (error.message as string);
+  } catch (error: unknown) {
+    const isGuardError = error instanceof UnauthenticatedError || error instanceof ForbiddenError;
+    if (isGuardError) {
+      console.warn(`[addTeaInfo] rejected: ${error.name} — ${error.message}`);
+    } else {
+      console.error("[addTeaInfo] unexpected error", error);
     }
+    const message = isGuardError ? error.message : "No se pudo guardar el té. Inténtalo de nuevo.";
     return {
+      errors: { errors: [message] },
+      message,
       success: false,
-      message: "An error has ocurred",
-      errors: {
-        errors: [errorMsg ? errorMsg : "An error has ocurred"],
-      },
     };
   }
 }
 
-export async function editTeaInfoAction(prevState: TeaInfoActionResponse | null, formData: FormData): Promise<TeaInfoActionResponse> {
+export async function editTeaInfoAction(
+  prevState: null | TeaInfoActionResponse,
+  formData: FormData,
+): Promise<TeaInfoActionResponse> {
   try {
+    const { role, userId } = await requireSession();
+
     const rawData: TeaInfoFormData = {
-      personName: getFormString(formData, "personName"),
-      dayNumber: getFormNumber(formData, "dayNumber"),
-      teaName: getFormString(formData, "teaName"),
-      temperature: getFormNumber(formData, "temperature"),
-      infusionTime: getFormNumber(formData, "infusionTime"),
-      hasTheine: getFormBoolean(formData, "hasTheine"),
       addMilk: getFormBoolean(formData, "addMilk"),
       canReinfuse: getFormBoolean(formData, "canReinfuse"),
-      reinfuseNumber: getFormNumber(formData, "reinfuseNumber") || undefined,
+      dayNumber: getFormNumber(formData, "dayNumber"),
+      hasTheine: getFormBoolean(formData, "hasTheine"),
+      images: getFormFilesByPrefix(formData, "image"),
+      imagesOrder: (formData.getAll("images_order") as Array<string>) || undefined,
+      infusionTime: getFormNumber(formData, "infusionTime"),
+      keptImages: (formData.getAll("kept_images") as Array<string>) || undefined,
+      keptImagesOrder: (formData.getAll("kept_images_order") as Array<string>) || undefined,
       moreIndications: getFormString(formData, "moreIndications") || undefined,
+      onlyMusic: getFormBoolean(formData, "onlyMusic"),
+      personName: getFormString(formData, "personName"),
+      reinfuseNumber: getFormNumber(formData, "reinfuseNumber") || undefined,
       storeName: getFormString(formData, "storeName") || undefined,
-      urlStore: getFormString(formData, "urlStore") || undefined,
       storyPart1: getFormString(formData, "storyPart1"),
       storyPart2: getFormString(formData, "storyPart2"),
       storyPart3: getFormString(formData, "storyPart3"),
-      youtubeURL: getFormString(formData, "youtubeURL") || undefined,
-      onlyMusic: getFormBoolean(formData, "onlyMusic"),
-      images: getFormFilesByPrefix(formData, "image"),
-      imagesOrder: (formData.getAll("images_order") as Array<string>) || undefined,
-      keptImages: (formData.getAll("kept_images") as Array<string>) || undefined,
-      keptImagesOrder: (formData.getAll("kept_images_order") as Array<string>) || undefined,
-      deleteImages: (formData.getAll("delete_images") as Array<string>) || undefined,
       teaId: getFormString(formData, "tea_id"),
+      teaName: getFormString(formData, "teaName"),
+      temperature: getFormNumber(formData, "temperature"),
+      urlStore: getFormString(formData, "urlStore") || undefined,
+      youtubeURL: getFormString(formData, "youtubeURL") || undefined,
     };
-    const validatedFields = TeaInfoFormSchema.safeParse(rawData);
+    const validatedFields = teaInfoFormSchema.safeParse(rawData);
     if (!validatedFields.success) {
-      const myErrors = z.treeifyError(validatedFields.error);
-      console.log("Validation errors:");
-      console.dir(myErrors, { depth: null });
       return {
-        success: false,
-        message: "Hay errores en el formulario",
         errors: z.treeifyError(validatedFields.error),
         inputs: rawData,
+        message: "Hay errores en el formulario",
+        success: false,
       };
     }
-    
+
     const data = validatedFields.data;
     if (!data.teaId) throw new Error("Tea id is missing.");
-    
+
     const day = data.dayNumber;
     const currentTea = await getTea(data.teaId);
-    let storyId = currentTea.story?.id || null;
     if (!currentTea) throw new Error(`Cannot find tea with id ${data.teaId}`);
-    const newDayNumber = currentTea.day?.dayNumber === day ? undefined : day;
-    const editedTea = await editTea({
-      name: data.teaName,
-      infusionTime: data.infusionTime,
-      temperature: data.temperature,
-      hasTheine: data.hasTheine,
-      canReinfuse: data.canReinfuse,
-      reinfuseNumber: data.reinfuseNumber,
-      moreIndications: data.moreIndications,
-      addMilk: data.addMilk,
-      storeName: data.storeName,
-      url: data.urlStore,
-    }, data.teaId, newDayNumber);
+    const isPrivileged = role === Role.ADMIN || role === Role.EXECUTEAVE;
+    if (!isPrivileged) {
+      if (!currentTea.day) throw new ForbiddenError("Sólo puedes editar tu día asignado.");
+      const assignment = await getDayAssignmentByUserId(userId, currentTea.day.year);
+      if (!assignment) throw new ForbiddenError("No tienes un día asignado para este año.");
+      if (currentTea.dayId !== assignment.dayId) {
+        throw new ForbiddenError("Sólo puedes editar tu día asignado.");
+      }
+    }
+
+    let storyId = currentTea.story?.id || null;
+    let newDayNumber: number | undefined = undefined;
+    if (isPrivileged) {
+      newDayNumber = currentTea.day?.dayNumber === day ? undefined : day;
+    }
+    const editedTea = await editTea(
+      {
+        addMilk: data.addMilk,
+        canReinfuse: data.canReinfuse,
+        hasTheine: data.hasTheine,
+        infusionTime: data.infusionTime,
+        moreIndications: data.moreIndications,
+        name: data.teaName,
+        reinfuseNumber: data.reinfuseNumber,
+        storeName: data.storeName,
+        temperature: data.temperature,
+        url: data.urlStore,
+      },
+      data.teaId,
+      newDayNumber,
+    );
     if (!editedTea) {
       throw new Error("Cannot edit tea");
     }
 
     if (data.storyPart1 || data.storyPart2 || data.storyPart3 || data.youtubeURL || data.onlyMusic) {
       const formStoryTea = {
+        onlyMusic: data.onlyMusic,
         storyPart1: data.storyPart1,
         storyPart2: data.storyPart2,
         storyPart3: data.storyPart3,
         youtubeURL: data.youtubeURL,
-        onlyMusic: data.onlyMusic,
-      }
+      };
       if (currentTea.story) {
-        const editedStory = await editStoryTea( formStoryTea, currentTea.story.id);
+        const editedStory = await editStoryTea(formStoryTea, currentTea.story.id);
         if (!editedStory) throw new Error("Cannot edit story tea");
       } else {
-        const addedStory = await addStoryTea(formStoryTea, currentTea.id)
+        const addedStory = await addStoryTea(formStoryTea, currentTea.id);
         if (!addedStory) throw new Error("Cannot edit story tea");
         storyId = addedStory.id;
       }
     }
-    if (data.images && data.imagesOrder) {
+    // The form sends the final image list split in two channels (kept ids + new files), each with its
+    // absolute position. Rebuild that list; anything not in it is deleted by replaceStoryImages.
+    const newImages = data.images ?? [];
+    const slotsByPosition: Array<StoryImageSlot | undefined> = [];
+    (data.keptImages ?? []).forEach((id, i) => {
+      slotsByPosition[data.keptImagesOrder?.[i] ?? i] = { id, kind: "existing" };
+    });
+    if (newImages.length > 0) {
+      const publicIds = await Promise.all(newImages.map((image) => uploadImageFile(image, "teaDay")));
+      publicIds.forEach((publicId, i) => {
+        if (publicId) slotsByPosition[data.imagesOrder?.[i] ?? slotsByPosition.length] = { kind: "new", publicId };
+      });
+    }
+    const slots = slotsByPosition.filter((slot): slot is StoryImageSlot => slot !== undefined);
+
+    if (storyId || slots.length > 0) {
       if (!storyId) {
         const addedStory = await addStoryTea({}, currentTea.id);
         storyId = addedStory.id;
       }
-      const publicIds = await Promise.all(data.images.map(async (image) => await uploadImageCloudinary(image, "teaDay")));
-      for (const [i, publicId] of publicIds.entries()) {
-        if (publicId) {
-          await addStoryImage(publicId, data.imagesOrder[i], storyId);
-        }
-      }
-    }
-    if (data.keptImages && data.keptImagesOrder) {
-      const images = data.keptImages;
-      const order = data.keptImagesOrder;
-      await prisma.$transaction(async (tx) => {
-        for (const [i, id] of images.entries()) {
-          await tx.storyImage.update({ where: { id }, data: { order: -i - 100 } });
-        }
-        for (const [i, id] of images.entries()) {
-          await tx.storyImage.update({ where: { id }, data: { order: order[i] } });
-        }
-      });
-    }
-
-    if (data.deleteImages) {
-      for (const id of data.deleteImages) {
-        await deleteStoryImage(id);
-      }
+      const removedPublicIds = await replaceStoryImages(storyId, slots);
+      // Best effort, after the transaction has committed: a failed asset deletion must not undo the edit.
+      await Promise.all(removedPublicIds.map((publicId) => deleteAsset(publicId)));
     }
 
     return {
+      message: "Té actualizado",
       success: true,
-      message: "Tea created successfully",
     };
-  } catch (error) {
-    console.error("Validation error:", error);
-    let errorMsg = "";
-    if (error && typeof error === "object" && "message" in error) {
-      errorMsg = error.message === "User already exists. Use another email." ? "Ya existe un usuario con ese email" : (error.message as string);
+  } catch (error: unknown) {
+    const isGuardError = error instanceof UnauthenticatedError || error instanceof ForbiddenError;
+    if (isGuardError) {
+      console.warn(`[editTeaInfoAction] rejected: ${error.name} — ${error.message}`);
+    } else {
+      console.error("[editTeaInfoAction] unexpected error", error);
     }
+    const message = isGuardError ? error.message : "No se pudo actualizar el té. Inténtalo de nuevo.";
     return {
+      errors: { errors: [message] },
+      message,
       success: false,
-      message: "An error has ocurred",
-      errors: {
-        errors: [errorMsg ? errorMsg : "An error has ocurred"],
-      },
     };
   }
 }
 
-export async function assignUserToDay(dayId: string, userId: string, year: number = 2025, guestName?: string) {
+export async function assignUserToDay(
+  dayId: string,
+  userId: string,
+  year: number = 2025,
+  guestName?: string,
+): Promise<ActionResponse> {
   try {
+    await requireRole(Role.ADMIN, Role.EXECUTEAVE);
     if (!userId && !guestName) {
-      await prisma.dayAssignment.deleteMany({ where: { dayId } });
+      await deleteDayAssignmentByDay(dayId);
       revalidatePath("/edit-tea-info");
-      return { success: true, message: `Assignment deleted for day id ${dayId}/${year} and user id ${userId}.` };
+      return { message: "Asignación eliminada", success: true };
     }
 
-    const assignment = { dayId, year, userId: userId || null, guestName: guestName || null };
+    const assignment = { dayId, guestName: guestName || null, userId: userId || null, year };
     if (assignment.userId && assignment.guestName) {
       assignment.guestName = null;
     }
 
-    await prisma.dayAssignment.upsert({
-      where: { dayId },
-      create: assignment,
-      update: assignment,
-    });
+    await upsertDayAssignment(dayId, assignment);
     revalidatePath("/edit-tea-info");
-    return { success: true };
-  } catch (error) {
-    console.log(error);
-    return {
-      success: false,
-      error: `Error assigning user ${userId} to day ${dayId}`,
-    };
+    return { message: "Asignación actualizada", success: true };
+  } catch (error: unknown) {
+    const isGuardError = error instanceof UnauthenticatedError || error instanceof ForbiddenError;
+    const isAlreadyAssigned = error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
+    if (isGuardError || isAlreadyAssigned) {
+      console.warn(`[assignUserToDay] rejected: ${error.name} — dayId=${dayId} — ${error.message}`);
+    } else {
+      console.error("[assignUserToDay] unexpected error", error);
+    }
+    let message = "No se pudo guardar la asignación. Inténtalo de nuevo.";
+    if (isGuardError) message = error.message;
+    else if (isAlreadyAssigned) message = "Esa persona ya tiene un día asignado este año.";
+    return { message, success: false };
   }
 }
 
-export async function addDaysAction(year: number = 2025) {
+export async function addDaysAction(year: number = 2025): Promise<ActionResponse> {
   try {
+    await requireRole(Role.ADMIN);
     await add25Days(year);
     revalidatePath("/edit-tea-info");
-    return { success: true };
-  } catch (error) {
-    console.log(error);
+    return { message: "Días creados", success: true };
+  } catch (error: unknown) {
+    const isGuardError = error instanceof UnauthenticatedError || error instanceof ForbiddenError;
+    if (isGuardError) {
+      console.warn(`[addDaysAction] rejected: ${error.name} — year=${year} — ${error.message}`);
+    } else {
+      console.error("[addDaysAction] unexpected error", error);
+    }
     return {
+      message: isGuardError ? error.message : "No se pudieron crear los días. Inténtalo de nuevo.",
       success: false,
-      error: `Error assigning adding 25 days for year ${year}`,
     };
   }
 }
 
-export async function deleteDayAction(dayId: string) {
+export async function deleteDayAction(dayId: string): Promise<ActionResponse> {
   try {
+    await requireRole(Role.ADMIN);
     await deleteDay(dayId);
     revalidatePath("/edit-tea-info");
-    return { success: true };
-  } catch (error) {
-    console.log(error);
+    return { message: "Día borrado", success: true };
+  } catch (error: unknown) {
+    const isGuardError = error instanceof UnauthenticatedError || error instanceof ForbiddenError;
+    if (isGuardError) {
+      console.warn(`[deleteDayAction] rejected: ${error.name} — dayId=${dayId} — ${error.message}`);
+    } else {
+      console.error("[deleteDayAction] unexpected error", error);
+    }
     return {
+      message: isGuardError ? error.message : "No se pudo borrar el día. Inténtalo de nuevo.",
       success: false,
-      error: `Error deletion day with id ${dayId}`,
     };
   }
 }

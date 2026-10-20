@@ -1,18 +1,18 @@
-import { prismaMock } from '@/lib/__mocks__/prisma';
-import { describe, expect, it, vi, beforeAll } from 'vitest'
-import { Tea, TeaType } from "@/generated/prisma/client";
-import {
-  getStoryTea,
-  getAllStoriesTea,
-  addStoryTea,
-  editStoryTea,
-  deleteStoryTea,
-  StoryWithTeaAndImages,
-  StoryWithTea,
-} from "@/lib/dal/dal-story-tea";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 
+import { Tea, TeaType } from "@/generated/prisma/client";
+import { prismaMock } from "@/lib/__mocks__/prisma";
 // dal-day MOCK
 import * as dalDay from "@/lib/dal/dal-day";
+import {
+  addStoryTea,
+  deleteStoryTea,
+  editStoryTea,
+  getAllStoriesTea,
+  getStoryTea,
+  StoryWithTea,
+  StoryWithTeaAndImages,
+} from "@/lib/dal/dal-story-tea";
 vi.mock("@/lib/dal/dal-day");
 const dalDayMock = vi.mocked(dalDay);
 
@@ -23,33 +23,33 @@ describe("DAL StoryTea", () => {
 
   describe("getStoryTea", () => {
     const mockStoryComplete: StoryWithTeaAndImages = {
+      createdAt: new Date(),
       id: "story-1",
-      teaId: "tea-1",
+      images: [],
+      onlyMusic: false,
       storyPart1: "Once upon a time",
       storyPart2: null,
       storyPart3: null,
-      youtubeURL: null,
-      onlyMusic: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      images: [],
       tea: {
-        id: "tea-1",
-        dayId: "day-1",
-        name: "Earl Grey",
-        teaType: TeaType.BLACK,
-        infusionTime: 3,
-        temperature: 100,
-        hasTheine: true,
-        canReinfuse: true,
-        reinfuseNumber: null,
-        moreIndications: null,
         addMilk: true,
-        storeName: null,
-        url: null,
+        canReinfuse: true,
         createdAt: new Date(),
+        dayId: "day-1",
+        hasTheine: true,
+        id: "tea-1",
+        infusionTime: 3,
+        moreIndications: null,
+        name: "Earl Grey",
+        reinfuseNumber: null,
+        storeName: null,
+        teaType: TeaType.BLACK,
+        temperature: 100,
         updatedAt: new Date(),
+        url: null,
       },
+      teaId: "tea-1",
+      updatedAt: new Date(),
+      youtubeURL: null,
     };
 
     it("should get story by ID string", async () => {
@@ -59,8 +59,8 @@ describe("DAL StoryTea", () => {
 
       expect(result).toEqual(mockStoryComplete);
       expect(prismaMock.storyTea.findUnique).toHaveBeenCalledWith({
+        include: { images: true, tea: true },
         where: { id: "story-1" },
-        include: { tea: true, images: true },
       });
     });
 
@@ -72,17 +72,17 @@ describe("DAL StoryTea", () => {
 
     it("should get story by Day and reconstruct object", async () => {
       const mockDayResponse: dalDay.DayWithTeaComplete = {
-        id: "day-1",
-        dayNumber: 5,
-        year: 2025,
         createdAt: new Date(),
-        updatedAt: new Date(),
+        dayNumber: 5,
+        id: "day-1",
         tea: {
           ...mockStoryComplete.tea,
           story: {
             ...mockStoryComplete,
           },
         },
+        updatedAt: new Date(),
+        year: 2025,
       };
 
       const realGetDayResponse = {
@@ -90,16 +90,16 @@ describe("DAL StoryTea", () => {
         tea: {
           ...mockDayResponse.tea!,
           story: {
+            createdAt: new Date(),
             id: "story-1",
-            teaId: "tea-1",
+            images: [],
+            onlyMusic: false,
             storyPart1: "Once upon a time",
             storyPart2: null,
             storyPart3: null,
-            youtubeURL: null,
-            onlyMusic: false,
-            createdAt: new Date(),
+            teaId: "tea-1",
             updatedAt: new Date(),
-            images: [],
+            youtubeURL: null,
           },
         },
       };
@@ -123,12 +123,12 @@ describe("DAL StoryTea", () => {
 
     it("should return null if day has no tea", async () => {
       const mockDayNoTea: dalDay.DayWithTeaComplete = {
-        id: "day-1",
-        dayNumber: 5,
-        year: 2025,
         createdAt: new Date(),
-        updatedAt: new Date(),
+        dayNumber: 5,
+        id: "day-1",
         tea: null,
+        updatedAt: new Date(),
+        year: 2025,
       };
       dalDayMock.getDay.mockResolvedValue(mockDayNoTea);
 
@@ -138,29 +138,29 @@ describe("DAL StoryTea", () => {
 
     it("should return null if tea has no story", async () => {
       const mockDayNoStory: dalDay.DayWithTeaComplete = {
-        id: "day-1",
-        dayNumber: 5,
-        year: 2025,
         createdAt: new Date(),
-        updatedAt: new Date(),
+        dayNumber: 5,
+        id: "day-1",
         tea: {
-          id: "tea-1",
-          dayId: "day-1",
-          name: "Tea",
-          teaType: TeaType.GREEN,
-          infusionTime: 3,
-          temperature: 80,
-          hasTheine: true,
-          canReinfuse: false,
-          reinfuseNumber: null,
-          moreIndications: null,
           addMilk: false,
-          storeName: null,
-          url: null,
+          canReinfuse: false,
           createdAt: new Date(),
-          updatedAt: new Date(),
+          dayId: "day-1",
+          hasTheine: true,
+          id: "tea-1",
+          infusionTime: 3,
+          moreIndications: null,
+          name: "Tea",
+          reinfuseNumber: null,
+          storeName: null,
           story: null,
+          teaType: TeaType.GREEN,
+          temperature: 80,
+          updatedAt: new Date(),
+          url: null,
         },
+        updatedAt: new Date(),
+        year: 2025,
       };
       dalDayMock.getDay.mockResolvedValue(mockDayNoStory);
 
@@ -174,7 +174,7 @@ describe("DAL StoryTea", () => {
       prismaMock.storyTea.findMany.mockResolvedValue([]);
       await getAllStoriesTea();
       expect(prismaMock.storyTea.findMany).toHaveBeenCalledWith({
-        include: { tea: true, images: { orderBy: { order: "asc" } } },
+        include: { images: { orderBy: { order: "asc" } }, tea: true },
       });
     });
 
@@ -188,16 +188,16 @@ describe("DAL StoryTea", () => {
   describe("addStoryTea", () => {
     it("should create story connected to tea", async () => {
       const mockCreated: StoryWithTea = {
+        createdAt: new Date(),
         id: "new-story",
-        teaId: "tea-1",
+        onlyMusic: false,
         storyPart1: "Intro",
         storyPart2: null,
         storyPart3: null,
-        youtubeURL: null,
-        onlyMusic: false,
-        createdAt: new Date(),
-        updatedAt: new Date(),
         tea: { id: "tea-1" } as Tea,
+        teaId: "tea-1",
+        updatedAt: new Date(),
+        youtubeURL: null,
       };
 
       prismaMock.storyTea.create.mockResolvedValue(mockCreated);
@@ -219,16 +219,16 @@ describe("DAL StoryTea", () => {
   describe("editStoryTea", () => {
     it("should update story", async () => {
       const mockUpdated: StoryWithTea = {
+        createdAt: new Date(),
         id: "s1",
-        teaId: "t1",
+        onlyMusic: false,
         storyPart1: "Updated",
         storyPart2: null,
         storyPart3: null,
-        youtubeURL: null,
-        onlyMusic: false,
-        createdAt: new Date(),
-        updatedAt: new Date(),
         tea: { id: "t1" } as Tea,
+        teaId: "t1",
+        updatedAt: new Date(),
+        youtubeURL: null,
       };
       prismaMock.storyTea.update.mockResolvedValue(mockUpdated);
 
@@ -236,9 +236,9 @@ describe("DAL StoryTea", () => {
       expect(result.storyPart1).toBe("Updated");
       expect(prismaMock.storyTea.update).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { id: "s1" },
           data: { storyPart1: "Updated" },
-        })
+          where: { id: "s1" },
+        }),
       );
     });
   });
@@ -246,24 +246,24 @@ describe("DAL StoryTea", () => {
   describe("deleteStoryTea", () => {
     it("should delete story", async () => {
       const mockDeleted: StoryWithTea = {
+        createdAt: new Date(),
         id: "s1",
-        teaId: "t1",
+        onlyMusic: false,
         storyPart1: "Del",
         storyPart2: null,
         storyPart3: null,
-        youtubeURL: null,
-        onlyMusic: false,
-        createdAt: new Date(),
-        updatedAt: new Date(),
         tea: { id: "t1" } as Tea,
+        teaId: "t1",
+        updatedAt: new Date(),
+        youtubeURL: null,
       };
       prismaMock.storyTea.delete.mockResolvedValue(mockDeleted);
 
       const result = await deleteStoryTea("s1");
       expect(result.id).toBe("s1");
       expect(prismaMock.storyTea.delete).toHaveBeenCalledWith({
-        where: { id: "s1" },
         include: { tea: true },
+        where: { id: "s1" },
       });
     });
   });

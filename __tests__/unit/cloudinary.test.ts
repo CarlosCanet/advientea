@@ -1,16 +1,17 @@
-import { describe, expect, it, vi, beforeAll, beforeEach } from 'vitest'
-import { CloudinaryFolders, deleteAsset, getAssetInfo, uploadImage } from "@/lib/cloudinary";
 import { v2 as cloudinary, UploadApiResponse } from "cloudinary";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { CloudinaryFolders, deleteAsset, getAssetInfo, uploadImage } from "@/lib/cloudinary";
 
 vi.mock("cloudinary", () => ({
   v2: {
-    config: vi.fn(),
-    uploader: {
-      upload: vi.fn(),
-      destroy: vi.fn(),
-    },
     api: {
       resource: vi.fn(),
+    },
+    config: vi.fn(),
+    uploader: {
+      destroy: vi.fn(),
+      upload: vi.fn(),
     },
   },
 }));
@@ -19,20 +20,22 @@ describe("Cloudinary integration", () => {
   beforeAll(() => {
     vi.spyOn(console, "error").mockImplementation(() => {});
   });
-  
+
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(cloudinary.uploader.upload).mockResolvedValue({
       public_id: "advientea/2025-Caoslendario/axvcr1ufv0gpdmwbebmc",
+      secure_url:
+        "https://res.cloudinary.com/dljj7f5mi/image/upload/v1762707856/advientea/2025-Caoslendario/avatars/axvcr1ufv0gpdmwbebmc.png",
       url: "http://res.cloudinary.com/dljj7f5mi/image/upload/v1762707856/advientea/2025-Caoslendario/avatars/axvcr1ufv0gpdmwbebmc.png",
-      secure_url: "https://res.cloudinary.com/dljj7f5mi/image/upload/v1762707856/advientea/2025-Caoslendario/avatars/axvcr1ufv0gpdmwbebmc.png",
     } as UploadApiResponse);
     vi.mocked(cloudinary.uploader.destroy).mockResolvedValue({ result: "ok" });
     vi.mocked(cloudinary.api.resource).mockResolvedValue({
       asset_id: "5de5e79847577b586aa5d1849bfde8ca",
       public_id: "advientea/2025-Caoslendario/avatars/axvcr1ufv0gpdmwbebmc",
+      secure_url:
+        "https://res.cloudinary.com/dljj7f5mi/image/upload/v1762707272/advientea/2025-Caoslendario/avatars/axvcr1ufv0gpdmwbebmc.png",
       url: "http://res.cloudinary.com/dljj7f5mi/image/upload/v1762707272/advientea/2025-Caoslendario/avatars/axvcr1ufv0gpdmwbebmc.png",
-      secure_url: "https://res.cloudinary.com/dljj7f5mi/image/upload/v1762707272/advientea/2025-Caoslendario/avatars/axvcr1ufv0gpdmwbebmc.png",
     });
   });
 
@@ -40,7 +43,7 @@ describe("Cloudinary integration", () => {
     it("should upload an image and return url and publicId", async () => {
       const mockImageData =
         "data:image/jpeg;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAIAAADTED8xAAADSklEQVR4nOzVIW4UYBhF0WEyBgskaDA4VjFjWAOGJUCCJcEjQCBJkARFIEHUVLSirrZdwaiabqBdxC++NPecFTxz83b/L19tHrLfm5/TE5b82v+bnrDk/f7d9IQl2+kBMEkApAmANAGQJgDSBECaAEgTAGkCIE0ApAmANAGQJgDSBECaAEgTAGkCIE0ApAmANAGQJgDSBECaAEgTAGkCIE0ApAmANAGQJgDSBECaAEgTAGkCIE0ApAmANAGQJgDSBECaAEgTAGkCIE0ApAmANAGQJgDSBECaAEgTAGkCIE0ApAmANAGQJgDSBECaAEgTAGkCIE0ApAmANAGQJgDSBECaAEh79PTlxfSGJS+uvkxPWHL8+HZ6wpLv53+nJyzxAKQJgDQBkCYA0gRAmgBIEwBpAiBNAKQJgDQBkCYA0gRAmgBIEwBpAiBNAKQJgDQBkCYA0gRAmgBIEwBpAiBNAKQJgDQBkCYA0gRAmgBIEwBpAiBNAKQJgDQBkCYA0gRAmgBIEwBpAiBNAKQJgDQBkCYA0gRAmgBIEwBpAiBNAKQJgDQBkCYA0gRAmgBIEwBpAiBNAKQJgDQBkCYA0gRAmgBIEwBpu+uvT6Y3LPlxPExPWPLt5MP0hCXbP5+nJyzxAKQJgDQBkCYA0gRAmgBIEwBpAiBNAKQJgDQBkCYA0gRAmgBIEwBpAiBNAKQJgDQBkCYA0gRAmgBIEwBpAiBNAKQJgDQBkCYA0gRAmgBIEwBpAiBNAKQJgDQBkCYA0gRAmgBIEwBpAiBNAKQJgDQBkCYA0gRAmgBIEwBpAiBNAKQJgDQBkCYA0gRAmgBIEwBpAiBNAKQJgDQBkCYA0gRAmgBIEwBpu7Pb59MbltzcvZmesOTTs9PpCUsOj19PT1jiAUgTAGkCIE0ApAmANAGQJgDSBECaAEgTAGkCIE0ApAmANAGQJgDSBECaAEgTAGkCIE0ApAmANAGQJgDSBECaAEgTAGkCIE0ApAmANAGQJgDSBECaAEgTAGkCIE0ApAmANAGQJgDSBECaAEgTAGkCIE0ApAmANAGQJgDSBECaAEgTAGkCIE0ApAmANAGQJgDSBECaAEgTAGkCIE0ApAmANAGQJgDS7gMAAP//yh4Z+WMgoO4AAAAASUVORK5CYII=";
-      const result = await uploadImage(mockImageData, CloudinaryFolders.AVATARS);
+      const result = await uploadImage(mockImageData, "image/jpeg", CloudinaryFolders.AVATARS);
 
       expect(result).toBeDefined();
       expect(typeof result).toBe("object");
@@ -71,7 +74,7 @@ describe("Cloudinary integration", () => {
 
     it("should return undefined for a non-existent publicId", async () => {
       vi.mocked(cloudinary.api.resource).mockRejectedValueOnce(undefined);
-      
+
       const result = await getAssetInfo("nnnnaaaokok123123123.$$$");
       expect(result).toBeUndefined();
     });
@@ -92,7 +95,7 @@ describe("Cloudinary integration", () => {
 
     it("should return not-found for a non-existent publicId", async () => {
       vi.mocked(cloudinary.uploader.destroy).mockResolvedValueOnce({ result: "not found" });
-      
+
       const result = await deleteAsset("nnnnaaaokok123123123.$$$");
       expect(result).toBeDefined();
       if (result) {

@@ -1,114 +1,117 @@
 "use server";
-import { uploadImageCloudinary } from "./uploadActions";
-import { auth } from "@/lib/auth";
-import { SignInActionResponse, SignInFormData, SignUpActionResponse, SignUpFormData, UpdateProfileActionResponse, UpdateProfileFormData } from "@/lib/types";
+import { APIError } from "better-auth/api";
+import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { getFormFiles, getFormString } from "./commonActions";
+
+import { Prisma } from "@/generated/prisma/client";
 import { Role } from "@/generated/prisma/enums";
-import { revalidatePath } from "next/cache";
-import { prisma } from "@/lib/prisma";
-import { deleteAsset } from "@/lib/cloudinary";
+import { auth } from "@/lib/auth";
+import { deleteAsset, uploadImageFile } from "@/lib/cloudinary";
+import { changeUserRole, editUser, requireRole, requireSession } from "@/lib/dal";
+import { ForbiddenError, UnauthenticatedError } from "@/lib/errors";
+import { signupFormSchema, updateProfileFormSchema } from "@/lib/schemas/auth";
 import { createUser } from "@/lib/services/user-service";
-import { changeUserRole } from "@/lib/dal";
+import {
+  ActionResponse,
+  SignInActionResponse,
+  SignInFormData,
+  SignUpActionResponse,
+  SignUpFormData,
+  UpdateProfileActionResponse,
+  UpdateProfileFormData,
+} from "@/lib/types";
 
-const SignupFormSchema = z
-  .object({
-    username: z.string().min(2, { error: "Name must be at least 2 characters long." }).trim(),
-    email: z.email({ error: "Introduce un email correcto." }).trim(),
-    password: z
-      .string()
-      .min(8, { error: "La contraseña debe ser de al menos 8 caracteres." })
-      .regex(/[a-zA-Z]/, { error: "La contraseña debe contener al menos una letra." })
-      .regex(/[0-9]/, { error: "La contraseña debe contener al menos un número." })
-      .regex(/[^a-zA-Z0-9]/, {
-        error: "Debe contener al menos un caracter especial.",
-      })
-      .trim(),
-    passwordConfirmation: z.string(),
-    image: z
-      .file()
-      .max(2 * 1024 * 1024, { error: "Tamaño de imagen demasiado grande (max 2 MB)." })
-      .mime(["image/jpeg", "image/png", "image/gif", "image/svg+xml", "image/webp"], {
-        error: "Formato de archivo no permitido.",
-      })
-      .optional(),
-  })
-  .refine((data) => data.password === data.passwordConfirmation, {
-    error: "Las contraseñas no coinciden.",
-    path: ["passwordConfirmation"],
-  });
+import { getFormFiles, getFormString } from "./commonActions";
 
-export async function signup(prevState: SignUpActionResponse | null, formData: FormData): Promise<SignUpActionResponse> {
+export async function signup(
+  prevState: null | SignUpActionResponse,
+  formData: FormData,
+): Promise<SignUpActionResponse> {
   try {
     const rawData: SignUpFormData = {
-      username: getFormString(formData, "username"),
       email: getFormString(formData, "email"),
+      image: getFormFiles(formData, "image")[0],
       password: getFormString(formData, "password"),
       passwordConfirmation: getFormString(formData, "passwordConfirmation"),
-      image: getFormFiles(formData, "image")[0],
+      username: getFormString(formData, "username"),
     };
-    const validatedFields = SignupFormSchema.safeParse(rawData);
+    const validatedFields = signupFormSchema.safeParse(rawData);
 
     if (!validatedFields.success) {
       return {
-        success: false,
-        message: "Hay errores en el formulario",
         errors: z.treeifyError(validatedFields.error),
         inputs: rawData,
+        message: "Hay errores en el formulario",
+        success: false,
       };
     }
-    const imgPublicId = validatedFields.data.image
-      ? await uploadImageCloudinary(validatedFields.data.image, "avatars")
-      : null;
-
-    const result = await createUser({
+    // Create the account first: uploading before it exists lets anonymous retries pile up orphan assets.
+    const user = await createUser({
       email: validatedFields.data.email,
       password: validatedFields.data.password,
       username: validatedFields.data.username,
-      ...(imgPublicId ? {image : imgPublicId} : {}),
     });
-    console.log("Validation success:", result);
-  } catch (error) {
-    console.error("Validation error:", error);
-    let errorMsg = "";
-    if (error && typeof error === "object" && "message" in error) {
-      errorMsg = error.message === "User already exists. Use another email." ? "Ya existe un usuario con ese email" : (error.message as string);
+    if (validatedFields.data.image) {
+      const imgPublicId = await uploadImageFile(validatedFields.data.image, "avatars");
+      if (imgPublicId) {
+        try {
+          await editUser(user.id, { image: imgPublicId });
+        } catch (error) {
+          await deleteAsset(imgPublicId);
+          throw error;
+        }
+      }
     }
+  } catch (error) {
+    // Match the stable error code, not the message; startsWith covers both USER_ALREADY_EXISTS variants.
+    const isDuplicateUser =
+      error instanceof APIError &&
+      typeof error.body?.code === "string" &&
+      error.body.code.startsWith("USER_ALREADY_EXISTS");
+    if (isDuplicateUser) {
+      console.warn("[signup] rejected: email already registered");
+    } else {
+      console.error("[signup] unexpected error", error);
+    }
+    const message = isDuplicateUser
+      ? "Ya existe una cuenta con ese email"
+      : "No se pudo crear la cuenta. Inténtalo de nuevo.";
     return {
+      errors: { errors: [message] },
+      message,
       success: false,
-      message: "An error has ocurred",
-      errors: {
-        errors: [errorMsg ? errorMsg : "An error has ocurred"],
-      },
     };
   }
 
   redirect("/");
 }
 
-export async function signin(prevState: SignInActionResponse | null, formData: FormData): Promise<SignInActionResponse> {
+export async function signin(
+  prevState: null | SignInActionResponse,
+  formData: FormData,
+): Promise<SignInActionResponse> {
   try {
     const rawData: SignInFormData = {
-      email: formData.get("email") as string,
-      password: formData.get("password") as string,
+      email: getFormString(formData, "email"),
+      password: getFormString(formData, "password"),
     };
     await auth.api.signInEmail({
       body: {
+        callbackURL: "/profile",
         email: rawData.email,
         password: rawData.password,
-        callbackURL: "/profile",
       },
     });
   } catch (error) {
     console.error(error);
     return {
-      success: false,
-      message: "Usuario o contraseña incorrectos",
       errors: {
         password: ["Usuario o contraseña incorrectos"],
       },
+      message: "Usuario o contraseña incorrectos",
+      success: false,
     };
   }
 
@@ -119,132 +122,117 @@ export async function signout() {
   await auth.api.signOut({
     headers: await headers(),
   });
+
   redirect("/");
 }
 
-export async function changeRoleAction(id: string, role: Role) {
+export async function changeRoleAction(id: string, role: Role): Promise<ActionResponse> {
   try {
+    const session = await requireRole(Role.ADMIN);
+    if (!Object.values(Role).includes(role)) {
+      throw new ForbiddenError("Rol no válido");
+    }
+    // An admin cannot change their own role: the last admin would lock themselves out.
+    if (session.userId === id) {
+      throw new ForbiddenError("No puedes cambiar tu propio rol");
+    }
     await changeUserRole(id, role);
-    revalidatePath("/users")
-    return { success: true };
-  } catch (error) {
-    console.error(error);
+    revalidatePath("/users");
+    return { message: "Rol actualizado", success: true };
+  } catch (error: unknown) {
+    const isGuardError = error instanceof UnauthenticatedError || error instanceof ForbiddenError;
+    if (isGuardError) {
+      console.warn(
+        `[changeRoleAction] rejected: ${error.name} — target=${JSON.stringify(id)} role=${JSON.stringify(role)} — ${error.message}`,
+      );
+    } else {
+      console.error("[changeRoleAction] unexpected error", error);
+    }
     return {
+      message: isGuardError ? error.message : "No se pudo cambiar el rol. Inténtalo de nuevo.",
       success: false,
-      error: `Error changing role to user with id ${id}`,
     };
   }
 }
 
-const updateProfileFormSchema = z
-  .object({
-    username: z.string().min(2, { error: "Name must be at least 2 characters long." }).trim(),
-    // email: z.email({ error: "Introduce un email correcto." }).trim(),
-    currentPassword: z.string().optional(),
-    newPassword: z
-      .string()
-      .trim()
-      .transform((value) => (value === "" ? undefined : value))
-      .pipe(
-        z.string()
-        .min(8, { error: "La contraseña debe ser de al menos 8 caracteres." })
-        .regex(/[a-zA-Z]/, { error: "La contraseña debe contener al menos una letra." })
-        .regex(/[0-9]/, { error: "La contraseña debe contener al menos un número." })
-        .regex(/[^a-zA-Z0-9]/, {
-          error: "Debe contener al menos un caracter especial.",
-        }).optional()
-    ),      
-    newPasswordConfirmation: z
-      .string()
-      .transform((value) => (value === "" ? undefined : value))
-      .optional(),
-    image: z
-      .file()
-      .max(2 * 1024 * 1024, { error: "Tamaño de imagen demasiado grande (max 2 MB)." })
-      .mime(["image/jpeg", "image/png", "image/gif", "image/svg+xml", "image/webp"], {
-        error: "Formato de archivo no permitido.",
-      })
-      .optional(),
-  })
-  .refine((data) => data.newPassword === data.newPasswordConfirmation, {
-    error: "Las contraseñas no coinciden.",
-    path: ["newPasswordConfirmation"],
-  });
-
-export async function updateUserProfile(prevState: UpdateProfileActionResponse | null, formData: FormData): Promise<UpdateProfileActionResponse> {
-  let newImageId: string | null = null;
+export async function updateUserProfile(
+  prevState: null | UpdateProfileActionResponse,
+  formData: FormData,
+): Promise<UpdateProfileActionResponse> {
+  let newImageId: null | string = null;
+  let passwordChanged = false;
+  let profilePersisted = false;
   try {
-    const session = await auth.api.getSession({ headers: await headers() });
-    if (!session || !session.user) {
-      return { success: false, message: "User is not login" };
-    }
+    const session = await requireSession();
 
     const user = session.user;
-    const currentImageId: string | null = user.image ?? null;
-    let shouldLogout: boolean = false;
-    
+    const currentImageId: null | string = user.image ?? null;
+
     const rawData: UpdateProfileFormData = {
       username: getFormString(formData, "username"),
       // email: getFormString(formData, "email"),
       currentPassword: getFormString(formData, "currentPassword"),
+      image: getFormFiles(formData, "image")[0],
       newPassword: getFormString(formData, "newPassword"),
       newPasswordConfirmation: getFormString(formData, "newPasswordConfirmation"),
-      image: getFormFiles(formData, "image")[0],
     };
     const validatedFields = updateProfileFormSchema.safeParse(rawData);
 
     if (!validatedFields.success) {
       return {
-        success: false,
-        message: "Hay errores en el formulario",
         errors: z.treeifyError(validatedFields.error),
         inputs: rawData,
+        message: "Hay errores en el formulario",
+        success: false,
       };
     }
 
     if (validatedFields.data.currentPassword && validatedFields.data.newPassword) {
       await auth.api.changePassword({
         body: {
-            newPassword: validatedFields.data.newPassword,
-            currentPassword: validatedFields.data.currentPassword,
-            revokeOtherSessions: true,
+          currentPassword: validatedFields.data.currentPassword,
+          newPassword: validatedFields.data.newPassword,
+          revokeOtherSessions: true,
         },
         headers: await headers(),
       });
-      shouldLogout = true;
+      passwordChanged = true;
     }
-    
+
     if (validatedFields.data.image) {
-      const result = await uploadImageCloudinary(validatedFields.data.image, "avatars");
-      if (result) {
-        newImageId = result;
-        if (currentImageId) {
-          await deleteAsset(currentImageId);
-        }
-      }
+      newImageId = (await uploadImageFile(validatedFields.data.image, "avatars")) ?? null;
     }
-    
-    await prisma.user.update({
-      where: { id: session.user.id },
-      data: {
-        username: validatedFields.data.username,
-        ...(newImageId ? { image: newImageId } : {})
-      }
-    })
+    await editUser(session.userId, {
+      username: validatedFields.data.username,
+      ...(newImageId ? { image: newImageId } : {}),
+    });
+    profilePersisted = true;
+    // Only now is the old avatar unreferenced; deleting it earlier would leave a broken image if editUser failed.
+    if (newImageId && currentImageId) {
+      await deleteAsset(currentImageId);
+    }
     revalidatePath("/profile");
-    if (shouldLogout) {
-      await signout()
+    return { message: "Perfil actualizado", success: true };
+  } catch (error: unknown) {
+    const isGuardError = error instanceof UnauthenticatedError || error instanceof ForbiddenError;
+    const isWrongPassword =
+      error instanceof APIError &&
+      typeof error.body?.code === "string" &&
+      error.body.code.startsWith("INVALID_PASSWORD");
+    const isDuplicateUsername = error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
+    if (isGuardError || isWrongPassword || isDuplicateUsername) {
+      console.warn(`[updateUserProfile] rejected: ${error.name} — ${error.message}`);
+    } else {
+      console.error("[updateUserProfile] unexpected error", error);
     }
-    return { success: true, message: "Profile updated" };
-  } catch (error) {
-    console.error("Validation error:", error);
-    if (newImageId) {
+    if (newImageId && !profilePersisted) {
       await deleteAsset(newImageId);
     }
-    return {
-      success: false,
-      message: "An error has ocurred",
-    };
+    let message = "No se pudo actualizar el perfil. Inténtalo de nuevo.";
+    if (isGuardError) message = error.message;
+    else if (isWrongPassword) message = "La contraseña actual no es correcta.";
+    else if (isDuplicateUsername) message = "Ese nombre de usuario ya está en uso.";
+    if (passwordChanged) message = `Contraseña actualizada, pero el resto del perfil no se pudo guardar: ${message}`;
+    return { message, success: false };
   }
-
 }

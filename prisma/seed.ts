@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 // import "@/envConfig"
 // import { prisma } from "@/lib/prisma";
 // import { add25Days, addDayAssignment, addStoryImage, addStoryTea, addTea } from "@/lib/dal";
@@ -14,7 +13,7 @@
 //     password: "Admin123!"
 //   });
 //   await prisma.user.update({ where: { email: "carlos@carlos.com" }, data: { role: Role.ADMIN } });
-  
+
 //   // Create user1
 //   await createUser({
 //     username: "Deinos",
@@ -70,7 +69,7 @@
 //     moreIndications: "Disfrutar a la noche",
 //     addMilk: false,
 //     storeName: "La tienda de las especias",
-//     url: "wwww.tiendadelasespecias.com/rutadeldesierto",
+//     url: "https://www.tiendadelasespecias.com/rutadeldesierto",
 //   }, 1, 2025);
 
 //   for (let index = 1; index < 25; index++) {
@@ -84,7 +83,7 @@
 //       moreIndications: "De madrugada sabe mejor",
 //       addMilk: true,
 //       storeName: "La tienda de las especias",
-//       url: "wwww.tiendadelasespecias.com/te-chai"
+//       url: "https://www.tiendadelasespecias.com/te-chai"
 //     }, index + 1, 2025);
 //   }
 // }
@@ -118,7 +117,7 @@
 //   await addStoryImage("samples/dessert-on-a-plate", 0, 1, 2025);
 //   await addStoryImage("samples/coffee", 1, 1, 2025);
 //   await addStoryImage("samples/cup-on-a-table", 2, 1, 2025);
-  
+
 //   await addStoryImage("samples/breakfast", 0, 2, 2025);
 // }
 
