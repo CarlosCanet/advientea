@@ -8,14 +8,12 @@ export default defineConfig({
     environment: "jsdom",
     projects: [
       {
-        extends: true,
         test: {
           include: ["__tests__/unit/**/*.test.{ts,tsx}"],
           name: "unit",
         },
       },
       {
-        extends: true,
         test: {
           fileParallelism: false,
           globalSetup: ["src/lib/tests/global-setup.ts"],
