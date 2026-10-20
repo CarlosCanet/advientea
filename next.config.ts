@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 
-import { withSentryConfig } from "@sentry/nextjs";
+import { withSentryConfig } from "@sentry/nextjs/config";
 
 // Report-Only on purpose: the browser logs violations to the console instead of blocking.
 // Click through staging with devtools open, add any missing origin, then rename the header to
@@ -66,12 +66,6 @@ export default withSentryConfig(nextConfig, {
   // side errors will fail.
   tunnelRoute: "/monitoring",
 
-  // Automatically tree-shake Sentry logger statements to reduce bundle size
-  disableLogger: true,
-
-  // Enables automatic instrumentation of Vercel Cron Monitors. (Does not yet work with App Router route handlers.)
-  // See the following for more information:
-  // https://docs.sentry.io/product/crons/
-  // https://vercel.com/docs/cron-jobs
-  automaticVercelMonitors: true,
+  // disableLogger and automaticVercelMonitors were removed: deprecated in @sentry/nextjs 10.x and
+  // their replacements are webpack-only, so they never applied to this Turbopack build.
 });

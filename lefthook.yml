@@ -3,7 +3,10 @@ min_version: 2.0.0
 # Skip once with LEFTHOOK=0 git commit ... ; never skip on pushes to shared branches.
 
 pre-commit:
-  parallel: true
+  # Sequential on purpose: with `parallel: true` lefthook hangs on Windows when it renders to a
+  # real terminal (evilmartians/lefthook#1256, still open in 2.2.x). Non-TTY runs never hang,
+  # which is why CI and redirected runs did not show it. The jobs run in the order listed.
+  parallel: false
   jobs:
     # Runs on every commit on purpose: the lockfile can drift after a pull or a branch switch too.
     # --lockfile-only makes it a pure check: no node_modules writes and no lifecycle scripts.
@@ -11,7 +14,8 @@ pre-commit:
       run: pnpm install --frozen-lockfile --lockfile-only --silent
 
     # Lint and Format rewrite the same files, so they run in sequence inside this group,
-    # Prettier last so it has the final say on formatting.
+    # Prettier last so it has the final say on formatting. `piped` only means "stop the group at
+    # the first failure"; it does not connect the jobs through stdin.
     - name: Fix and format
       group:
         piped: true
