@@ -28,9 +28,13 @@ if (env === "production") {
   const { output, status } = prisma(["migrate", "status"], { capture: true });
   process.stdout.write(output);
   // Prisma 7 exits 1 with pending migrations and prints "Database schema is up to date!" when
-  // clean; the Prisma 8 CLI exits 0 either way and summarises "Up to date". Requiring both a
-  // zero exit and that sentence keeps the check fail-closed across the upgrade.
-  const upToDate = status === 0 && /up to date/i.test(output);
+  // clean; the Prisma 8 CLI exits 0 either way and summarises "Up to date". Requiring a zero
+  // exit, the exact clean sentence on its own line and no pending marker keeps the check
+  // fail-closed across the upgrade.
+  const lines = output.split(/\r?\n/).map((line) => line.trim());
+  const clean = lines.some((line) => line === "Database schema is up to date!" || line === "Up to date");
+  const pending = /not yet been applied|pending/i.test(output);
+  const upToDate = status === 0 && clean && !pending;
   if (!upToDate) {
     console.error(
       "[vercel-migrate] production is not up to date with prisma/migrations. Run the 'Migrate " +
