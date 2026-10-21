@@ -1,16 +1,16 @@
-// Database step of the Vercel build (`pnpm build`).
+// Database step of the Vercel build (`pnpm build`): migrations and the ingredient seed.
 //
-// - preview:    apply pending migrations to the deployment's own Neon branch.
+// - preview:    apply pending migrations to the deployment's own Neon branch, then seed.
 // - production: never migrate from the build. Only check: if migrations are pending the build
 //               fails, so production is migrated on purpose, through the "Migrate production"
-//               GitHub workflow, before the code that needs the new schema goes live.
-// - anything else (local builds, CI): skip, so a build never touches a database by accident.
+//               GitHub workflow, before the code that needs the new schema goes live. Then seed.
+// - anything else (local builds, CI): skip everything, so a build never touches a database.
 import { spawnSync } from "node:child_process";
 
 const env = process.env.VERCEL_ENV;
 
-function prisma(args, { capture = false } = {}) {
-  const result = spawnSync("pnpm", ["exec", "prisma", ...args], {
+function run(command, args, { capture = false } = {}) {
+  const result = spawnSync(command, args, {
     encoding: "utf8",
     shell: true,
     stdio: capture ? "pipe" : "inherit",
@@ -18,9 +18,18 @@ function prisma(args, { capture = false } = {}) {
   return { output: `${result.stdout ?? ""}${result.stderr ?? ""}`, status: result.status ?? 1 };
 }
 
+const prisma = (args, options) => run("pnpm", ["exec", "prisma", ...args], options);
+
+// Idempotent upserts of the ingredient catalogue. Planned to become a one-off data migration.
+function seedIngredients() {
+  console.log("[vercel-migrate] seeding ingredients");
+  return run("pnpm", ["exec", "tsx", "prisma/seed-ingredients.ts"]).status;
+}
+
 if (env === "preview") {
   console.log("[vercel-migrate] preview: applying migrations to the preview database");
-  process.exit(prisma(["migrate", "deploy"]).status);
+  const status = prisma(["migrate", "deploy"]).status;
+  process.exit(status === 0 ? seedIngredients() : status);
 }
 
 if (env === "production") {
@@ -43,7 +52,7 @@ if (env === "production") {
     );
     process.exit(1);
   }
-  process.exit(0);
+  process.exit(seedIngredients());
 }
 
-console.log(`[vercel-migrate] VERCEL_ENV=${env ?? "(unset)"}: skipping database step`);
+console.log(`[vercel-migrate] VERCEL_ENV=${env ?? "(unset)"}: skipping the database step`);
