@@ -1,0 +1,62 @@
+name: Migrate production
+
+# Applies pending Prisma migrations to the production database. Manual only, and the
+# `production-database` environment requires an approval before the job can read its secret.
+# Run it from the branch that contains the migrations (normally `develop`, right before the
+# release PR to `main`), so the schema is ready when the new code deploys. The production build
+# does not migrate; it fails if migrations are pending (see scripts/vercel-migrate.mjs).
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: "Apply the pending migrations (unchecked = only show the status)"
+        type: boolean
+        default: false
+
+# The token only needs to read the repository.
+permissions:
+  contents: read
+
+concurrency:
+  group: migrate-production
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    name: ${{ inputs.apply && 'Apply migrations' || 'Migration status' }}
+    runs-on: ubuntu-latest
+    # Not the "Production" environment Vercel reports its deployments to: a dedicated one, so its
+    # required reviewers never interfere with Vercel. No deployment record: the environment only
+    # guards the secret.
+    environment:
+      name: production-database
+      deployment: false
+    env:
+      # Install time only: the postinstall runs `prisma generate`, which loads prisma.config.ts.
+      DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
+    steps:
+      # Pinned to commits: this workflow handles the production credential.
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+      - run: pnpm install --frozen-lockfile
+
+      - name: Show what this run would touch
+        run: |
+          echo "branch: ${GITHUB_REF_NAME}"
+          echo "commit: ${GITHUB_SHA}"
+          ls prisma/migrations
+
+      # The direct (unpooled) connection string: Prisma Migrate cannot run through the pooler.
+      - name: Migration status
+        env:
+          DATABASE_URL_UNPOOLED: ${{ secrets.PRODUCTION_DATABASE_URL_UNPOOLED }}
+        # `migrate status` exits 1 when migrations are pending; that is the expected state
+        # before applying, so the step is allowed to fail and only reports.
+        continue-on-error: true
+        run: pnpm exec prisma migrate status
+
+      - name: Apply migrations
+        if: ${{ inputs.apply }}
+        env:
+          DATABASE_URL_UNPOOLED: ${{ secrets.PRODUCTION_DATABASE_URL_UNPOOLED }}
+        run: pnpm exec prisma migrate deploy
