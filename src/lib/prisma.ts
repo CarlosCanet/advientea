@@ -11,8 +11,18 @@ assertPreviewDatabaseIsNotProduction({
   vercelEnv: process.env.VERCEL_ENV,
 });
 
-const adapter = new PrismaPg({
-  connectionString: process.env.DATABASE_URL!,
-});
+const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
-export const prisma = new PrismaClient({ adapter });
+function createPrismaClient() {
+  const adapter = new PrismaPg({
+    connectionString: process.env.DATABASE_URL!,
+    // Serverless scales out, so every instance keeps a small pool and Neon's pooler multiplexes
+    // them (pg defaults to 10 per pool).
+    max: 5,
+  });
+  return new PrismaClient({ adapter });
+}
+
+// One client per process. Next.js dev re-evaluates modules on every edit, and a production bundle
+// can evaluate this module once per route layer; the globalThis cache covers both.
+export const prisma = (globalForPrisma.prisma ??= createPrismaClient());
