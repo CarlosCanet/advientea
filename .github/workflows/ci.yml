@@ -11,6 +11,9 @@ concurrency:
   # Never cancel a run on main: every production commit must end with its own check.
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
+permissions:
+  contents: read
+
 env:
   # Needed at install time: the postinstall runs `prisma generate`, and prisma.config.ts
   # throws if DATABASE_URL is missing. .env.test is only loaded when NODE_ENV=test (vitest).
@@ -21,13 +24,14 @@ jobs:
     name: Format, lint, types and tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      # Third-party actions pinned to commits (version in the comment, bump on purpose).
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
 
       # Installs the exact node and pnpm from mise.toml, so CI matches local and Vercel.
-      - uses: jdx/mise-action@v4
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
 
       - name: Cache pnpm store
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: ~/.local/share/pnpm/store
           key: pnpm-store-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
