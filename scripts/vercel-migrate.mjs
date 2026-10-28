@@ -1,10 +1,10 @@
-// Database step of the Vercel build (`pnpm build`): migrations and the ingredient seed.
+// Database step of the Vercel build (`pnpm build`).
 //
-// - preview:    apply pending migrations to the deployment's own Neon branch, then seed.
+// - preview:    apply pending migrations to the deployment's own Neon branch.
 // - production: never migrate from the build. Only check: if migrations are pending the build
 //               fails, so production is migrated on purpose, through the "Migrate production"
-//               GitHub workflow, before the code that needs the new schema goes live. Then seed.
-// - anything else (local builds, CI): skip everything, so a build never touches a database.
+//               GitHub workflow, before the code that needs the new schema goes live.
+// - anything else (local builds, CI): skip, so a build never touches a database.
 import { spawnSync } from "node:child_process";
 
 const env = process.env.VERCEL_ENV;
@@ -20,16 +20,9 @@ function run(command, args, { capture = false } = {}) {
 
 const prisma = (args, options) => run("pnpm", ["exec", "prisma", ...args], options);
 
-// Idempotent upserts of the ingredient catalogue. Planned to become a one-off data migration.
-function seedIngredients() {
-  console.log("[vercel-migrate] seeding ingredients");
-  return run("pnpm", ["exec", "tsx", "prisma/seed-ingredients.ts"]).status;
-}
-
 if (env === "preview") {
   console.log("[vercel-migrate] preview: applying migrations to the preview database");
-  const status = prisma(["migrate", "deploy"]).status;
-  process.exit(status === 0 ? seedIngredients() : status);
+  process.exit(prisma(["migrate", "deploy"]).status);
 }
 
 if (env === "production") {
@@ -52,7 +45,7 @@ if (env === "production") {
     );
     process.exit(1);
   }
-  process.exit(seedIngredients());
+  process.exit(0);
 }
 
 console.log(`[vercel-migrate] VERCEL_ENV=${env ?? "(unset)"}: skipping the database step`);

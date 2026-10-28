@@ -1,7 +1,6 @@
 import { Role, TeaType } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/prisma";
 
-import { seedIngredients } from "../../../prisma/seed-ingredients";
 import { add25Days, addDayAssignment, addStoryImage, addStoryTea, addTea, createTeaGuess } from "../dal";
 import { createPrismaUser } from "../dal/dal-user";
 
@@ -20,8 +19,9 @@ export async function seedDatabase() {
   // **** CREATE DAYS **** //
   await add25Days();
 
-  // **** CREATE INGREDIENTS **** //
-  await seedIngredients();
+  // **** INGREDIENTS **** //
+  // The catalogue comes from the data migration applied by the global setup, which is why
+  // resetDatabase() leaves teaIngredient alone: deleting it would break these lookups.
   const apple = await prisma.teaIngredient.findUnique({ where: { name: "Manzana" } });
   const lemon = await prisma.teaIngredient.findUniqueOrThrow({ where: { name: "Limón" } });
   const clove = await prisma.teaIngredient.findUnique({ where: { name: "Clavo" } });
