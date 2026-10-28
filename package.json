@@ -16,8 +16,8 @@
     "test:u:ui": "vitest --project unit --ui",
     "test:i": "vitest --project integration ",
     "test:i:ui": "vitest --project integration --ui",
-    "db:seed": "tsx prisma/seed.ts",
-    "db:reset": "npx prisma migrate reset --force",
+    "db:seed": "prisma db seed",
+    "db:reset": "prisma migrate reset --force",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down"
   },

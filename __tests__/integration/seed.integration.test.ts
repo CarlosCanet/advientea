@@ -19,9 +19,9 @@ describe("Database seed verification", () => {
     const admin = await prisma.user.findFirst({ where: { role: Role.ADMIN } });
     const executeave = await prisma.user.findFirst({ where: { role: Role.EXECUTEAVE } });
     expect(admin).toBeDefined();
-    expect(admin?.email).toBe("carlos@carlos.com");
+    expect(admin?.email).toBe("admin@example.com");
     expect(executeave).toBeDefined();
-    expect(executeave?.email).toBe("jorgedeinos@gmail.com");
+    expect(executeave?.email).toBe("gerente@example.com");
   });
 
   it("should have relationships correctly linked", async () => {
