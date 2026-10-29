@@ -1,8 +1,9 @@
 import { beforeEach } from "vitest";
 
-import { resetDatabase, seedDatabase } from "./test-utils";
+import { seedDatabase } from "../../../prisma/seed-data";
+import { resetDatabase } from "./test-utils";
 
 beforeEach(async () => {
   await resetDatabase();
-  await seedDatabase();
+  await seedDatabase({ accounts: false });
 });

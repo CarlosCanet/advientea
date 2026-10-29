@@ -12,10 +12,10 @@ describe("Integration test test", () => {
     expect(adminUsers.length).toBe(1);
     expect(execUsers.length).toBe(1);
     expect(adminUsers[0].username).toBe("CarlosC");
-    expect(adminUsers[0].email).toBe("carlos@carlos.com");
+    expect(adminUsers[0].email).toBe("admin@example.com");
     expect(adminUsers[0].image).toBe("38_kjq3k8");
     expect(execUsers[0].username).toBe("Deinos");
-    expect(execUsers[0].email).toBe("jorgedeinos@gmail.com");
+    expect(execUsers[0].email).toBe("gerente@example.com");
     expect(execUsers[0].image).toBe("94_dtpyjy");
   });
 });

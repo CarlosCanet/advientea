@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { replaceStoryImages } from "@/lib/dal";
 import { prisma } from "@/lib/prisma";
 
-// Seed (test-utils): "Ruta del desierto" has a story with 3 images (orders 0,1,2); "Pakistaní" has a story with 1.
+// Seed (prisma/seed-data.ts): "Ruta del desierto" has a story with 3 images (orders 0,1,2); "Pakistaní" has a story with 1.
 async function storyOf(teaName: string) {
   return prisma.storyTea.findFirstOrThrow({
     include: { images: { orderBy: { order: "asc" } } },
