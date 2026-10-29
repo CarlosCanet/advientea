@@ -43,13 +43,13 @@ export function assertPreviewDatabaseIsNotProduction({
 // Not `new URL()`: an unescaped `@` or `:` in the password makes it throw or misparse the host.
 // The userinfo runs up to the last `@` before the path, so those characters are tolerated;
 // `/`, `?` and `#` must be percent-encoded, as in any URL.
-function hostnameOf(connectionString: string): string | undefined {
+export function hostnameOf(connectionString: string): string | undefined {
   const match = /^[a-z][a-z0-9+.-]*:\/\/(?:[^/?#]*@)?([^/:?#@]+)/i.exec(connectionString.trim());
   return match?.[1];
 }
 
 // Neon exposes the same endpoint as `ep-xxx-pooler.<region>` and `ep-xxx.<region>`.
-function normaliseNeonHost(host: string): string {
+export function normaliseNeonHost(host: string): string {
   return host
     .trim()
     .toLowerCase()

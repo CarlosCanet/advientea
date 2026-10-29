@@ -33,7 +33,7 @@ Versions are pinned so that local, CI and Vercel build the same way. Vercel buil
 | `pnpm test:u`            | Unit tests (`__tests__/unit`)                                       |
 | `pnpm test:i`            | Integration tests against Docker Postgres (`__tests__/integration`) |
 | `pnpm docker:up`         | Start the test Postgres (`localhost:5433/tests`)                    |
-| `pnpm db:seed`           | Seed the database that `DATABASE_URL` points to (dev only)          |
+| `pnpm db:seed`           | Synthetic seed into the `DATABASE_URL` database (dev only)          |
 
 ## Environments and data safety
 
@@ -42,7 +42,8 @@ These rules exist because the app has production users and a shared Cloudinary a
 - **Never touch the production database.** `.env` holds the local dev database (`localhost:5432`). The production connection string must never be used from a developer machine.
 - **Previews refuse the production database.** `src/lib/database-guard.ts` runs from `prisma.config.ts` (every Prisma CLI call, install included) and from `src/lib/prisma.ts`: when `VERCEL_ENV` is `preview`, the database host must differ from `PRODUCTION_DB_HOST` (a public Vercel variable, hostname only) or the build fails. Neon normally injects a branch database per preview; this guard covers the case where it does not and the fallback `DATABASE_URL` would be production. Migrations use `DATABASE_URL_UNPOOLED` when present.
 - **Tests use the Docker Postgres only.** `.env.test` (committed, no secrets) points to `localhost:5433/tests`; `.env.test.local` (gitignored) may override it. The integration suite resets and reseeds that database on every test.
-- **Production is migrated by hand, never by the build.** `pnpm build` starts with `scripts/vercel-migrate.mjs`: in Vercel previews it applies pending migrations to the preview's Neon branch; in production it only checks and fails the build while migrations are pending; anywhere else it skips. To migrate production, run the "Migrate production" workflow in GitHub Actions from the branch that holds the migrations (normally `develop`, before the release PR): first without `apply` to see the status, then with it. The `production-database` GitHub environment requires an approval and holds the only copy of the direct production URL. The ingredient seed runs in the same step, so only Vercel builds touch a database (the seed is planned to become a one-off). `prisma migrate ...` and `pnpm db:reset` act on whatever `DATABASE_URL` resolves to through `prisma.config.ts` (that is `.env`, never `.env.test`), so run them only when that is your local dev database or the Docker test database (`pnpm dotenv -e .env.test -- prisma migrate reset`).
+- **The synthetic seed is for empty development databases.** `pnpm db:seed` runs `prisma/seed.ts`, which seeds the data in `prisma/seed-data.ts`: five sign-in accounts that share the committed `SEED_PASSWORD`, 25 days, two teas. It fails closed: only `localhost` is accepted unless `SEED_ALLOW_REMOTE=1` is set on purpose for a disposable Neon branch, and production (`VERCEL_ENV`, `NODE_ENV` or `PRODUCTION_DB_HOST`) is always refused. It is not idempotent, and Prisma 7 no longer seeds after `migrate reset`, so run it by hand afterwards. The integration tests reuse it without accounts.
+- **Production is migrated by hand, never by the build.** `pnpm build` starts with `scripts/vercel-migrate.mjs`: in Vercel previews it applies pending migrations to the preview's Neon branch; in production it only checks and fails the build while migrations are pending; anywhere else it skips. To migrate production, run the "Migrate production" workflow in GitHub Actions from the branch that holds the migrations (normally `develop`, before the release PR): first without `apply` to see the status, then with it. The `production-database` GitHub environment requires an approval and holds the only copy of the direct production URL. The ingredient catalogue is a data migration (`20261028120000_seed_tea_ingredients`), so the production build only reads; adding an ingredient means a new data migration. `prisma migrate ...` and `pnpm db:reset` act on whatever `DATABASE_URL` resolves to through `prisma.config.ts` (that is `.env`, never `.env.test`), so run them only when that is your local dev database or the Docker test database (`pnpm dotenv -e .env.test -- prisma migrate reset`).
 - **Cloudinary is one shared account for every environment.** The app deletes the previous asset when an avatar or a story image is replaced. Never exercise those flows against rows that reference production assets; use disposable test assets. A per-environment folder and a delete guard are planned.
 - **Staging data is a copy of production.** The `preview/develop` Neon branch is copy-on-write: writes stay in staging, but it contains real user data and sits behind Vercel SSO. Use throwaway accounts there.
 - Secrets live in Vercel as Sensitive variables. Never print, log or commit them.
@@ -56,7 +57,7 @@ These rules exist because the app has production users and a shared Cloudinary a
 - Mutation actions called from client components return `ActionResponse { success, message }` with Spanish messages; form actions used with `useActionState` return the extended `*ActionResponse` shapes from `src/lib/types.ts`, which add `errors` and `inputs` so the form can show field errors and keep what the user typed. Client components show the message through `useActionToast` / `ActionToast` (`src/components/ui/ActionToast.tsx`), a stopgap until the planned move to shadcn/ui and sonner.
 - Editing a story's images goes through `replaceStoryImages(storyTeaId, slots)` in `src/lib/dal/dal-story-image.ts`: one transaction, ids scoped to the story, removed assets returned for deletion after commit. Creation in `addTeaInfo` still inserts images one by one with `addStoryImage`; new code should use `replaceStoryImages`.
 - Day visibility and the reveal schedule live in `src/lib/advientea-rules.ts`; guessing rules in `src/lib/services/tea-guess-service.ts`; scoring in `src/lib/tea-guess-scoring.ts`.
-- `src/generated/prisma/` is generated by `prisma generate` on install. Do not edit it or `prisma/migrations/` by hand.
+- `src/generated/prisma/` is generated by `prisma generate` on install; never edit it. Schema migrations in `prisma/migrations/` are generated by `prisma migrate dev`; data migrations are created with `prisma migrate dev --create-only` and written by hand. Never edit a migration once it has been applied anywhere.
 
 ## Conventions
 
@@ -79,3 +80,13 @@ These rules exist because the app has production users and a shared Cloudinary a
 - `README.md`: setup and getting started.
 - `.github/copilot-instructions.md` and `.github/instructions/daisyui.instructions.md`: styling and daisyUI conventions.
 - GitHub Project #17 tracks the work: https://github.com/users/CarlosCanet/projects/17
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+## This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

@@ -1,147 +1,30 @@
-// import "@/envConfig"
-// import { prisma } from "@/lib/prisma";
-// import { add25Days, addDayAssignment, addStoryImage, addStoryTea, addTea } from "@/lib/dal";
-// import { Role } from "@/generated/prisma/client";
-// import { createUser } from "@/lib/services/user-service";
+import { hostnameOf, normaliseNeonHost } from "@/lib/database-guard";
+import { prisma } from "@/lib/prisma";
 
-// export async function createUsers() {
-//   // Create admin
-//   await createUser({
-//     username: "CarlosC",
-//     email: "carlos@carlos.com",
-//     image: "38_kjq3k8",
-//     password: "Admin123!"
-//   });
-//   await prisma.user.update({ where: { email: "carlos@carlos.com" }, data: { role: Role.ADMIN } });
+import { seedDatabase } from "./seed-data";
 
-//   // Create user1
-//   await createUser({
-//     username: "Deinos",
-//     email: "jorgedeinos@gmail.com",
-//     image: "94_dtpyjy",
-//     password: "deinos123!"
-//   })
+// Entry point of `prisma db seed` (configured in prisma.config.ts). The seed creates sign-in
+// accounts with a committed password, so it fails closed: only a local database is accepted unless
+// SEED_ALLOW_REMOTE=1 is set on purpose (a disposable Neon branch), and production never is.
+const LOCAL_HOSTS = new Set(["127.0.0.1", "localhost"]);
+const host = hostnameOf(process.env.DATABASE_URL ?? "");
+const productionHost = process.env.PRODUCTION_DB_HOST?.trim();
+if (!host) throw new Error("DATABASE_URL has no recognisable hostname.");
+if (
+  process.env.VERCEL_ENV === "production" ||
+  process.env.NODE_ENV === "production" ||
+  (productionHost && normaliseNeonHost(host) === normaliseNeonHost(productionHost))
+) {
+  throw new Error("Refusing to seed a production database.");
+}
+if (!LOCAL_HOSTS.has(host.toLowerCase()) && process.env.SEED_ALLOW_REMOTE !== "1") {
+  throw new Error(`Refusing to seed the remote database at ${host}. Set SEED_ALLOW_REMOTE=1 for a disposable branch.`);
+}
 
-//   // Create user2
-//   await createUser({
-//     username: "mikoalilla",
-//     email: "miko@gmail.com",
-//     image: "11_n5c86c",
-//     password: "miko123!"
-//   })
-
-//   // Create user3
-//   await createUser({
-//     username: "Ñita",
-//     email: "ana@gmail.com",
-//     image: "90_lwzifs",
-//     password: "anaa123!"
-//   })
-
-//   // Create user4
-//   await createUser({
-//     username: "Sony",
-//     email: "sony@gmail.com",
-//     image: "100_xh9syq",
-//     password: "ynos123!"
-//   })
-
-//   // Create user5
-//   await createUser({
-//     username: "María",
-//     email: "maria@gmail.com",
-//     image: "98_sn7aud",
-//     password: "maria123!"
-//   })
-// }
-
-// export async function createDays() {
-//   await add25Days();
-// }
-
-// export async function createTeas() {
-//   await addTea({
-//     name: "Ruta del desierto",
-//     infusionTime: 3,
-//     temperature: 95,
-//     hasTheine: false,
-//     canReinfuse: false,
-//     moreIndications: "Disfrutar a la noche",
-//     addMilk: false,
-//     storeName: "La tienda de las especias",
-//     url: "https://www.tiendadelasespecias.com/rutadeldesierto",
-//   }, 1, 2025);
-
-//   for (let index = 1; index < 25; index++) {
-//     await addTea({
-//       name: "Té Chai",
-//       infusionTime: 6,
-//       temperature: 105,
-//       hasTheine: true,
-//       canReinfuse: true,
-//       reinfuseNumber: 3,
-//       moreIndications: "De madrugada sabe mejor",
-//       addMilk: true,
-//       storeName: "La tienda de las especias",
-//       url: "https://www.tiendadelasespecias.com/te-chai"
-//     }, index + 1, 2025);
-//   }
-// }
-
-// export async function createStoryTeas() {
-//   await addStoryTea({
-//     storyPart1: "Todo pasó hace tiempo",
-//     storyPart2: "Tienes pistas en el nombre",
-//     storyPart3: "Cuanto más avanzas, más te pierdes",
-//     youtubeURL: "https://www.youtube.com/watch?v=jfKfPfyJRdk",
-//     onlyMusic: false
-//   }, 1, 2025);
-
-//   await addStoryTea({
-//     storyPart1: "Jamás",
-//     storyPart2: "Me",
-//     storyPart3: "pillarás",
-//     youtubeURL: "https://www.youtube.com/watch?v=jfKfPfyJRdk",
-//   }, 2, 2025);
-
-//   for (let index = 2; index < 25; index++) {
-//     await addStoryTea({
-//       storyPart1: "Story 1",
-//       storyPart2: "Story 2",
-//       storyPart3: "Story 3",
-//     }, index + 1, 2025);
-//   }
-// }
-
-// export async function createStoryImages() {
-//   await addStoryImage("samples/dessert-on-a-plate", 0, 1, 2025);
-//   await addStoryImage("samples/coffee", 1, 1, 2025);
-//   await addStoryImage("samples/cup-on-a-table", 2, 1, 2025);
-
-//   await addStoryImage("samples/breakfast", 0, 2, 2025);
-// }
-
-// export async function createDaysAssignments() {
-//   await addDayAssignment("jorgedeinos@gmail.com", 1, 2025);
-//   await addDayAssignment("miko@gmail.com", 2, 2025);
-//   await addDayAssignment("ana@gmail.com", 3, 2025);
-//   await addDayAssignment("sony@gmail.com", 4, 2025);
-//   await addDayAssignment("maria@gmail.com", 5, 2025);
-// }
-
-// async function seed() {
-//   try {
-//     // await createUsers();
-//     // await createDays();
-//     // await createDaysAssignments();
-//     // await createTeas();
-//     // await createStoryTeas();
-//     // await createStoryImages();
-//   } catch (error) {
-//     console.error(error);
-//   } finally {
-//     await prisma.$disconnect();
-//   }
-// }
-
-// seed();
+seedDatabase()
+  .then(() => console.log("Seed done"))
+  .catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  })
+  .finally(() => prisma.$disconnect());
