@@ -54,7 +54,7 @@ export default async function DaysList() {
               session && isNameReleased && assigneeName ? `${day.tea?.name} - ${assigneeName}` : day.tea?.name;
             return (
               <li className="rounded-none border-b border-b-secondary/70" key={day.id}>
-                <Link className="list-row items-center justify-center text-center gap-1 " href={`teaDay/${day.id}`}>
+                <Link className="list-row items-center justify-center text-center gap-1 " href={`/teaDay/${day.id}`}>
                   <div className="flex flex-col items-center rounded-lg shadow-md overflow-hidden border border-base-200">
                     {/* Calendar header */}
                     <div className="w-full h-2 bg-secondary"></div>

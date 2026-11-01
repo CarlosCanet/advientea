@@ -7,7 +7,6 @@ import { MdComputer } from "react-icons/md";
 
 import StoryTeaComponent from "@/components/StoryTeaComponent";
 import TeaGuessCard from "@/components/TeaGuessCard";
-import TeaGuessForm from "@/components/TeaGuessForm";
 import Timer from "@/components/Timer";
 import TeaInfusionInfo from "@/components/ui/TeaInfusionInfo";
 import WaitForDayToCome from "@/components/ui/WaitForDayToCome";
