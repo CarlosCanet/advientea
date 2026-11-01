@@ -34,7 +34,7 @@ export function isDateTodayOrPast(targetDate: Date): boolean {
 export function getAdvienteaDayState(
   dayNumber: number,
   year: number,
-  userRole: Role,
+  userRole: Role | undefined,
   isSimulated = false,
 ): AdvienteaDayState {
   const HOURS = {
@@ -83,6 +83,10 @@ export function getAdvienteaDayState(
 
   state.isPersonNameReleased =
     isDatePast(RELEASE_NAME_DAY) || (isDateTodayOrPast(RELEASE_NAME_DAY) && currentHour >= HOURS.NAME);
+
+  if (!userRole) {
+    state.isPersonNameReleased = false;
+  }
 
   return state;
 }

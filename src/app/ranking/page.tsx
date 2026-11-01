@@ -4,7 +4,6 @@ import { BsCupFill } from "react-icons/bs";
 import { FaAward, FaTrophy } from "react-icons/fa6";
 
 import RankingList from "@/components/RankingList";
-import { Role } from "@/generated/prisma/enums";
 import { getAdvienteaDayState } from "@/lib/advientea-rules";
 import { auth } from "@/lib/auth";
 import { getOverallRanking } from "@/lib/services/ranking-service";
@@ -15,12 +14,7 @@ export default async function OverallRankingPage() {
     notFound();
   }
   const today = new Date();
-  const advienteaDayState = getAdvienteaDayState(
-    today.getDay(),
-    today.getFullYear(),
-    session?.user.role as Role,
-    false,
-  );
+  const advienteaDayState = getAdvienteaDayState(today.getDay(), today.getFullYear(), session.user.role, false);
   const ranking = await getOverallRanking();
   if (!ranking) {
     notFound();

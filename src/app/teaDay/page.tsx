@@ -12,8 +12,6 @@ import { getAllDays } from "@/lib/dal";
 export default async function DaysList() {
   const session = await auth.api.getSession({ headers: await headers() });
   let days = await getAllDays(2025);
-  const lastDay = days[days.length - 1];
-  const isNameReleased = isDateTodayOrPast(new Date(lastDay.year, 11, lastDay.dayNumber));
 
   if (session?.user.role !== Role.ADMIN && session?.user.role !== Role.EXECUTEAVE) {
     days = days.filter((day) => isDateTodayOrPast(new Date(day.year, 11, day.dayNumber)));
@@ -48,13 +46,15 @@ export default async function DaysList() {
         {days
           .toSorted((day1, day2) => day2.dayNumber - day1.dayNumber)
           .map((day) => {
-            const advienteaDayState = getAdvienteaDayState(day.dayNumber, day.year, session?.user.role as Role, false);
+            const advienteaDayState = getAdvienteaDayState(day.dayNumber, day.year, session?.user.role, false);
             const assigneeName = day.assignment?.guestName ?? day.assignment?.user?.username;
             const advienteaDayTitle =
-              isNameReleased && assigneeName ? `${day.tea?.name} - ${assigneeName}` : day.tea?.name;
+              advienteaDayState.isPersonNameReleased && assigneeName
+                ? `${day.tea?.name} - ${assigneeName}`
+                : day.tea?.name;
             return (
               <li className="rounded-none border-b border-b-secondary/70" key={day.id}>
-                <Link className="list-row items-center justify-center text-center gap-1 " href={`teaDay/${day.id}`}>
+                <Link className="list-row items-center justify-center text-center gap-1 " href={`/teaDay/${day.id}`}>
                   <div className="flex flex-col items-center rounded-lg shadow-md overflow-hidden border border-base-200">
                     {/* Calendar header */}
                     <div className="w-full h-2 bg-secondary"></div>

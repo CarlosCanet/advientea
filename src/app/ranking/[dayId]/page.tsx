@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import { FaAward } from "react-icons/fa6";
 
 import RankingList from "@/components/RankingList";
-import { Role } from "@/generated/prisma/enums";
 import { getAdvienteaDayState } from "@/lib/advientea-rules";
 import { auth } from "@/lib/auth";
 import { getDay } from "@/lib/dal";
@@ -20,7 +19,7 @@ export default async function RankingPage({ params }: RankingPageProps) {
   if (!day || !session) {
     notFound();
   }
-  const advienteaDayState = getAdvienteaDayState(day.dayNumber, day.year, session?.user.role as Role, false);
+  const advienteaDayState = getAdvienteaDayState(day.dayNumber, day.year, session.user.role, false);
   const ranking = await getDailyRanking(dayId);
   if (!ranking) {
     notFound();
