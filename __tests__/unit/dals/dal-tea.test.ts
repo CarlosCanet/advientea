@@ -278,6 +278,7 @@ describe("DAL Tea", () => {
           createdAt: new Date(),
           dayId: "day-cuid",
           guestName: null,
+          guestToken: null,
           id: "assignment-cuid",
           updatedAt: new Date(),
           user: {
@@ -334,6 +335,7 @@ describe("DAL Tea", () => {
           createdAt: new Date(),
           dayId: "day-cuid",
           guestName: "Guest User",
+          guestToken: null,
           id: "assignment-cuid",
           updatedAt: new Date(),
           user: null,

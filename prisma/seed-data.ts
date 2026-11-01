@@ -1,5 +1,13 @@
-import { Role, TeaType } from "@/generated/prisma/enums";
-import { add25Days, addDayAssignment, addStoryTea, addTea, createPrismaUser, replaceStoryImages } from "@/lib/dal";
+import { EditionStatus, Role, TeaType } from "@/generated/prisma/enums";
+import {
+  add25Days,
+  addDayAssignment,
+  addStoryTea,
+  addTea,
+  createPrismaUser,
+  replaceStoryImages,
+  upsertEdition,
+} from "@/lib/dal";
 import { prisma } from "@/lib/prisma";
 import { createUser } from "@/lib/services/user-service";
 
@@ -44,6 +52,8 @@ export async function seedDatabase({ accounts = true, year = 2025 }: SeedOptions
   const ana = await createSeedUser(USERS.ana);
   const sony = await createSeedUser(USERS.sony);
 
+  // Active: the seeded year is the one dev and the tests play with, and nothing else creates editions.
+  await upsertEdition(year, EditionStatus.ACTIVE);
   await add25Days(year);
 
   const tea1 = await addTea(

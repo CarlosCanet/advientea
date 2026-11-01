@@ -5,7 +5,8 @@ import { MdBackHand } from "react-icons/md";
 
 import TeaInfusionInfo from "@/components/ui/TeaInfusionInfo";
 import { Role } from "@/generated/prisma/enums";
-import { getAdvienteaDayState, isDateTodayOrPast } from "@/lib/advientea-rules";
+import { editionInfoForYear, getAdvienteaDayState, getDaySchedule } from "@/lib/advientea-rules";
+import { getNow } from "@/lib/advientea-time";
 import { auth } from "@/lib/auth";
 import { getAllDays } from "@/lib/dal";
 
@@ -14,7 +15,7 @@ export default async function DaysList() {
   let days = await getAllDays(2025);
 
   if (session?.user.role !== Role.ADMIN && session?.user.role !== Role.EXECUTEAVE) {
-    days = days.filter((day) => isDateTodayOrPast(new Date(day.year, 11, day.dayNumber)));
+    days = days.filter((day) => getDaySchedule(day.dayNumber, editionInfoForYear(day.year), getNow()).isReleased);
   }
 
   return (
@@ -46,7 +47,12 @@ export default async function DaysList() {
         {days
           .toSorted((day1, day2) => day2.dayNumber - day1.dayNumber)
           .map((day) => {
-            const advienteaDayState = getAdvienteaDayState(day.dayNumber, day.year, session?.user.role, false);
+            const advienteaDayState = getAdvienteaDayState(
+              day.dayNumber,
+              editionInfoForYear(day.year),
+              session?.user.role,
+              false,
+            );
             const assigneeName = day.assignment?.guestName ?? day.assignment?.user?.username;
             const advienteaDayTitle =
               advienteaDayState.isPersonNameReleased && assigneeName

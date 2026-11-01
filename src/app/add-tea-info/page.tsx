@@ -19,7 +19,7 @@ async function AddTeaInfo() {
       const usersWithAssignments = allAssignments.map((assignment) => assignment.user?.username);
       users = allUsers.map((user) => user.username).filter((user) => !usersWithAssignments.includes(user));
     }
-    if (assignment && assignment.day.tea) {
+    if (assignment && assignment.day?.tea) {
       redirect("/edit-tea-info");
     }
   }
@@ -29,7 +29,7 @@ async function AddTeaInfo() {
       <div className="flex justify-center">
         <AddTeaInfoForm
           canAssign={isUserPrivileged}
-          dayNumber={assignment?.day.dayNumber ?? 0}
+          dayNumber={assignment?.day?.dayNumber ?? 0}
           isLoggedIn={!!session?.user}
           username={session?.user.name ?? ""}
           users={users}

@@ -43,7 +43,7 @@ export default async function Users() {
                     <td className="text-center">
                       <CheckboxUsersExecuteave role={user.role} userId={user.id} />
                     </td>
-                    <td className="text-center">{user.daysAssigned[0]?.day.dayNumber}</td>
+                    <td className="text-center">{user.daysAssigned[0]?.day?.dayNumber}</td>
                   </tr>
                 );
               })}

@@ -97,8 +97,8 @@ export async function addDayAssignment(
 
   const data: Prisma.DayAssignmentCreateInput = {
     day: { connect: { id: dayResponse.id } },
+    edition: { connect: { year } },
     guestName: null,
-    year,
   };
 
   if (assignee.userId) {

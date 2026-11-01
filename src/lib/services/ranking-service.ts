@@ -2,13 +2,13 @@ import { Role } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/prisma";
 import { DEFAULT_IMAGE_PROFILE, RankingEntry } from "@/lib/types";
 
-import { getAdvienteaDayState } from "../advientea-rules";
+import { editionInfoForYear, getAdvienteaDayState } from "../advientea-rules";
 import { getDay } from "../dal";
 
 export async function getDailyRanking(dayId: string): Promise<Array<RankingEntry> | null> {
   const day = await getDay(dayId);
   if (!day) return null;
-  const advienteaDayState = getAdvienteaDayState(day.dayNumber, day.year, Role.USER, false);
+  const advienteaDayState = getAdvienteaDayState(day.dayNumber, editionInfoForYear(day.year), Role.USER, false);
   const isPersonNameReleased = advienteaDayState.isPersonNameReleased;
   const allGuesses = await prisma.teaGuess.findMany({
     include: { user: { select: { image: true, username: true } } },

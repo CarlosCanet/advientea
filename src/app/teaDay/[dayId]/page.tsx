@@ -11,7 +11,7 @@ import Timer from "@/components/Timer";
 import AuthorName from "@/components/ui/AuthorName";
 import TeaInfusionInfo from "@/components/ui/TeaInfusionInfo";
 import WaitForDayToCome from "@/components/ui/WaitForDayToCome";
-import { getAdvienteaDayState } from "@/lib/advientea-rules";
+import { editionInfoForYear, getAdvienteaDayState } from "@/lib/advientea-rules";
 import { auth } from "@/lib/auth";
 import { getDay, getUsernameAssignedToTea } from "@/lib/dal";
 
@@ -29,7 +29,12 @@ export default async function TeaDayPage({ params, searchParams }: TeaDayPagePro
   const simulated = Boolean((await searchParams).simulated);
   const tea = day.tea;
   const session = await auth.api.getSession({ headers: await headers() });
-  const advienteaDayState = getAdvienteaDayState(day.dayNumber, day.year, session?.user.role, simulated);
+  const advienteaDayState = getAdvienteaDayState(
+    day.dayNumber,
+    editionInfoForYear(day.year),
+    session?.user.role,
+    simulated,
+  );
   if (!advienteaDayState.isReleased) {
     return <WaitForDayToCome dayNumber={day.dayNumber} />;
   }

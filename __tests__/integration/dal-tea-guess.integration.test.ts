@@ -28,6 +28,8 @@ describe("Dal tea guess", async () => {
     });
     const ownerDay1 = dayAssignmentRecord1.user;
     testUser = await prisma.user.findFirstOrThrow({ where: { id: { not: ownerDay1!.id } } });
+    if (!dayAssignmentRecord1.day || !dayAssignmentRecord2.day)
+      throw new Error("DB test seed has assignments without a day");
     testDay1 = dayAssignmentRecord1.day;
     testDay2 = dayAssignmentRecord2.day;
     if (!dayAssignmentRecord1.day.tea) throw new Error("DB test seed has no valid teas");

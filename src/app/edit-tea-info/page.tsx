@@ -19,8 +19,8 @@ async function EditTeaInfo() {
     redirect("/");
   } else if (!isUserPrivileged) {
     const assignment = await getDayAssignment(2025, session.user.email);
-    if (assignment && assignment.day.tea) {
-      redirect(`/edit-tea-info/${assignment.day.tea.id}`);
+    if (assignment && assignment.day?.tea) {
+      redirect(`/edit-tea-info/${assignment.day?.tea.id}`);
     } else {
       return <WaitForDayAssignment />;
     }
