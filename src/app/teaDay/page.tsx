@@ -12,8 +12,6 @@ import { getAllDays } from "@/lib/dal";
 export default async function DaysList() {
   const session = await auth.api.getSession({ headers: await headers() });
   let days = await getAllDays(2025);
-  const lastDay = days.at(-1);
-  const isNameReleased = lastDay ? isDateTodayOrPast(new Date(lastDay.year, 11, lastDay.dayNumber)) : false;
 
   if (session?.user.role !== Role.ADMIN && session?.user.role !== Role.EXECUTEAVE) {
     days = days.filter((day) => isDateTodayOrPast(new Date(day.year, 11, day.dayNumber)));
@@ -48,10 +46,12 @@ export default async function DaysList() {
         {days
           .toSorted((day1, day2) => day2.dayNumber - day1.dayNumber)
           .map((day) => {
-            const advienteaDayState = getAdvienteaDayState(day.dayNumber, day.year, session?.user.role as Role, false);
+            const advienteaDayState = getAdvienteaDayState(day.dayNumber, day.year, session?.user.role, false);
             const assigneeName = day.assignment?.guestName ?? day.assignment?.user?.username;
             const advienteaDayTitle =
-              session && isNameReleased && assigneeName ? `${day.tea?.name} - ${assigneeName}` : day.tea?.name;
+              advienteaDayState.isPersonNameReleased && assigneeName
+                ? `${day.tea?.name} - ${assigneeName}`
+                : day.tea?.name;
             return (
               <li className="rounded-none border-b border-b-secondary/70" key={day.id}>
                 <Link className="list-row items-center justify-center text-center gap-1 " href={`/teaDay/${day.id}`}>
