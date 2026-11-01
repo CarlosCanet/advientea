@@ -15,7 +15,7 @@ export default async function OverallRankingPage() {
   }
   const today = new Date();
   const advienteaDayState = getAdvienteaDayState(
-    today.getDay(),
+    today.getDate(),
     editionInfoForYear(today.getFullYear()),
     session.user.role,
     false,
