@@ -5,15 +5,12 @@
 
 */
 -- Guard: the random guest days of 2025 were deleted by hand before this migration. If one
--- reappears (the public guest form is still open in production), stop before touching anything.
+-- reappears (the public guest form is still open in production and it creates the day WITH a guest
+-- assignment), stop before touching anything.
 DO $$
 BEGIN
-  IF EXISTS (
-    SELECT 1 FROM "Day" d
-    LEFT JOIN "DayAssignment" a ON a."dayId" = d.id
-    WHERE a.id IS NULL AND d."dayNumber" > 25
-  ) THEN
-    RAISE EXCEPTION 'Unassigned day with dayNumber > 25 found: delete the guest day before migrating';
+  IF EXISTS (SELECT 1 FROM "Day" WHERE "dayNumber" > 25) THEN
+    RAISE EXCEPTION 'Day with dayNumber > 25 found: delete the guest day before migrating';
   END IF;
 END $$;
 

@@ -285,10 +285,13 @@ describe("DAL Day", () => {
         updatedAt: new Date(),
         year: 2025,
       };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      prismaMock.$transaction.mockImplementation((cb: any) => cb(prismaMock));
       prismaMock.day.delete.mockResolvedValue(mockDeleted);
 
       await deleteDay("day-1");
 
+      expect(prismaMock.dayAssignment.deleteMany).toHaveBeenCalledWith({ where: { dayId: "day-1" } });
       expect(prismaMock.day.delete).toHaveBeenCalledWith(
         expect.objectContaining({
           include: expect.anything(),

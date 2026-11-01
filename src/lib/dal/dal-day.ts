@@ -132,9 +132,13 @@ export async function editDay(data: Prisma.DayUncheckedUpdateInput, id: string):
 }
 
 export async function deleteDay(id: string): Promise<DayWithTeaComplete> {
-  const dayDeleted = await prisma.day.delete({
-    include: { tea: { include: { story: { include: { images: { orderBy: { order: "asc" } } } } } } },
-    where: { id },
+  // The assignment goes with the day on purpose: since the editions migration its day is SetNull, and
+  // an orphan row would still hold the (userId, year) unique and block assigning that person again.
+  return prisma.$transaction(async (tx) => {
+    await tx.dayAssignment.deleteMany({ where: { dayId: id } });
+    return tx.day.delete({
+      include: { tea: { include: { story: { include: { images: { orderBy: { order: "asc" } } } } } } },
+      where: { id },
+    });
   });
-  return dayDeleted;
 }
