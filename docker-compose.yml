@@ -1,13 +1,38 @@
-name: integreation-tests
+# Only the dev database keeps its data: the tests reset theirs on every run.
+name: advientea
+
+x-postgres: &postgres
+  image: postgres:17
+  restart: unless-stopped
+  healthcheck:
+    # Over TCP: during init the image runs a socket-only temporary server that a plain check would pass.
+    test: ["CMD-SHELL", "pg_isready -U postgres -h 127.0.0.1"]
+    interval: 2s
+    timeout: 3s
+    retries: 15
 
 services:
   db:
-    image: postgres:17
-    restart: always
-    container_name: integration-tests
+    <<: *postgres
+    container_name: advientea-db
     ports:
-      - "5433:5432"
+      - "127.0.0.1:5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: advientea
+    volumes:
+      - advientea-db:/var/lib/postgresql/data
+
+  db-test:
+    <<: *postgres
+    container_name: advientea-db-test
+    ports:
+      - "127.0.0.1:5433:5432"
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: tests
+
+volumes:
+  advientea-db:

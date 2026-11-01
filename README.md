@@ -151,7 +151,7 @@ cd advientea
 cp .env.example .env
 ```
 
-Edit `.env` and add your credentials. `DATABASE_URL` must point to a local PostgreSQL.
+Edit `.env` and add your credentials. The default `DATABASE_URL` points to the Postgres that Docker runs for you in the next steps.
 
 3. Install dependencies (installs the pinned toolchain first, see `mise.toml`)
 
@@ -160,17 +160,17 @@ mise install
 pnpm install
 ```
 
-4. Set up the database
+4. Set up the database (needs Docker running)
 
 ```bash
-# Using pnpm
-pnpm dlx prisma generate
-pnpm dlx prisma migrate dev --name init
-
-# Or using npx
-npx prisma generate
-npx prisma migrate dev --name init
+pnpm docker:up                   # dev database on localhost:5432, test database on localhost:5433
+pnpm exec prisma migrate deploy  # create the schema in the dev database
+pnpm db:seed                     # optional: synthetic data and sign-in accounts
 ```
+
+The dev database keeps its data in a Docker volume; `pnpm docker:down` stops the containers without losing it. To load a `pg_dump` custom-format file instead of the seed, run `pnpm db:restore <file>` (it recreates the database first).
+
+If you ran the integration tests before the dev database moved to Docker, remove the old test container once, or it keeps port 5433: `docker rm -f integration-tests`.
 
 5. Run the development server
 
@@ -192,6 +192,9 @@ npm run build     # Build for production
 npm run start     # Start production server
 npm run lint      # Run ESLint
 npm run test      # Run tests with Vitest
+pnpm test:i       # Integration tests (starts the test database in Docker)
+pnpm docker:up    # Start the dev and test databases
+pnpm docker:down  # Stop them (data is kept)
 npx prisma studio # Open Prisma Studio (DB GUI)
 ```
 
