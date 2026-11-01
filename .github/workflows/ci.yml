@@ -15,6 +15,8 @@ permissions:
   contents: read
 
 env:
+  # Vercel functions run in UTC; the suites must pass without depending on the runner's zone.
+  TZ: UTC
   # Needed at install time: the postinstall runs `prisma generate`, and prisma.config.ts
   # throws if DATABASE_URL is missing. .env.test is only loaded when NODE_ENV=test (vitest).
   DATABASE_URL: postgresql://postgres:postgres@localhost:5433/tests

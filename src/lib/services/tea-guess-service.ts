@@ -3,7 +3,8 @@ import z from "zod";
 import { getFormString, getFormStringsByPrefix } from "@/app/actions/commonActions";
 import { Role, TeaType } from "@/generated/prisma/enums";
 
-import { getAdvienteaDayState, isDateTodayOrPast } from "../advientea-rules";
+import { editionInfoForYear, getAdvienteaDayState } from "../advientea-rules";
+import { getNow } from "../advientea-time";
 import { getDayForGuessing } from "../dal";
 import { calculateDailyScore } from "../tea-guess-scoring";
 import { TeaGuessFormData } from "../types";
@@ -53,8 +54,8 @@ export async function canUserGuessTea(dayId: string, currentUserId: string): Pro
   const dayRecord = await getDayForGuessing(dayId);
   if (!dayRecord || !dayRecord.tea) return false;
   if (dayRecord.assignment?.user?.id === currentUserId) return false;
-  if (!isDateTodayOrPast(new Date(dayRecord.year, 11, dayRecord.dayNumber))) return false;
-  const dayState = getAdvienteaDayState(dayRecord.dayNumber, dayRecord.year, Role.USER);
+  const dayState = getAdvienteaDayState(dayRecord.dayNumber, editionInfoForYear(dayRecord.year), Role.USER);
+  if (!dayState.isReleased) return false;
   return !dayState.isTeaReleased;
 }
 
@@ -62,8 +63,8 @@ export async function canUserGuessPerson(dayId: string, currentUserId: string): 
   const dayRecord = await getDayForGuessing(dayId);
   if (!dayRecord || !dayRecord.tea) return false;
   if (dayRecord.assignment?.user?.id === currentUserId) return false;
-  if (!isDateTodayOrPast(new Date(dayRecord.year, 11, dayRecord.dayNumber))) return false;
-  const dayState = getAdvienteaDayState(dayRecord.dayNumber, dayRecord.year, Role.USER);
+  const dayState = getAdvienteaDayState(dayRecord.dayNumber, editionInfoForYear(dayRecord.year), Role.USER);
+  if (!dayState.isReleased) return false;
   return !dayState.isPersonNameReleased;
 }
 
@@ -77,7 +78,7 @@ export async function calculatePointsFromGuess(dayId: string, guessData: TeaGues
     teaName: dayGuessedRecord?.tea?.name,
     teaType: dayGuessedRecord?.tea?.teaType,
   };
-  const timestamp = new Date();
+  const timestamp = getNow();
 
   return calculateDailyScore(teaData, guessData, timestamp);
 }
