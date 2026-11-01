@@ -45,6 +45,7 @@ describe("DAL DayAssignment", () => {
       },
       dayId: "day-1",
       guestName: null,
+      guestToken: null,
       id: "assignment-1",
       updatedAt: new Date(),
       user: mockUser,
@@ -137,6 +138,7 @@ describe("DAL DayAssignment", () => {
       day: mockDay,
       dayId: "day-5",
       guestName: null,
+      guestToken: null,
       id: "user-id",
       updatedAt: new Date(),
       user: mockUser,
@@ -149,6 +151,7 @@ describe("DAL DayAssignment", () => {
       day: mockDay,
       dayId: "day-5",
       guestName: "Guest",
+      guestToken: null,
       id: "user-id-2",
       updatedAt: new Date(),
       user: null,
@@ -168,8 +171,8 @@ describe("DAL DayAssignment", () => {
         expect.objectContaining({
           data: expect.objectContaining({
             day: { connect: { id: "day-5" } },
+            edition: { connect: { year: 2025 } },
             user: { connect: { id: "user-id" } },
-            year: 2025,
           }),
         }),
       );
@@ -199,8 +202,8 @@ describe("DAL DayAssignment", () => {
         expect.objectContaining({
           data: expect.objectContaining({
             day: { connect: { id: "day-5" } },
+            edition: { connect: { year: 2025 } },
             guestName: "Guest",
-            year: 2025,
           }),
         }),
       );
@@ -245,6 +248,7 @@ describe("DAL DayAssignment", () => {
         day: { id: "day-1" } as Day,
         dayId: "day-1",
         guestName: "Guest",
+        guestToken: null,
         id: "assign-1",
         updatedAt: new Date(),
         user: { id: "user-1" } as User,
@@ -267,6 +271,7 @@ describe("DAL DayAssignment", () => {
         day: { id: "day-1" } as Day,
         dayId: "day-1",
         guestName: null,
+        guestToken: null,
         id: "assign-1",
         updatedAt: new Date(),
         user: { id: "user-1" } as User,

@@ -18,10 +18,10 @@ async function EditTeaInfoDayPage({ params }: { params: Promise<{ teaId: string 
     const assignment = await getDayAssignment(2025, session.user.email);
     if (!assignment) {
       return <WaitForDayAssignment />;
-    } else if (!assignment.day.tea) {
+    } else if (!assignment.day?.tea) {
       redirect("/add-tea-info");
     } else if (session.user.role === Role.USER && assignment.day.tea.id !== teaId) {
-      redirect(`/edit-tea-info/${assignment.day.tea.id}`);
+      redirect(`/edit-tea-info/${assignment.day?.tea.id}`);
     }
   }
   const teaCompleteInfo = await getTea(teaId);
