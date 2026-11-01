@@ -29,8 +29,8 @@ export default async function TeaDayPage({ params, searchParams }: TeaDayPagePro
   }
   const simulated = Boolean((await searchParams).simulated);
   const tea = day.tea;
-  const userName = tea ? await getUsernameAssignedToTea(tea.id) : "";
   const session = await auth.api.getSession({ headers: await headers() });
+  const userName = session && tea ? await getUsernameAssignedToTea(tea.id) : "";
   const advienteaDayState = getAdvienteaDayState(day.dayNumber, day.year, session?.user.role as Role, simulated);
 
   if (!advienteaDayState.isReleased) {
@@ -48,7 +48,7 @@ export default async function TeaDayPage({ params, searchParams }: TeaDayPagePro
           ) : (
             <div className="skeleton skeleton-text font-[Griffy] text-2xl">Té desconocido</div>
           )}
-          {advienteaDayState.isPersonNameReleased && (
+          {session && advienteaDayState.isPersonNameReleased && (
             <div className="flex gap-2 items-center">
               <FaUser />
               {userName}

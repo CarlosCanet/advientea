@@ -51,7 +51,7 @@ export default async function DaysList() {
             const advienteaDayState = getAdvienteaDayState(day.dayNumber, day.year, session?.user.role as Role, false);
             const assigneeName = day.assignment?.guestName ?? day.assignment?.user?.username;
             const advienteaDayTitle =
-              isNameReleased && assigneeName ? `${day.tea?.name} - ${assigneeName}` : day.tea?.name;
+              session && isNameReleased && assigneeName ? `${day.tea?.name} - ${assigneeName}` : day.tea?.name;
             return (
               <li className="rounded-none border-b border-b-secondary/70" key={day.id}>
                 <Link className="list-row items-center justify-center text-center gap-1 " href={`teaDay/${day.id}`}>
