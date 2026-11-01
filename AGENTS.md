@@ -32,16 +32,17 @@ Versions are pinned so that local, CI and Vercel build the same way. Vercel buil
 | `pnpm exec tsc --noEmit` | Type-check                                                          |
 | `pnpm test:u`            | Unit tests (`__tests__/unit`)                                       |
 | `pnpm test:i`            | Integration tests against Docker Postgres (`__tests__/integration`) |
-| `pnpm docker:up`         | Start the test Postgres (`localhost:5433/tests`)                    |
+| `pnpm docker:up`         | Start the dev (`5432/advientea`) and test (`5433/tests`) Postgres   |
+| `pnpm db:restore <file>` | Restore a `pg_dump` custom-format file into the Docker dev database |
 | `pnpm db:seed`           | Synthetic seed into the `DATABASE_URL` database (dev only)          |
 
 ## Environments and data safety
 
 These rules exist because the app has production users and a shared Cloudinary account. Read them before running anything.
 
-- **Never touch the production database.** `.env` holds the local dev database (`localhost:5432`). The production connection string must never be used from a developer machine.
+- **Never touch the production database.** `.env` holds the local dev database (`localhost:5432`, the `db` service in `docker-compose.yml`, data kept in a named volume). The production connection string must never be used from a developer machine.
 - **Previews refuse the production database.** `src/lib/database-guard.ts` runs from `prisma.config.ts` (every Prisma CLI call, install included) and from `src/lib/prisma.ts`: when `VERCEL_ENV` is `preview`, the database host must differ from `PRODUCTION_DB_HOST` (a public Vercel variable, hostname only) or the build fails. Neon normally injects a branch database per preview; this guard covers the case where it does not and the fallback `DATABASE_URL` would be production. Migrations use `DATABASE_URL_UNPOOLED` when present.
-- **Tests use the Docker Postgres only.** `.env.test` (committed, no secrets) points to `localhost:5433/tests`; `.env.test.local` (gitignored) may override it. The integration suite resets and reseeds that database on every test.
+- **Tests use the Docker Postgres only.** `.env.test` (committed, no secrets) points to `localhost:5433/tests` (the `db-test` service, no persistent volume); `.env.test.local` (gitignored) may override it. The integration suite starts that service on its own, resets and reseeds the database on every test, and never touches the dev `db` service.
 - **The synthetic seed is for empty development databases.** `pnpm db:seed` runs `prisma/seed.ts`, which seeds the data in `prisma/seed-data.ts`: five sign-in accounts that share the committed `SEED_PASSWORD`, 25 days, two teas. It fails closed: only `localhost` is accepted unless `SEED_ALLOW_REMOTE=1` is set on purpose for a disposable Neon branch, and production (`VERCEL_ENV`, `NODE_ENV` or `PRODUCTION_DB_HOST`) is always refused. It is not idempotent, and Prisma 7 no longer seeds after `migrate reset`, so run it by hand afterwards. The integration tests reuse it without accounts.
 - **Production is migrated by hand, never by the build.** `pnpm build` starts with `scripts/vercel-migrate.mjs`: in Vercel previews it applies pending migrations to the preview's Neon branch; in production it only checks and fails the build while migrations are pending; anywhere else it skips. To migrate production, run the "Migrate production" workflow in GitHub Actions from the branch that holds the migrations (normally `develop`, before the release PR): first without `apply` to see the status, then with it. The `production-database` GitHub environment requires an approval and holds the only copy of the direct production URL. The ingredient catalogue is a data migration (`20261028120000_seed_tea_ingredients`), so the production build only reads; adding an ingredient means a new data migration. `prisma migrate ...` and `pnpm db:reset` act on whatever `DATABASE_URL` resolves to through `prisma.config.ts` (that is `.env`, never `.env.test`), so run them only when that is your local dev database or the Docker test database (`pnpm dotenv -e .env.test -- prisma migrate reset`).
 - **Cloudinary is one shared account for every environment.** The app deletes the previous asset when an avatar or a story image is replaced. Never exercise those flows against rows that reference production assets; use disposable test assets. A per-environment folder and a delete guard are planned.
@@ -63,7 +64,7 @@ These rules exist because the app has production users and a shared Cloudinary a
 
 - Code, comments and docs in English; UI copy in Spanish. Comment only the non-obvious why, never the what.
 - Server Components by default, `"use client"` only where there is interactivity. Forms use Server Actions with `useActionState`.
-- Commits: `<type>: <description>`, at most 72 characters, `(#issue)` when the work is tracked. Types: `feat`, `fix`, `test`, `refactor`, `chore`, `docs`, `style`, `ci`. Keep mechanical changes (formatting, sorting, renames) in their own commits.
+- Commits: a single subject line, `<type>: <description>`, at most 72 characters, `(#issue)` when the work is tracked. No body and no trailers (no `Co-Authored-By`). Types: `feat`, `fix`, `test`, `refactor`, `chore`, `docs`, `style`, `ci`. Keep mechanical changes (formatting, sorting, renames) in their own commits.
 - Branches: `main` is production, `develop` is staging. Work on short-lived branches and open PRs to `develop`; `develop` goes to `main` by PR when staging has been checked.
 - Tests first for logic: unit tests for scoring, rules and services with mocked DAL; integration tests for DAL functions and anything that depends on database constraints.
 - Before relying on a library behaviour, check the official documentation for the installed version. Several past assumptions about Next.js, better-auth and Prisma turned out to be wrong.
@@ -73,6 +74,7 @@ These rules exist because the app has production users and a shared Cloudinary a
 - Keep diffs focused. Formatting is handled by the hooks; do not reformat untouched code or rewrite existing comments.
 - Never run destructive commands (`db:reset`, migrations, data deletion, Cloudinary deletions) outside the Docker test database without an explicit instruction, and never against production.
 - Vercel, Neon and GitHub operations are read-only unless the task says otherwise.
+- Do not commit, push or open pull requests. Leave the changes staged and, if useful, suggest a subject line; the maintainer commits.
 - When a check cannot be run, say so instead of assuming it passed.
 
 ## References

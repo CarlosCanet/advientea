@@ -3,30 +3,10 @@ import { execSync } from "node:child_process";
 export async function setup() {
   console.log("\n🐳 [Global Setup] Setting up test environment...");
   try {
-    execSync("docker compose up -d", { stdio: "ignore" });
+    execSync("docker compose up -d --wait db-test", { stdio: "inherit" });
   } catch (e) {
-    console.error("❌ Error mounting docker container. Is Docker Desktop running?");
+    console.error("❌ Error starting the test database. Is Docker running?");
     throw e;
-  }
-
-  console.log("⏳ [Global Setup] Waiting for DB...");
-  const maxRetries = 10;
-  let retries = 0;
-  let ready = false;
-
-  while (retries < maxRetries && !ready) {
-    try {
-      execSync("docker exec integration-tests pg_isready -U postgres", { stdio: "ignore" });
-      ready = true;
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (e) {
-      retries++;
-      await new Promise((r) => setTimeout(r, 5000));
-    }
-  }
-
-  if (!ready) {
-    throw new Error("❌ Timeout: DB not running.");
   }
 
   console.log("🚀 [Global Setup] Running migrations...");

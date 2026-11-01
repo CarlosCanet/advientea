@@ -18,6 +18,7 @@
     "test:i:ui": "vitest --project integration --ui",
     "db:seed": "prisma db seed",
     "db:reset": "prisma migrate reset --force",
+    "db:restore": "node scripts/db-restore.mjs",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down"
   },
