@@ -12,8 +12,8 @@ import { getAllDays } from "@/lib/dal";
 export default async function DaysList() {
   const session = await auth.api.getSession({ headers: await headers() });
   let days = await getAllDays(2025);
-  const lastDay = days[days.length - 1];
-  const isNameReleased = isDateTodayOrPast(new Date(lastDay.year, 11, lastDay.dayNumber));
+  const lastDay = days.at(-1);
+  const isNameReleased = lastDay ? isDateTodayOrPast(new Date(lastDay.year, 11, lastDay.dayNumber)) : false;
 
   if (session?.user.role !== Role.ADMIN && session?.user.role !== Role.EXECUTEAVE) {
     days = days.filter((day) => isDateTodayOrPast(new Date(day.year, 11, day.dayNumber)));
