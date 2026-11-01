@@ -2,8 +2,11 @@
 // remote database. The database is recreated first: `--clean` would leave objects the dump lacks.
 import { spawnSync } from "node:child_process";
 import { openSync } from "node:fs";
+import { join } from "node:path";
 
 const DATABASE = "advientea";
+// Pinned so COMPOSE_FILE, COMPOSE_PROJECT_NAME or the cwd cannot point this at another project.
+const COMPOSE = ["compose", "-f", join(import.meta.dirname, "..", "docker-compose.yml"), "-p", "advientea"];
 
 const [file] = process.argv.slice(2);
 if (!file) {
@@ -20,7 +23,7 @@ try {
 }
 
 function run(args, { stdin = "inherit" } = {}) {
-  const result = spawnSync("docker", ["compose", ...args], { stdio: [stdin, "inherit", "inherit"] });
+  const result = spawnSync("docker", [...COMPOSE, ...args], { stdio: [stdin, "inherit", "inherit"] });
   if (result.error) console.error(`[db-restore] cannot run docker: ${result.error.message}`);
   return result.status ?? 1;
 }
