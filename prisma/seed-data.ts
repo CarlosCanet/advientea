@@ -1,10 +1,12 @@
 import { EditionStatus, Role, TeaType } from "@/generated/prisma/enums";
 import {
   add25Days,
-  addDayAssignment,
   addStoryTea,
   addTea,
+  assignDay,
+  Assignee,
   createPrismaUser,
+  getDayByDayNumber,
   replaceStoryImages,
   upsertEdition,
 } from "@/lib/dal";
@@ -124,9 +126,18 @@ export async function seedDatabase({ accounts = true, year = 2025 }: SeedOptions
   );
   await replaceStoryImages(story2.id, [{ kind: "new", publicId: "samples/breakfast" }]);
 
-  await addDayAssignment({ userId: manager.id }, { dayNumber: 1, year });
-  await addDayAssignment({ guestName: "Anónimo" }, { dayNumber: 2, year });
-  await addDayAssignment({ userId: ana.id }, { dayNumber: 3, year });
-  await addDayAssignment({ userId: sony.id }, { dayNumber: 4, year });
-  await addDayAssignment({ userId: miko.id }, { dayNumber: 5, year });
+  // Assigning is only allowed on days that have not opened, so the seed clock sits before the edition.
+  const seedNow = new Date(`${year}-11-01T12:00:00+01:00`);
+  const assign = async (dayNumber: number, assignee: Assignee) => {
+    const seededDay = await getDayByDayNumber({ dayNumber, year });
+    if (!seededDay) {
+      throw new Error(`Day ${dayNumber}/${year} was not created`);
+    }
+    await assignDay(seededDay.id, assignee, seedNow);
+  };
+  await assign(1, { userId: manager.id });
+  await assign(2, { guestName: "Anónimo" });
+  await assign(3, { userId: ana.id });
+  await assign(4, { userId: sony.id });
+  await assign(5, { userId: miko.id });
 }

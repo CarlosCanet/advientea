@@ -26,8 +26,12 @@ export default function AssignmentSelect({ dayId, guestName, userId, users }: As
     const previousValue = currentValue;
     const nextValue = event.target.value;
     setCurrentValue(nextValue);
+    // The guest option is the day's current guest; picking it again is not a new assignment.
+    if (nextValue === guestName) {
+      return;
+    }
     startTransition(async () => {
-      const result = await assignUserToDay(dayId, nextValue, 2025, guestName);
+      const result = await assignUserToDay(dayId, nextValue);
       if (!result.success) {
         setCurrentValue(previousValue);
       }

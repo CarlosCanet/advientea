@@ -8,13 +8,12 @@ import { deleteAsset, uploadImageFile } from "@/lib/cloudinary";
 import {
   add25Days,
   addDay,
-  addDayAssignment,
   addStoryImage,
   addStoryTea,
   addTea,
+  assignDay,
   DayYear,
   deleteDay,
-  deleteDayAssignmentByDay,
   editStoryTea,
   editTea,
   getActiveEdition,
@@ -24,10 +23,10 @@ import {
   requireRole,
   requireSession,
   StoryImageSlot,
-  upsertDayAssignment,
+  unassignDay,
   verifySession,
 } from "@/lib/dal";
-import { ForbiddenError, UnauthenticatedError } from "@/lib/errors";
+import { ConflictError, ForbiddenError, UnauthenticatedError } from "@/lib/errors";
 import { teaInfoFormSchema } from "@/lib/schemas/tea";
 import { ActionResponse, TeaInfoActionResponse, TeaInfoFormData } from "@/lib/types";
 
@@ -137,19 +136,17 @@ export async function addTeaInfo(
       }
     }
 
-    const dayAssignmentCreated = isAuth
-      ? await addDayAssignment({ userId: userId }, { dayNumber: day, year: edition.year })
-      : await addDayAssignment({ guestName: data.personName }, { dayNumber: day, year: edition.year });
-    if (!dayAssignmentCreated) {
-      throw new Error(
-        `Cannot create dayAssignment for user ${isAuth ? userId : data.personName} in day with id ${teaCreated.dayId}`,
-      );
+    if (isAuth) {
+      await assignDay(teaCreated.dayId!, { userId });
+    } else {
+      await assignDay(teaCreated.dayId!, { guestName: data.personName });
     }
     return {
       message: "Té guardado",
       success: true,
     };
   } catch (error: unknown) {
+    // A conflict here would name the day's holder to whoever submitted, guests included: keep it generic.
     const isGuardError = error instanceof UnauthenticatedError || error instanceof ForbiddenError;
     if (isGuardError) {
       console.warn(`[addTeaInfo] rejected: ${error.name} — ${error.message}`);
@@ -315,30 +312,20 @@ export async function editTeaInfoAction(
   }
 }
 
-export async function assignUserToDay(
-  dayId: string,
-  userId: string,
-  year: number,
-  guestName?: string,
-): Promise<ActionResponse> {
+export async function assignUserToDay(dayId: string, value: string): Promise<ActionResponse> {
   try {
     await requireRole(Role.ADMIN, Role.EXECUTEAVE);
-    if (!userId && !guestName) {
-      await deleteDayAssignmentByDay(dayId);
+    if (!value) {
+      await unassignDay(dayId);
       revalidatePath("/edit-tea-info");
       return { message: "Asignación eliminada", success: true };
     }
-
-    const assignment = { dayId, guestName: guestName || null, userId: userId || null, year };
-    if (assignment.userId && assignment.guestName) {
-      assignment.guestName = null;
-    }
-
-    await upsertDayAssignment(dayId, assignment);
+    await assignDay(dayId, { userId: value });
     revalidatePath("/edit-tea-info");
     return { message: "Asignación actualizada", success: true };
   } catch (error: unknown) {
-    const isGuardError = error instanceof UnauthenticatedError || error instanceof ForbiddenError;
+    const isGuardError =
+      error instanceof UnauthenticatedError || error instanceof ForbiddenError || error instanceof ConflictError;
     const isAlreadyAssigned = error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
     if (isGuardError || isAlreadyAssigned) {
       console.warn(`[assignUserToDay] rejected: ${error.name} — dayId=${dayId} — ${error.message}`);
