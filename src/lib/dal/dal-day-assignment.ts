@@ -60,26 +60,6 @@ export async function getAllAssigners(): Promise<Array<Assigners> | null> {
 
 export type Assignee = { guestName: string } | { userId: string };
 
-export async function editDayAssignment(
-  data: Prisma.DayAssignmentUncheckedUpdateInput,
-  id: string,
-): Promise<DayAssignmentWithDayAndUser> {
-  const dayAssignmentUpdated = await prisma.dayAssignment.update({
-    data,
-    include: { day: true, user: true },
-    where: { id: id },
-  });
-  return dayAssignmentUpdated;
-}
-
-export async function deleteDayAssignment(id: string): Promise<DayAssignmentWithDayAndUser> {
-  const dayAssignmentDeleted = await prisma.dayAssignment.delete({
-    include: { day: true, user: true },
-    where: { id },
-  });
-  return dayAssignmentDeleted;
-}
-
 // Only a day that has not opened yet can change hands: no guess can exist on it.
 async function assertDayNotReleased(dayNumber: number, year: number, now: Date): Promise<void> {
   const edition = await getEditionInfo(year);

@@ -1,12 +1,9 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { Day, Prisma, User } from "@/generated/prisma/client";
+import { User } from "@/generated/prisma/client";
 import { prismaMock } from "@/lib/__mocks__/prisma";
 import {
-  DayAssignmentWithDayAndUser,
   DayAssignmentWithDayTeaAndUser,
-  deleteDayAssignment,
-  editDayAssignment,
   getAllDayAssignment,
   getDayAssignmentById,
   getDayAssignmentByUserId,
@@ -101,52 +98,6 @@ describe("DAL DayAssignment", () => {
       expect(prismaMock.dayAssignment.findMany).toHaveBeenCalledWith(
         expect.objectContaining({ where: { year: 2025 } }),
       );
-    });
-  });
-
-  describe("editDayAssignment", () => {
-    it("should update assignment", async () => {
-      const mockUpdated: DayAssignmentWithDayAndUser = {
-        createdAt: new Date(),
-        day: { id: "day-1" } as Day,
-        dayId: "day-1",
-        guestName: "Guest",
-        guestToken: null,
-        id: "assign-1",
-        updatedAt: new Date(),
-        user: { id: "user-1" } as User,
-        userId: "user-1",
-        year: 2025,
-      };
-
-      prismaMock.dayAssignment.update.mockResolvedValue(mockUpdated);
-
-      const result = await editDayAssignment({ guestName: "Guest" }, "assign-1");
-
-      expect(result.guestName).toBe("Guest");
-    });
-  });
-
-  describe("deleteDayAssignment", () => {
-    it("should delete assignment", async () => {
-      const mockDeleted: DayAssignmentWithDayAndUser = {
-        createdAt: new Date(),
-        day: { id: "day-1" } as Day,
-        dayId: "day-1",
-        guestName: null,
-        guestToken: null,
-        id: "assign-1",
-        updatedAt: new Date(),
-        user: { id: "user-1" } as User,
-        userId: "user-1",
-        year: 2025,
-      };
-
-      prismaMock.dayAssignment.delete.mockResolvedValue(mockDeleted);
-
-      const result = await deleteDayAssignment("assign-1");
-
-      expect(result.id).toBe("assign-1");
     });
   });
 });
