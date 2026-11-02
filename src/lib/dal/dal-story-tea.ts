@@ -1,27 +1,22 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 
-import { getDay } from "./dal-day";
+import { DayYear, getDayByDayNumber } from "./dal-day";
 
 export type StoryWithTeaAndImages = Prisma.StoryTeaGetPayload<{ include: { images: true; tea: true } }>;
 export type StoryWithTea = Prisma.StoryTeaGetPayload<{ include: { tea: true } }>;
 
-export async function getStoryTea(id: string): Promise<null | StoryWithTeaAndImages>;
-export async function getStoryTea(day: number, year: number): Promise<null | StoryWithTeaAndImages>;
-export async function getStoryTea(
-  idOrDay: number | string,
-  year: number = 2025,
-): Promise<null | StoryWithTeaAndImages> {
-  if (typeof idOrDay === "string") {
-    const story = await prisma.storyTea.findUnique({
-      include: { images: true, tea: true },
-      where: { id: idOrDay },
-    });
-    if (!story) return null;
-    return story;
-  }
-  const day = idOrDay;
-  const dayResponse = await getDay(day, year);
+export async function getStoryTeaById(id: string): Promise<null | StoryWithTeaAndImages> {
+  const story = await prisma.storyTea.findUnique({
+    include: { images: true, tea: true },
+    where: { id },
+  });
+  if (!story) return null;
+  return story;
+}
+
+export async function getStoryTeaByDayNumber(dayYear: DayYear): Promise<null | StoryWithTeaAndImages> {
+  const dayResponse = await getDayByDayNumber(dayYear);
   if (!dayResponse || !dayResponse.tea?.story) return null;
   const result: StoryWithTeaAndImages = { ...dayResponse.tea.story, tea: dayResponse.tea };
   return result;

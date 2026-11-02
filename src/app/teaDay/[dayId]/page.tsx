@@ -13,7 +13,7 @@ import TeaInfusionInfo from "@/components/ui/TeaInfusionInfo";
 import WaitForDayToCome from "@/components/ui/WaitForDayToCome";
 import { editionInfoForYear, getAdvienteaDayState } from "@/lib/advientea-rules";
 import { auth } from "@/lib/auth";
-import { getDay, getUsernameAssignedToTea } from "@/lib/dal";
+import { getDayById, getUsernameAssignedToTea } from "@/lib/dal";
 
 interface TeaDayPageProps {
   params: Promise<{ dayId: string }>;
@@ -22,7 +22,7 @@ interface TeaDayPageProps {
 
 export default async function TeaDayPage({ params, searchParams }: TeaDayPageProps) {
   const { dayId } = await params;
-  const day = await getDay(dayId);
+  const day = await getDayById(dayId);
   if (!day) {
     notFound();
   }

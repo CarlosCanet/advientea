@@ -1,6 +1,8 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 
+import { DayYear } from "./dal-day";
+
 export type DayAssignmentWithDayTeaAndUser = Prisma.DayAssignmentGetPayload<{
   include: { day: { include: { tea: true } }; user: true };
 }>;
@@ -9,44 +11,17 @@ export type Assigners = Prisma.DayAssignmentGetPayload<{
   select: { guestName: true; user: { select: { username: true } }; userId: true };
 }>;
 
-export async function getDayAssignment(id: string): Promise<DayAssignmentWithDayTeaAndUser | null>;
-export async function getDayAssignment(year: number, email: string): Promise<DayAssignmentWithDayTeaAndUser | null>;
-
-export async function getDayAssignment(
-  yearOrId: number | string,
-  email?: string,
-): Promise<DayAssignmentWithDayTeaAndUser | null> {
-  try {
-    if (typeof yearOrId === "string") {
-      const assignment = await prisma.dayAssignment.findUnique({
-        include: { day: { include: { tea: true } }, user: true },
-        where: { id: yearOrId },
-      });
-      return assignment;
-    }
-
-    if (!email) {
-      throw new Error("Email is mandatory when getting by year");
-    }
-    const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) {
-      throw new Error(`The user with email ${email} doesn't exist`);
-    }
-    const year = yearOrId;
-    const assignment = await prisma.dayAssignment.findUnique({
-      include: { day: { include: { tea: true } }, user: true },
-      where: { userId_year: { userId: user.id, year } },
-    });
-    return assignment;
-  } catch (error) {
-    console.error(error);
-    throw error;
-  }
+export async function getDayAssignmentById(id: string): Promise<DayAssignmentWithDayTeaAndUser | null> {
+  const assignment = await prisma.dayAssignment.findUnique({
+    include: { day: { include: { tea: true } }, user: true },
+    where: { id },
+  });
+  return assignment;
 }
 
 export async function getDayAssignmentByUserId(
   userId: string,
-  year: number = 2025,
+  year: number,
 ): Promise<DayAssignmentWithDayTeaAndUser | null> {
   try {
     const assignment = await prisma.dayAssignment.findUnique({
@@ -60,7 +35,7 @@ export async function getDayAssignmentByUserId(
   }
 }
 
-export async function getAllDayAssignment(year: number = 2025): Promise<Array<DayAssignmentWithDayTeaAndUser>> {
+export async function getAllDayAssignment(year: number): Promise<Array<DayAssignmentWithDayTeaAndUser>> {
   try {
     const assignments = await prisma.dayAssignment.findMany({
       include: { day: { include: { tea: true } }, user: true },
@@ -87,17 +62,16 @@ interface AssigneeInput {
 
 export async function addDayAssignment(
   assignee: AssigneeInput,
-  day: number,
-  year: number = 2025,
+  dayYear: DayYear,
 ): Promise<DayAssignmentWithDayAndUser> {
   const dayResponse = await prisma.day.findUnique({
-    where: { dayNumber_year: { dayNumber: day, year } },
+    where: { dayNumber_year: { dayNumber: dayYear.dayNumber, year: dayYear.year } },
   });
-  if (!dayResponse) throw new Error(`The day ${day}/${year} does not exist yet.`);
+  if (!dayResponse) throw new Error(`The day ${dayYear.dayNumber}/${dayYear.year} does not exist yet.`);
 
   const data: Prisma.DayAssignmentCreateInput = {
     day: { connect: { id: dayResponse.id } },
-    edition: { connect: { year } },
+    edition: { connect: { year: dayYear.year } },
     guestName: null,
   };
 

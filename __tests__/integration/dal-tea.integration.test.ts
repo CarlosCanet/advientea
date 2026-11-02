@@ -20,8 +20,10 @@ describe("dal Tea", () => {
           temperature: 80,
         },
         [apple.id, lemon.id],
-        20,
-        2025,
+        {
+          dayNumber: 20,
+          year: 2025,
+        },
       );
 
       expect(newTea).not.toBeNull();
@@ -47,8 +49,10 @@ describe("dal Tea", () => {
           temperature: 1,
         },
         [],
-        21,
-        2025,
+        {
+          dayNumber: 21,
+          year: 2025,
+        },
       );
       await expect(
         addTea(
@@ -62,8 +66,10 @@ describe("dal Tea", () => {
             temperature: 1,
           },
           [],
-          21,
-          2025,
+          {
+            dayNumber: 21,
+            year: 2025,
+          },
         ),
       ).rejects.toThrow();
     });
@@ -82,10 +88,12 @@ describe("dal Tea", () => {
           temperature: 1,
         },
         [],
-        21,
-        2025,
+        {
+          dayNumber: 21,
+          year: 2025,
+        },
       );
-      await editTea({ teaType: TeaType.GREEN }, result!.id);
+      await editTea({ teaType: TeaType.GREEN }, result!.id, { dayNumber: 21, year: 2025 });
       const editedTea = await prisma.tea.findUnique({ where: { id: result!.id } });
       expect(editedTea!.teaType).toBe(TeaType.GREEN);
     });
@@ -106,8 +114,10 @@ describe("dal Tea", () => {
           temperature: 1,
         },
         [apple.id, chocolate.id],
-        21,
-        2025,
+        {
+          dayNumber: 21,
+          year: 2025,
+        },
       );
       await editTea({ ingredientIds: [apple.id, lemon.id, orange.id] }, result!.id);
       const editedTea = await prisma.tea.findUnique({ include: { ingredients: true }, where: { id: result!.id } });

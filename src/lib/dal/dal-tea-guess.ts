@@ -5,12 +5,33 @@ import { prisma } from "@/lib/prisma";
 import { TeaGuessFormData } from "../types";
 
 export type TeaGuessWithIngredients = TeaGuessGetPayload<{ include: { guessedIngredients: true } }>;
+export type TeaGuessWithIngredientsAndUser = TeaGuessGetPayload<{
+  include: { guessedIngredients: true; user: { select: { image: true; username: true } } };
+}>;
 
 export async function getLastGuess(userId: string, dayId: string): Promise<null | TeaGuessWithIngredients> {
   const result = await prisma.teaGuess.findFirst({
     include: { guessedIngredients: true },
     orderBy: { createdAt: "desc" },
     where: { dayId, userId },
+  });
+  return result;
+}
+
+export async function getGuessesByDayId(dayId: string): Promise<Array<TeaGuessWithIngredientsAndUser>> {
+  const result = await prisma.teaGuess.findMany({
+    include: { guessedIngredients: true, user: { select: { image: true, username: true } } },
+    orderBy: { createdAt: "desc" },
+    where: { dayId },
+  });
+  return result;
+}
+
+export async function getGuessesByYear(year: number): Promise<Array<TeaGuessWithIngredientsAndUser>> {
+  const result = await prisma.teaGuess.findMany({
+    include: { guessedIngredients: true, user: { select: { image: true, username: true } } },
+    orderBy: { createdAt: "desc" },
+    where: { day: { year } },
   });
   return result;
 }

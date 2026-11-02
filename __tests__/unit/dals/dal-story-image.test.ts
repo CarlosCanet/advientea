@@ -7,7 +7,8 @@ import {
   deleteStoryImage,
   editStoryImage,
   getAllStoryImages,
-  getStoryImage,
+  getStoryImageByDayNumber,
+  getStoryImageById,
   StoryImageWithStory,
 } from "@/lib/dal/dal-story-image";
 // dal-tea MOCK
@@ -33,7 +34,7 @@ describe("DAL StoryImage", () => {
     it("should get image by ID string", async () => {
       prismaMock.storyImage.findUnique.mockResolvedValue(mockImage);
 
-      const result = await getStoryImage("img-1");
+      const result = await getStoryImageById("img-1");
 
       expect(result).toEqual(mockImage);
       expect(prismaMock.storyImage.findUnique).toHaveBeenCalledWith({
@@ -43,7 +44,7 @@ describe("DAL StoryImage", () => {
 
     it("should throw if image by ID not found", async () => {
       prismaMock.storyImage.findUnique.mockResolvedValue(null);
-      await expect(getStoryImage("missing")).rejects.toThrow("No story image found");
+      await expect(getStoryImageById("missing")).rejects.toThrow("No story image found");
     });
 
     it("should get image by Order/Day/Year", async () => {
@@ -85,12 +86,12 @@ describe("DAL StoryImage", () => {
         url: null,
       };
 
-      dalTeaMock.getTea.mockResolvedValue(mockTeaWithStory);
+      dalTeaMock.getTeaByDayNumber.mockResolvedValue(mockTeaWithStory);
 
-      const result = await getStoryImage(0, 5, 2025);
+      const result = await getStoryImageByDayNumber({ dayNumber: 5, year: 2025 }, 0);
 
       expect(result).toEqual(mockImage);
-      expect(dalTeaMock.getTea).toHaveBeenCalledWith(5, 2025);
+      expect(dalTeaMock.getTeaByDayNumber).toHaveBeenCalledWith({ dayNumber: 5, year: 2025 });
     });
 
     it("should throw if tea has no story", async () => {
@@ -115,9 +116,9 @@ describe("DAL StoryImage", () => {
         url: null,
       };
 
-      dalTeaMock.getTea.mockResolvedValue(mockTeaNoStory);
+      dalTeaMock.getTeaByDayNumber.mockResolvedValue(mockTeaNoStory);
 
-      await expect(getStoryImage(0, 5, 2025)).rejects.toThrow("No story found");
+      await expect(getStoryImageByDayNumber({ dayNumber: 5, year: 2025 }, 0)).rejects.toThrow("No story found");
     });
   });
 

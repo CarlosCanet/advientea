@@ -19,7 +19,7 @@ describe("dal Day", () => {
       const orphan = await prisma.dayAssignment.findFirst({ where: { userId: userId!, year: 2025 } });
       expect(orphan).toBeNull();
 
-      const reassigned = await addDayAssignment({ userId: userId! }, 6, 2025);
+      const reassigned = await addDayAssignment({ userId: userId! }, { dayNumber: 6, year: 2025 });
       expect(reassigned.day?.dayNumber).toBe(6);
     });
   });

@@ -1,7 +1,7 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 
-import { getDay } from "./dal-day";
+import { DayYear, getDayByDayNumber } from "./dal-day";
 
 export type TeaWithDayAndCompleteStory = Prisma.TeaGetPayload<{
   include: { day: true; ingredients: true; story: { include: { images: true } } };
@@ -9,23 +9,17 @@ export type TeaWithDayAndCompleteStory = Prisma.TeaGetPayload<{
 export type TeaWithDay = Prisma.TeaGetPayload<{ include: { day: true; ingredients: true } }>;
 export type TeaWithIngredients = Prisma.TeaGetPayload<{ include: { ingredients: true } }>;
 
-export async function getTea(id: string): Promise<TeaWithDayAndCompleteStory>;
-export async function getTea(day: number, year?: number): Promise<TeaWithDayAndCompleteStory>;
+export async function getTeaById(id: string): Promise<null | TeaWithDayAndCompleteStory> {
+  const tea = await prisma.tea.findUnique({
+    include: { day: true, ingredients: true, story: { include: { images: { orderBy: { order: "asc" } } } } },
+    where: { id },
+  });
+  if (!tea) return null;
+  return tea;
+}
 
-export async function getTea(
-  idOrDay: number | string,
-  year: number = 2025,
-): Promise<null | TeaWithDayAndCompleteStory> {
-  if (typeof idOrDay === "string") {
-    const tea = await prisma.tea.findUnique({
-      include: { day: true, ingredients: true, story: { include: { images: { orderBy: { order: "asc" } } } } },
-      where: { id: idOrDay },
-    });
-    if (!tea) return null;
-    return tea;
-  }
-  const day = idOrDay;
-  const dayResponse = await getDay(day, year);
+export async function getTeaByDayNumber(dayYear: DayYear): Promise<null | TeaWithDayAndCompleteStory> {
+  const dayResponse = await getDayByDayNumber(dayYear);
   if (!dayResponse || !dayResponse.tea) return null;
   const teaResponse = await prisma.tea.findUnique({
     include: { day: true, ingredients: true, story: { include: { images: { orderBy: { order: "asc" } } } } },
@@ -56,18 +50,17 @@ export async function getUsernameAssignedToTea(id: string): Promise<null | strin
 export async function addTea(
   data: Prisma.TeaCreateWithoutDayInput,
   ingredientIds: Array<string> = [],
-  day?: number,
-  year: number = 2025,
+  dayYear?: DayYear,
 ): Promise<null | TeaWithDay> {
   let dayConnection: Prisma.DayCreateNestedOneWithoutTeaInput | undefined = undefined;
 
-  if (day !== undefined) {
+  if (dayYear !== undefined) {
     const dayRecord = await prisma.day.findUnique({
       include: { tea: true },
-      where: { dayNumber_year: { dayNumber: day, year } },
+      where: { dayNumber_year: { dayNumber: dayYear.dayNumber, year: dayYear.year } },
     });
-    if (!dayRecord) throw new Error(`Day ${day}/${year} does not exist`);
-    if (dayRecord.tea) throw new Error(`Day ${day}/${year} already has a tea assigned`);
+    if (!dayRecord) throw new Error(`Day ${dayYear.dayNumber}/${dayYear.year} does not exist`);
+    if (dayRecord.tea) throw new Error(`Day ${dayYear.dayNumber}/${dayYear.year} already has a tea assigned`);
     dayConnection = { connect: { id: dayRecord.id } };
   }
 
@@ -87,10 +80,9 @@ export async function addTeaComplete(
   ingredientIds: Array<string> = [],
   storyData: Prisma.StoryTeaCreateWithoutTeaInput,
   storyImagesData: Array<Prisma.StoryImageCreateWithoutStoryInput>,
-  day: number,
-  year: number = 2025,
+  dayYear: DayYear,
 ): Promise<null | TeaWithDay> {
-  const dayResponse = await getDay(day, year);
+  const dayResponse = await getDayByDayNumber(dayYear);
   if (!dayResponse) return null;
   const tea = await prisma.tea.create({
     data: {
@@ -115,20 +107,21 @@ type EditTeaInput = Prisma.TeaUncheckedUpdateInput & { ingredientIds?: Array<str
 export async function editTea(
   dataWithIngredients: EditTeaInput,
   id: string,
-  newDayNumber?: number,
+  newDayYear?: DayYear,
 ): Promise<null | TeaWithDay> {
   const { ingredientIds, ...data } = dataWithIngredients;
   const currentTea = await prisma.tea.findUnique({ select: { dayId: true }, where: { id } });
   if (!currentTea) throw new Error(`No tea found for id ${id}`);
   const result = await prisma.$transaction(async (tx) => {
-    if (newDayNumber) {
+    if (newDayYear) {
       const dayRecord = await tx.day.findFirst({
         include: { assignment: true, tea: true },
-        where: { dayNumber: newDayNumber },
+        where: { dayNumber: newDayYear.dayNumber, year: newDayYear.year },
       });
-      if (!dayRecord) throw new Error(`Day ${newDayNumber}/2025 not found`);
-      if (dayRecord.tea && dayRecord.tea.id !== id) throw new Error(`Day ${newDayNumber}/2025 already has a tea`);
-      if (dayRecord.assignment) throw new Error(`Day ${newDayNumber} already has a user assigned`);
+      if (!dayRecord) throw new Error(`Day ${newDayYear.dayNumber}/${newDayYear.year} not found`);
+      if (dayRecord.tea && dayRecord.tea.id !== id)
+        throw new Error(`Day ${newDayYear.dayNumber}/${newDayYear.year} already has a tea`);
+      if (dayRecord.assignment) throw new Error(`Day ${newDayYear.dayNumber} already has a user assigned`);
       delete data.dayId;
       data.dayId = dayRecord.id;
 

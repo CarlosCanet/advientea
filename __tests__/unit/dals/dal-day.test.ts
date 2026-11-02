@@ -11,7 +11,8 @@ import {
   deleteDay,
   editDay,
   getAllDays,
-  getDay,
+  getDayByDayNumber,
+  getDayById,
 } from "@/lib/dal/dal-day";
 
 describe("DAL Day", () => {
@@ -60,7 +61,7 @@ describe("DAL Day", () => {
     it("should get day by UUID string", async () => {
       prismaMock.day.findUnique.mockResolvedValue(mockDayComplete);
 
-      const result = await getDay("day-1");
+      const result = await getDayById("day-1");
 
       expect(result).toEqual(mockDayComplete);
       expect(prismaMock.day.findUnique).toHaveBeenCalledWith(
@@ -73,7 +74,7 @@ describe("DAL Day", () => {
     it("should get day by dayNumber (number)", async () => {
       prismaMock.day.findUnique.mockResolvedValue(mockDayComplete);
 
-      const result = await getDay(1, 2025);
+      const result = await getDayByDayNumber({ dayNumber: 1, year: 2025 });
 
       expect(result).toEqual(mockDayComplete);
       expect(prismaMock.day.findUnique).toHaveBeenCalledWith(
@@ -85,7 +86,7 @@ describe("DAL Day", () => {
 
     it("should return null if day not found", async () => {
       prismaMock.day.findUnique.mockResolvedValue(null);
-      const result = await getDay(99, 2025);
+      const result = await getDayByDayNumber({ dayNumber: 99, year: 2025 });
       expect(result).toBeNull();
     });
   });
@@ -138,7 +139,7 @@ describe("DAL Day", () => {
       };
       prismaMock.day.create.mockResolvedValue(mockCreatedDay);
 
-      const result = await addDay(5, 2025);
+      const result = await addDay({ dayNumber: 5, year: 2025 });
       expect(result).toEqual(mockCreatedDay);
     });
 
@@ -148,7 +149,7 @@ describe("DAL Day", () => {
         code: "P2002",
       });
       prismaMock.day.create.mockRejectedValue(p2002Error);
-      const result = await addDay(5, 2025);
+      const result = await addDay({ dayNumber: 5, year: 2025 });
 
       expect(result).toBeNull();
       expect(console.error).toHaveBeenCalledWith(expect.stringContaining("already exists"));
@@ -158,7 +159,7 @@ describe("DAL Day", () => {
       const genericError = new Error("DB connection failed");
       prismaMock.day.create.mockRejectedValue(genericError);
 
-      await expect(addDay(5)).rejects.toThrow("DB connection failed");
+      await expect(addDay({ dayNumber: 5, year: 2025 })).rejects.toThrow("DB connection failed");
     });
   });
 

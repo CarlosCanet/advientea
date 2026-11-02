@@ -4,6 +4,7 @@ import { Day, Role, TeaIngredient, TeaType } from "@/generated/prisma/client";
 import { prismaMock } from "@/lib/__mocks__/prisma";
 import { DayWithAssignmentAndTeaComplete, DayWithTeaComplete } from "@/lib/dal";
 import * as dalDay from "@/lib/dal/dal-day";
+import { getTeaById } from "@/lib/dal/dal-tea";
 import {
   addTea,
   addTeaComplete,
@@ -11,7 +12,7 @@ import {
   editTea,
   editTeaComplete,
   getAllTeas,
-  getTea,
+  getTeaByDayNumber,
   getUsernameAssignedToTea,
   TeaWithDay,
   TeaWithDayAndCompleteStory,
@@ -67,7 +68,7 @@ describe("DAL Tea", () => {
 
       prismaMock.tea.findUnique.mockResolvedValue(mockTea);
 
-      const result = await getTea("tea-cuid");
+      const result = await getTeaById("tea-cuid");
 
       expect(result).toBeDefined();
       expect(result?.id).toBe("tea-cuid");
@@ -108,10 +109,10 @@ describe("DAL Tea", () => {
         url: null,
       };
 
-      dalDayMock.getDay.mockResolvedValue({ ...mockDay, tea: mockTea });
+      dalDayMock.getDayByDayNumber.mockResolvedValue({ ...mockDay, tea: mockTea });
       prismaMock.tea.findUnique.mockResolvedValue(mockTea);
 
-      const result = await getTea(1, 2025);
+      const result = await getTeaByDayNumber({ dayNumber: 1, year: 2025 });
 
       expect(result).toBeDefined();
       expect(result?.id).toBe("tea-cuid");
@@ -123,7 +124,7 @@ describe("DAL Tea", () => {
     it("should return null for non-existent CUID", async () => {
       prismaMock.tea.findUnique.mockResolvedValue(null);
 
-      const result = await getTea("non-existent-cuid");
+      const result = await getTeaById("non-existent-cuid");
 
       expect(result).toBeNull();
     });
@@ -186,7 +187,7 @@ describe("DAL Tea", () => {
 
       prismaMock.tea.findUnique.mockResolvedValue(mockTea);
 
-      const result = await getTea("tea-cuid");
+      const result = await getTeaById("tea-cuid");
 
       expect(result).toBeDefined();
       expect(result?.story).toBeDefined();
@@ -434,8 +435,10 @@ describe("DAL Tea", () => {
           url: "https://tea.example.com",
         },
         ["ingredient1"],
-        15,
-        2025,
+        {
+          dayNumber: 15,
+          year: 2025,
+        },
       );
 
       expect(result?.id).toBe("new-tea-cuid");
@@ -538,7 +541,7 @@ describe("DAL Tea", () => {
             url: "https://tea.example.com",
           },
           ["ingredient1"],
-          1,
+          { dayNumber: 1, year: 2025 },
         ),
       ).rejects.toThrow("already has a tea assigned");
     });
@@ -574,8 +577,7 @@ describe("DAL Tea", () => {
         url: null,
       };
 
-      // Mock getDay function (called internally by addTeaComplete)
-      prismaMock.day.findUnique.mockResolvedValue(mockDay);
+      dalDayMock.getDayByDayNumber.mockResolvedValue({ ...mockDay, tea: null });
       prismaMock.tea.create.mockResolvedValue(mockTea);
 
       const result = await addTeaComplete(
@@ -598,8 +600,7 @@ describe("DAL Tea", () => {
           youtubeURL: "https://youtube.com/video",
         },
         [{ order: 0, publicId: "cloudinary-id-1" }],
-        15,
-        2025,
+        { dayNumber: 15, year: 2025 },
       );
 
       expect(result?.name).toBe("Complete Tea");
@@ -679,7 +680,7 @@ describe("DAL Tea", () => {
       prismaMock.$transaction.mockImplementation((cb: any) => cb(prismaMock));
       prismaMock.day.findFirst.mockResolvedValue(null);
 
-      await expect(editTea({}, "tea-1", 99)).rejects.toThrow("Day 99/2025 not found");
+      await expect(editTea({}, "tea-1", { dayNumber: 99, year: 2025 })).rejects.toThrow("Day 99/2025 not found");
     });
 
     it("should update tea ingredients using SET", async () => {

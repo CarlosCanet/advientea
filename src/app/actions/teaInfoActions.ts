@@ -4,8 +4,7 @@ import { z } from "zod";
 
 import { Prisma } from "@/generated/prisma/client";
 import { Role } from "@/generated/prisma/enums";
-import { deleteAsset } from "@/lib/cloudinary";
-import { uploadImageFile } from "@/lib/cloudinary";
+import { deleteAsset, uploadImageFile } from "@/lib/cloudinary";
 import {
   add25Days,
   addDay,
@@ -13,12 +12,14 @@ import {
   addStoryImage,
   addStoryTea,
   addTea,
+  DayYear,
   deleteDay,
   deleteDayAssignmentByDay,
   editStoryTea,
   editTea,
+  getActiveEdition,
   getDayAssignmentByUserId,
-  getTea,
+  getTeaById,
   replaceStoryImages,
   requireRole,
   requireSession,
@@ -38,6 +39,14 @@ export async function addTeaInfo(
 ): Promise<TeaInfoActionResponse> {
   try {
     const { isAuth, userId } = await verifySession();
+    const edition = await getActiveEdition();
+    if (!edition) {
+      return {
+        errors: { errors: ["No active edition found"] },
+        message: "No active edition found",
+        success: false,
+      };
+    }
     const rawData: TeaInfoFormData = {
       addMilk: getFormBoolean(formData, "addMilk"),
       canReinfuse: getFormBoolean(formData, "canReinfuse"),
@@ -73,7 +82,7 @@ export async function addTeaInfo(
     let day = data.dayNumber;
     if (data.dayNumber === 0) {
       day = Math.floor(Math.random() * 50000) + 25;
-      await addDay(day);
+      await addDay({ dayNumber: day, year: edition.year });
     }
     const teaCreated = await addTea(
       {
@@ -89,7 +98,10 @@ export async function addTeaInfo(
         url: data.urlStore,
       },
       [],
-      day,
+      {
+        dayNumber: day,
+        year: edition.year,
+      },
     );
     if (!teaCreated) {
       throw new Error("Cannot create tea");
@@ -126,8 +138,8 @@ export async function addTeaInfo(
     }
 
     const dayAssignmentCreated = isAuth
-      ? await addDayAssignment({ userId: userId }, day)
-      : await addDayAssignment({ guestName: data.personName }, day);
+      ? await addDayAssignment({ userId: userId }, { dayNumber: day, year: edition.year })
+      : await addDayAssignment({ guestName: data.personName }, { dayNumber: day, year: edition.year });
     if (!dayAssignmentCreated) {
       throw new Error(
         `Cannot create dayAssignment for user ${isAuth ? userId : data.personName} in day with id ${teaCreated.dayId}`,
@@ -198,7 +210,7 @@ export async function editTeaInfoAction(
     if (!data.teaId) throw new Error("Tea id is missing.");
 
     const day = data.dayNumber;
-    const currentTea = await getTea(data.teaId);
+    const currentTea = await getTeaById(data.teaId);
     if (!currentTea) throw new Error(`Cannot find tea with id ${data.teaId}`);
     const isPrivileged = role === Role.ADMIN || role === Role.EXECUTEAVE;
     if (!isPrivileged) {
@@ -211,9 +223,15 @@ export async function editTeaInfoAction(
     }
 
     let storyId = currentTea.story?.id || null;
-    let newDayNumber: number | undefined = undefined;
-    if (isPrivileged) {
-      newDayNumber = currentTea.day?.dayNumber === day ? undefined : day;
+    // Only managers move a tea, and only when the form asks for another day. A tea without a day
+    // (guest teas) belongs to the active edition, so that is the year its new day is looked up in.
+    let newDay: DayYear | undefined = undefined;
+    if (isPrivileged && day !== currentTea.day?.dayNumber) {
+      const year = currentTea.day?.year ?? (await getActiveEdition())?.year;
+      if (year === undefined) {
+        throw new Error("Cannot move a tea without an active edition.");
+      }
+      newDay = { dayNumber: day, year };
     }
     const editedTea = await editTea(
       {
@@ -229,7 +247,7 @@ export async function editTeaInfoAction(
         url: data.urlStore,
       },
       data.teaId,
-      newDayNumber,
+      newDay,
     );
     if (!editedTea) {
       throw new Error("Cannot edit tea");
@@ -300,7 +318,7 @@ export async function editTeaInfoAction(
 export async function assignUserToDay(
   dayId: string,
   userId: string,
-  year: number = 2025,
+  year: number,
   guestName?: string,
 ): Promise<ActionResponse> {
   try {
@@ -334,7 +352,7 @@ export async function assignUserToDay(
   }
 }
 
-export async function addDaysAction(year: number = 2025): Promise<ActionResponse> {
+export async function addDaysAction(year: number): Promise<ActionResponse> {
   try {
     await requireRole(Role.ADMIN);
     await add25Days(year);

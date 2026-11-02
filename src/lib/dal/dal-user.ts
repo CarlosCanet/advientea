@@ -10,6 +10,14 @@ export type UserWithDayAssignedDay = Prisma.UserGetPayload<{
   select: { daysAssigned: { include: { day: true } }; email: true; id: true; image: true; role: true; username: true };
 }>;
 
+export async function getUserById(id: string): Promise<User> {
+  const data = await prisma.user.findUnique({ where: { id } });
+  if (!data) {
+    throw new Error("The user doesn't exist.");
+  }
+  return data;
+}
+
 export async function getUser(email: string): Promise<User> {
   const data = await prisma.user.findUnique({ where: { email } });
   if (!data) {

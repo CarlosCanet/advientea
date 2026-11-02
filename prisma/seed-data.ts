@@ -70,8 +70,10 @@ export async function seedDatabase({ accounts = true, year = 2025 }: SeedOptions
       url: "https://www.tiendadelasespecias.com/rutadeldesierto",
     },
     [apple.id, lemon.id],
-    1,
-    year,
+    {
+      dayNumber: 1,
+      year,
+    },
   );
   if (!tea1) throw new Error("Tea for day 1 was not created");
   const story1 = await addStoryTea(
@@ -105,8 +107,10 @@ export async function seedDatabase({ accounts = true, year = 2025 }: SeedOptions
       url: "https://www.tiendadelasespecias.com/rutadeldesierto",
     },
     [clove.id, cinnamon.id, cardamom.id],
-    2,
-    year,
+    {
+      dayNumber: 2,
+      year,
+    },
   );
   if (!tea2) throw new Error("Tea for day 2 was not created");
   const story2 = await addStoryTea(
@@ -120,9 +124,9 @@ export async function seedDatabase({ accounts = true, year = 2025 }: SeedOptions
   );
   await replaceStoryImages(story2.id, [{ kind: "new", publicId: "samples/breakfast" }]);
 
-  await addDayAssignment({ userId: manager.id }, 1, year);
-  await addDayAssignment({ guestName: "Anónimo" }, 2, year);
-  await addDayAssignment({ userId: ana.id }, 3, year);
-  await addDayAssignment({ userId: sony.id }, 4, year);
-  await addDayAssignment({ userId: miko.id }, 5, year);
+  await addDayAssignment({ userId: manager.id }, { dayNumber: 1, year });
+  await addDayAssignment({ guestName: "Anónimo" }, { dayNumber: 2, year });
+  await addDayAssignment({ userId: ana.id }, { dayNumber: 3, year });
+  await addDayAssignment({ userId: sony.id }, { dayNumber: 4, year });
+  await addDayAssignment({ userId: miko.id }, { dayNumber: 5, year });
 }

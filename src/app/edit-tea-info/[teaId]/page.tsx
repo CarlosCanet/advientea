@@ -5,7 +5,7 @@ import EditTeaInfoForm from "@/components/EditTeaInfoForm";
 import WaitForDayAssignment from "@/components/ui/WaitForDayAssignment";
 import { Role } from "@/generated/prisma/enums";
 import { auth } from "@/lib/auth";
-import { getDayAssignment, getTea, getUsernameAssignedToTea } from "@/lib/dal";
+import { getActiveEdition, getDayAssignmentByUserId, getTeaById, getUsernameAssignedToTea } from "@/lib/dal";
 
 async function EditTeaInfoDayPage({ params }: { params: Promise<{ teaId: string }> }) {
   const { teaId } = await params;
@@ -13,9 +13,13 @@ async function EditTeaInfoDayPage({ params }: { params: Promise<{ teaId: string 
   if (!session) {
     redirect("/");
   }
+  const edition = await getActiveEdition();
+  if (!edition) {
+    notFound();
+  }
 
   if (session.user.role === Role.USER) {
-    const assignment = await getDayAssignment(2025, session.user.email);
+    const assignment = await getDayAssignmentByUserId(session.user.id, edition.year);
     if (!assignment) {
       return <WaitForDayAssignment />;
     } else if (!assignment.day?.tea) {
@@ -24,7 +28,7 @@ async function EditTeaInfoDayPage({ params }: { params: Promise<{ teaId: string 
       redirect(`/edit-tea-info/${assignment.day?.tea.id}`);
     }
   }
-  const teaCompleteInfo = await getTea(teaId);
+  const teaCompleteInfo = await getTeaById(teaId);
   if (!teaCompleteInfo) {
     notFound();
   }

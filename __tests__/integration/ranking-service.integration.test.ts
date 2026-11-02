@@ -193,7 +193,7 @@ describe("Ranking service", () => {
         1000,
       );
 
-      const ranking = await getOverallRanking();
+      const ranking = await getOverallRanking(2025);
 
       expect(ranking).not.toBeNull();
       expect(ranking![0].points).toBe(1500);
@@ -253,7 +253,7 @@ describe("Ranking service", () => {
         prisma.teaGuess.update({ data: { createdAt: new Date(date.getTime() + 20000) }, where: { id: guess212!.id } }),
       ]);
 
-      const ranking = await getOverallRanking();
+      const ranking = await getOverallRanking(2025);
 
       expect(ranking).not.toBeNull();
       expect(ranking![0].points).toBe(1500);

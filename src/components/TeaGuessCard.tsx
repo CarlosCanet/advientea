@@ -10,7 +10,7 @@ import { canUserGuessPerson, canUserGuessTea } from "@/lib/services/tea-guess-se
 import { SelectOption } from "@/lib/types";
 import { TEA_TYPE_LABELS } from "@/lib/utils";
 
-import { getAllAssigners, getAllIngredients, getDay, getDayForGuessing } from "../lib/dal";
+import { getAllAssigners, getAllIngredients, getDayById, getDayForGuessing } from "../lib/dal";
 import TeaGuessForm from "./TeaGuessForm";
 
 interface TeaGuessCardProps {
@@ -45,7 +45,7 @@ export default async function TeaGuessCard({ dayId }: TeaGuessCardProps) {
       .toSorted((user1, user2) => user1.name.localeCompare(user2.name)) ?? [];
   const canGuessTea = await canUserGuessTea(dayId, session.user.id);
   const canGuessPerson = await canUserGuessPerson(dayId, session.user.id);
-  const day = await getDay(dayId);
+  const day = await getDayById(dayId);
   if (!day) {
     notFound();
   }

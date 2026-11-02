@@ -9,7 +9,8 @@ import {
   deleteDayAssignment,
   editDayAssignment,
   getAllDayAssignment,
-  getDayAssignment,
+  getDayAssignmentById,
+  getDayAssignmentByUserId,
 } from "@/lib/dal/dal-day-assignment";
 
 describe("DAL DayAssignment", () => {
@@ -56,7 +57,7 @@ describe("DAL DayAssignment", () => {
     it("should get assignment by ID string", async () => {
       prismaMock.dayAssignment.findUnique.mockResolvedValue(mockAssignment);
 
-      const result = await getDayAssignment("assignment-1");
+      const result = await getDayAssignmentById("assignment-1");
 
       expect(result).toEqual(mockAssignment);
       expect(prismaMock.dayAssignment.findUnique).toHaveBeenCalledWith(
@@ -66,18 +67,16 @@ describe("DAL DayAssignment", () => {
 
     it("should return null if assignment ID not found", async () => {
       prismaMock.dayAssignment.findUnique.mockResolvedValue(null);
-      const result = await getDayAssignment("missing-id");
+      const result = await getDayAssignmentById("missing-id");
       expect(result).toBeNull();
     });
 
-    it("should get assignment by Year and Email", async () => {
-      prismaMock.user.findUnique.mockResolvedValue(mockUser);
+    it("should get the assignment of a user in a year", async () => {
       prismaMock.dayAssignment.findUnique.mockResolvedValue(mockAssignment);
 
-      const result = await getDayAssignment(2025, "test@example.com");
+      const result = await getDayAssignmentByUserId("user-1", 2025);
 
       expect(result).toEqual(mockAssignment);
-      expect(prismaMock.user.findUnique).toHaveBeenCalledWith({ where: { email: "test@example.com" } });
       expect(prismaMock.dayAssignment.findUnique).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { userId_year: { userId: "user-1", year: 2025 } },
@@ -85,16 +84,10 @@ describe("DAL DayAssignment", () => {
       );
     });
 
-    it("should throw if email is missing (logic check)", async () => {
-      await expect(getDayAssignment(2025, "")).rejects.toThrow("Email is mandatory when getting by year");
-    });
+    it("should return null when the user has no assignment that year", async () => {
+      prismaMock.dayAssignment.findUnique.mockResolvedValue(null);
 
-    it("should throw if user not found by email", async () => {
-      prismaMock.user.findUnique.mockResolvedValue(null);
-
-      await expect(getDayAssignment(2025, "ghost@example.com")).rejects.toThrow(
-        "The user with email ghost@example.com doesn't exist",
-      );
+      expect(await getDayAssignmentByUserId("ghost-user", 2025)).toBeNull();
     });
   });
 
@@ -164,7 +157,7 @@ describe("DAL DayAssignment", () => {
       prismaMock.user.findUnique.mockResolvedValue(mockUser);
       prismaMock.dayAssignment.create.mockResolvedValue(mockAssignmentWithUser);
 
-      const result = await addDayAssignment({ userId: "user-id" }, 5, 2025);
+      const result = await addDayAssignment({ userId: "user-id" }, { dayNumber: 5, year: 2025 });
 
       expect(result).toEqual(mockAssignmentWithUser);
       expect(prismaMock.dayAssignment.create).toHaveBeenCalledWith(
@@ -178,12 +171,12 @@ describe("DAL DayAssignment", () => {
       );
     });
 
-    it("should use default year 2025 when not provided", async () => {
+    it("looks the day up in the given year", async () => {
       prismaMock.day.findUnique.mockResolvedValue(mockDay);
       prismaMock.user.findUnique.mockResolvedValue(mockUser);
       prismaMock.dayAssignment.create.mockResolvedValue(mockAssignmentWithUser);
 
-      await addDayAssignment({ userId: "user-id" }, 5);
+      await addDayAssignment({ userId: "user-id" }, { dayNumber: 5, year: 2025 });
 
       expect(prismaMock.day.findUnique).toHaveBeenCalledWith({
         where: { dayNumber_year: { dayNumber: 5, year: 2025 } },
@@ -195,7 +188,7 @@ describe("DAL DayAssignment", () => {
       prismaMock.user.findUnique.mockResolvedValue(mockUser);
       prismaMock.dayAssignment.create.mockResolvedValue(mockAssignmentWithGuest);
 
-      const result = await addDayAssignment({ guestName: "Guest" }, 5, 2025);
+      const result = await addDayAssignment({ guestName: "Guest" }, { dayNumber: 5, year: 2025 });
 
       expect(result).toEqual(mockAssignmentWithGuest);
       expect(prismaMock.dayAssignment.create).toHaveBeenCalledWith(
@@ -212,7 +205,9 @@ describe("DAL DayAssignment", () => {
     it("should throw if day does not exist", async () => {
       prismaMock.day.findUnique.mockResolvedValue(null);
 
-      await expect(addDayAssignment({ userId: "user-id" }, 99)).rejects.toThrow("The day 99/2025 does not exist yet");
+      await expect(addDayAssignment({ userId: "user-id" }, { dayNumber: 99, year: 2025 })).rejects.toThrow(
+        "The day 99/2025 does not exist yet",
+      );
     });
 
     it("should throw if user does not exist", async () => {
@@ -223,7 +218,9 @@ describe("DAL DayAssignment", () => {
       });
       prismaMock.dayAssignment.create.mockRejectedValue(p2025Error);
 
-      await expect(addDayAssignment({ userId: "wrong-id" }, 5)).rejects.toThrow("Record not found");
+      await expect(addDayAssignment({ userId: "wrong-id" }, { dayNumber: 5, year: 2025 })).rejects.toThrow(
+        "Record not found",
+      );
     });
 
     it("should re-throw error on P2002 violation", async () => {
@@ -237,7 +234,9 @@ describe("DAL DayAssignment", () => {
 
       prismaMock.dayAssignment.create.mockRejectedValue(p2002Error);
 
-      await expect(addDayAssignment({ userId: "user-id" }, 5)).rejects.toThrow("Unique constraint violation");
+      await expect(addDayAssignment({ userId: "user-id" }, { dayNumber: 5, year: 2025 })).rejects.toThrow(
+        "Unique constraint violation",
+      );
     });
   });
 

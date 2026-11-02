@@ -9,7 +9,8 @@ import {
   deleteStoryTea,
   editStoryTea,
   getAllStoriesTea,
-  getStoryTea,
+  getStoryTeaByDayNumber,
+  getStoryTeaById,
   StoryWithTea,
   StoryWithTeaAndImages,
 } from "@/lib/dal/dal-story-tea";
@@ -55,7 +56,7 @@ describe("DAL StoryTea", () => {
     it("should get story by ID string", async () => {
       prismaMock.storyTea.findUnique.mockResolvedValue(mockStoryComplete);
 
-      const result = await getStoryTea("story-1");
+      const result = await getStoryTeaById("story-1");
 
       expect(result).toEqual(mockStoryComplete);
       expect(prismaMock.storyTea.findUnique).toHaveBeenCalledWith({
@@ -66,7 +67,7 @@ describe("DAL StoryTea", () => {
 
     it("should return null if ID not found", async () => {
       prismaMock.storyTea.findUnique.mockResolvedValue(null);
-      const result = await getStoryTea("missing");
+      const result = await getStoryTeaById("missing");
       expect(result).toBeNull();
     });
 
@@ -104,11 +105,11 @@ describe("DAL StoryTea", () => {
         },
       };
 
-      dalDayMock.getDay.mockResolvedValue(realGetDayResponse);
+      dalDayMock.getDayByDayNumber.mockResolvedValue(realGetDayResponse);
 
-      const result = await getStoryTea(5, 2025);
+      const result = await getStoryTeaByDayNumber({ dayNumber: 5, year: 2025 });
 
-      expect(dalDayMock.getDay).toHaveBeenCalledWith(5, 2025);
+      expect(dalDayMock.getDayByDayNumber).toHaveBeenCalledWith({ dayNumber: 5, year: 2025 });
       expect(result).toBeDefined();
       expect(result?.id).toBe("story-1");
       expect(result?.tea.id).toBe("tea-1");
@@ -116,8 +117,8 @@ describe("DAL StoryTea", () => {
     });
 
     it("should return null if day not found", async () => {
-      dalDayMock.getDay.mockResolvedValue(null);
-      const result = await getStoryTea(5, 2025);
+      dalDayMock.getDayByDayNumber.mockResolvedValue(null);
+      const result = await getStoryTeaByDayNumber({ dayNumber: 5, year: 2025 });
       expect(result).toBeNull();
     });
 
@@ -130,9 +131,9 @@ describe("DAL StoryTea", () => {
         updatedAt: new Date(),
         year: 2025,
       };
-      dalDayMock.getDay.mockResolvedValue(mockDayNoTea);
+      dalDayMock.getDayByDayNumber.mockResolvedValue(mockDayNoTea);
 
-      const result = await getStoryTea(5, 2025);
+      const result = await getStoryTeaByDayNumber({ dayNumber: 5, year: 2025 });
       expect(result).toBeNull();
     });
 
@@ -162,9 +163,9 @@ describe("DAL StoryTea", () => {
         updatedAt: new Date(),
         year: 2025,
       };
-      dalDayMock.getDay.mockResolvedValue(mockDayNoStory);
+      dalDayMock.getDayByDayNumber.mockResolvedValue(mockDayNoStory);
 
-      const result = await getStoryTea(5, 2025);
+      const result = await getStoryTeaByDayNumber({ dayNumber: 5, year: 2025 });
       expect(result).toBeNull();
     });
   });

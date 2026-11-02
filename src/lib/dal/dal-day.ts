@@ -16,20 +16,24 @@ export type DayForGuessing = Prisma.DayGetPayload<{
   };
 }>;
 
-export async function getDay(id: string): Promise<DayWithTeaComplete | null>;
-export async function getDay(day: number, year: number): Promise<DayWithTeaComplete | null>;
-export async function getDay(idOrDay: number | string, year: number = 2025): Promise<DayWithTeaComplete | null> {
-  if (typeof idOrDay === "string") {
-    const dayResponse = await prisma.day.findUnique({
-      include: { tea: { include: { story: { include: { images: { orderBy: { order: "asc" } } } } } } },
-      where: { id: idOrDay },
-    });
-    if (!dayResponse) return null;
-    return dayResponse;
-  }
+export type DayYear = {
+  dayNumber: number;
+  year: number;
+};
+
+export async function getDayById(id: string): Promise<DayWithTeaComplete | null> {
   const dayResponse = await prisma.day.findUnique({
     include: { tea: { include: { story: { include: { images: { orderBy: { order: "asc" } } } } } } },
-    where: { dayNumber_year: { dayNumber: idOrDay, year: year } },
+    where: { id },
+  });
+  if (!dayResponse) return null;
+  return dayResponse;
+}
+
+export async function getDayByDayNumber(dayYear: DayYear): Promise<DayWithTeaComplete | null> {
+  const dayResponse = await prisma.day.findUnique({
+    include: { tea: { include: { story: { include: { images: { orderBy: { order: "asc" } } } } } } },
+    where: { dayNumber_year: { dayNumber: dayYear.dayNumber, year: dayYear.year } },
   });
   if (!dayResponse) return null;
   return dayResponse;
@@ -76,13 +80,13 @@ export async function getAllDays(year: number): Promise<Array<DayWithAssignmentA
   return allDays;
 }
 
-export async function addDay(day: number, year: number = 2025): Promise<Day | null> {
+export async function addDay(dayYear: DayYear): Promise<Day | null> {
   try {
-    const created = await prisma.day.create({ data: { dayNumber: day, year: year } });
+    const created = await prisma.day.create({ data: { dayNumber: dayYear.dayNumber, year: dayYear.year } });
     return created;
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      console.error(`Day ${day}/${year} already exists`);
+      console.error(`Day ${dayYear.dayNumber}/${dayYear.year} already exists`);
       return null;
     }
     console.error(error);
@@ -90,7 +94,7 @@ export async function addDay(day: number, year: number = 2025): Promise<Day | nu
   }
 }
 
-export async function addNextDay(year: number = 2025): Promise<Day | null> {
+export async function addNextDay(year: number): Promise<Day | null> {
   let nextDayNumber;
   try {
     const days = await prisma.day.aggregate({
@@ -111,7 +115,7 @@ export async function addNextDay(year: number = 2025): Promise<Day | null> {
   }
 }
 
-export async function add25Days(year: number = 2025): Promise<number> {
+export async function add25Days(year: number): Promise<number> {
   const days = Array.from({ length: 25 }, (_, i) => ({
     dayNumber: i + 1,
     year,
