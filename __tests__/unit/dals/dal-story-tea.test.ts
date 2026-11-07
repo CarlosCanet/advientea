@@ -60,7 +60,7 @@ describe("DAL StoryTea", () => {
 
       expect(result).toEqual(mockStoryComplete);
       expect(prismaMock.storyTea.findUnique).toHaveBeenCalledWith({
-        include: { images: true, tea: true },
+        include: { images: { orderBy: { order: "asc" } }, tea: true },
         where: { id: "story-1" },
       });
     });

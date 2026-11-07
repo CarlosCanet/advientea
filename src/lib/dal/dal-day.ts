@@ -1,11 +1,18 @@
 import { Day, Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 
-export type DayWithTeaStoryImages = Prisma.DayGetPayload<{
-  include: { tea: { include: { story: { include: { images: true } } } } };
-}>;
+import { storyTeaWithImagesInclude } from "./includes";
+
+const dayWithTeaStoryImagesInclude = {
+  tea: { include: { story: { include: storyTeaWithImagesInclude } } },
+} satisfies Prisma.DayInclude;
+export type DayWithTeaStoryImages = Prisma.DayGetPayload<{ include: typeof dayWithTeaStoryImagesInclude }>;
+const dayWithAssignmentUserAndTeaStoryImagesInclude = {
+  assignment: { include: { user: true } },
+  ...dayWithTeaStoryImagesInclude,
+} satisfies Prisma.DayInclude;
 export type DayWithAssignmentUserAndTeaStoryImages = Prisma.DayGetPayload<{
-  include: { assignment: { include: { user: true } }; tea: { include: { story: { include: { images: true } } } } };
+  include: typeof dayWithAssignmentUserAndTeaStoryImagesInclude;
 }>;
 export type DayForGuessing = Prisma.DayGetPayload<{
   select: {
@@ -23,7 +30,7 @@ export type DayYear = {
 
 export async function getDayById(id: string): Promise<DayWithTeaStoryImages | null> {
   const dayResponse = await prisma.day.findUnique({
-    include: { tea: { include: { story: { include: { images: { orderBy: { order: "asc" } } } } } } },
+    include: dayWithTeaStoryImagesInclude,
     where: { id },
   });
   if (!dayResponse) return null;
@@ -32,7 +39,7 @@ export async function getDayById(id: string): Promise<DayWithTeaStoryImages | nu
 
 export async function getDayByDayNumber(dayYear: DayYear): Promise<DayWithTeaStoryImages | null> {
   const dayResponse = await prisma.day.findUnique({
-    include: { tea: { include: { story: { include: { images: { orderBy: { order: "asc" } } } } } } },
+    include: dayWithTeaStoryImagesInclude,
     where: { dayNumber_year: { dayNumber: dayYear.dayNumber, year: dayYear.year } },
   });
   if (!dayResponse) return null;
@@ -70,10 +77,7 @@ export async function getDayForGuessing(id: string): Promise<DayForGuessing | nu
 
 export async function getAllDays(year: number): Promise<Array<DayWithAssignmentUserAndTeaStoryImages>> {
   const allDays = await prisma.day.findMany({
-    include: {
-      assignment: { include: { user: true } },
-      tea: { include: { story: { include: { images: { orderBy: { order: "asc" } } } } } },
-    },
+    include: dayWithAssignmentUserAndTeaStoryImagesInclude,
     orderBy: { dayNumber: "asc" },
     where: { year },
   });
@@ -141,7 +145,7 @@ export async function deleteDay(id: string): Promise<DayWithTeaStoryImages> {
   return prisma.$transaction(async (tx) => {
     await tx.dayAssignment.deleteMany({ where: { dayId: id } });
     return tx.day.delete({
-      include: { tea: { include: { story: { include: { images: { orderBy: { order: "asc" } } } } } } },
+      include: dayWithTeaStoryImagesInclude,
       where: { id },
     });
   });

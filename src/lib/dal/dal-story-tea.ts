@@ -2,13 +2,16 @@ import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 
 import { DayYear, getDayByDayNumber } from "./dal-day";
+import { storyTeaWithImagesInclude } from "./includes";
 
-export type StoryTeaWithImagesAndTea = Prisma.StoryTeaGetPayload<{ include: { images: true; tea: true } }>;
+export type StoryTeaWithImages = Prisma.StoryTeaGetPayload<{ include: typeof storyTeaWithImagesInclude }>;
+const storyTeaWithImagesAndTeaInclude = { ...storyTeaWithImagesInclude, tea: true } satisfies Prisma.StoryTeaInclude;
+export type StoryTeaWithImagesAndTea = Prisma.StoryTeaGetPayload<{ include: typeof storyTeaWithImagesAndTeaInclude }>;
 export type StoryTeaWithTea = Prisma.StoryTeaGetPayload<{ include: { tea: true } }>;
 
 export async function getStoryTeaById(id: string): Promise<null | StoryTeaWithImagesAndTea> {
   const story = await prisma.storyTea.findUnique({
-    include: { images: true, tea: true },
+    include: storyTeaWithImagesAndTeaInclude,
     where: { id },
   });
   if (!story) return null;
@@ -24,7 +27,7 @@ export async function getStoryTeaByDayNumber(dayYear: DayYear): Promise<null | S
 
 export async function getAllStoriesTea(): Promise<StoryTeaWithImagesAndTea[]> {
   try {
-    const stories = await prisma.storyTea.findMany({ include: { images: { orderBy: { order: "asc" } }, tea: true } });
+    const stories = await prisma.storyTea.findMany({ include: storyTeaWithImagesAndTeaInclude });
     return stories;
   } catch (error) {
     console.error(error);

@@ -204,7 +204,7 @@ describe("getDaySchedule", () => {
   });
 
   describe("days beyond December", () => {
-    // More than 31 participants: day 32 is 1 January of the next year and the calendar carries on.
+    // More than 31 participants: day 32 is 1 January of the next year.
     const active35Days = edition(EditionStatus.ACTIVE, 2026, 35);
 
     it("keeps day 3 on 3 December, whatever the length of the edition", () => {

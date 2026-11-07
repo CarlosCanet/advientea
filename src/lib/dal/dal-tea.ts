@@ -2,15 +2,21 @@ import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 
 import { DayYear, getDayByDayNumber } from "./dal-day";
+import { storyTeaWithImagesInclude } from "./includes";
 
+const teaWithDayAndIngredientsInclude = { day: true, ingredients: true } satisfies Prisma.TeaInclude;
+export type TeaWithDayAndIngredients = Prisma.TeaGetPayload<{ include: typeof teaWithDayAndIngredientsInclude }>;
+const teaWithDayAndIngredientsAndStoryImagesInclude = {
+  ...teaWithDayAndIngredientsInclude,
+  story: { include: storyTeaWithImagesInclude },
+} satisfies Prisma.TeaInclude;
 export type TeaWithDayAndIngredientsAndStoryImages = Prisma.TeaGetPayload<{
-  include: { day: true; ingredients: true; story: { include: { images: true } } };
+  include: typeof teaWithDayAndIngredientsAndStoryImagesInclude;
 }>;
-export type TeaWithDayAndIngredients = Prisma.TeaGetPayload<{ include: { day: true; ingredients: true } }>;
 
 export async function getTeaById(id: string): Promise<null | TeaWithDayAndIngredientsAndStoryImages> {
   const tea = await prisma.tea.findUnique({
-    include: { day: true, ingredients: true, story: { include: { images: { orderBy: { order: "asc" } } } } },
+    include: teaWithDayAndIngredientsAndStoryImagesInclude,
     where: { id },
   });
   if (!tea) return null;
@@ -21,7 +27,7 @@ export async function getTeaByDayNumber(dayYear: DayYear): Promise<null | TeaWit
   const dayResponse = await getDayByDayNumber(dayYear);
   if (!dayResponse || !dayResponse.tea) return null;
   const teaResponse = await prisma.tea.findUnique({
-    include: { day: true, ingredients: true, story: { include: { images: { orderBy: { order: "asc" } } } } },
+    include: teaWithDayAndIngredientsAndStoryImagesInclude,
     where: { id: dayResponse.tea.id },
   });
   if (!teaResponse) return null;
@@ -30,7 +36,7 @@ export async function getTeaByDayNumber(dayYear: DayYear): Promise<null | TeaWit
 
 export async function getAllTeas(year: number): Promise<TeaWithDayAndIngredientsAndStoryImages[]> {
   const teas = await prisma.tea.findMany({
-    include: { day: true, ingredients: true, story: { include: { images: { orderBy: { order: "asc" } } } } },
+    include: teaWithDayAndIngredientsAndStoryImagesInclude,
     where: { day: { year } },
   });
   return teas;
@@ -69,7 +75,7 @@ export async function addTea(
       day: dayConnection,
       ingredients: { connect: ingredientIds.map((id) => ({ id })) },
     },
-    include: { day: true, ingredients: true },
+    include: teaWithDayAndIngredientsInclude,
   });
   return tea;
 }
@@ -97,7 +103,7 @@ export async function addTeaComplete(
         },
       },
     },
-    include: { day: true, ingredients: true },
+    include: teaWithDayAndIngredientsInclude,
   });
   return tea;
 }
@@ -139,7 +145,7 @@ export async function editTea(
         ...data,
         ingredients: ingredientIds ? { set: ingredientIds.map((id) => ({ id })) } : undefined,
       },
-      include: { day: true, ingredients: true },
+      include: teaWithDayAndIngredientsInclude,
       where: { id },
     });
     return teaUpdated;
@@ -176,7 +182,7 @@ export async function editTeaComplete(
         },
       },
     },
-    include: { day: true, ingredients: true, story: { include: { images: { orderBy: { order: "asc" } } } } },
+    include: teaWithDayAndIngredientsAndStoryImagesInclude,
     where: { id },
   });
   return tea;
@@ -184,7 +190,7 @@ export async function editTeaComplete(
 
 export async function deleteTea(id: string): Promise<TeaWithDayAndIngredients> {
   const teaDeleted = await prisma.tea.delete({
-    include: { day: true, ingredients: true },
+    include: teaWithDayAndIngredientsInclude,
     where: { id },
   });
   return teaDeleted;
