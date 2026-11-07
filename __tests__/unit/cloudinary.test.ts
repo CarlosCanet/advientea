@@ -2,6 +2,7 @@ import { v2 as cloudinary, UploadApiResponse } from "cloudinary";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { assetFolder, deleteAsset, uploadImage } from "@/lib/cloudinary";
+import { DEFAULT_IMAGE_PROFILE } from "@/lib/types";
 
 vi.mock("cloudinary", () => ({
   v2: {
@@ -117,6 +118,13 @@ describe("Cloudinary integration", () => {
 
       expect(await deleteAsset("advientea-staging/avatars/axvcr1ufv0gpdmwbebmc")).toBeUndefined();
       expect(await deleteAsset("advientea-local/avatars/axvcr1ufv0gpdmwbebmc")).toBeUndefined();
+      expect(cloudinary.uploader.destroy).not.toHaveBeenCalled();
+    });
+
+    it("never deletes the shared default avatar, even from production", async () => {
+      vi.stubEnv("VERCEL_ENV", "production");
+
+      expect(await deleteAsset(DEFAULT_IMAGE_PROFILE)).toBeUndefined();
       expect(cloudinary.uploader.destroy).not.toHaveBeenCalled();
     });
 

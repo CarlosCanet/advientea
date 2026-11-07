@@ -1,7 +1,7 @@
 import "@/envConfig";
 import { v2 as cloudinary, UploadApiOptions, UploadApiResponse } from "cloudinary";
 
-import { ALLOWED_IMAGE_TYPES } from "@/lib/types";
+import { ALLOWED_IMAGE_TYPES, DEFAULT_IMAGE_PROFILE } from "@/lib/types";
 
 export type AssetFolder = { kind: "avatars" } | { kind: "teaDay"; year: number };
 
@@ -63,6 +63,11 @@ export async function deleteAsset(publicId: string): Promise<undefined | UploadA
   const root = `${assetRoot()}/`;
   if (!publicId.startsWith(root)) {
     console.error(`[deleteAsset] refused ${publicId}: outside ${root}`);
+    return undefined;
+  }
+  // Every user without an avatar renders this one; a profile row that stored it must not take it away.
+  if (publicId === DEFAULT_IMAGE_PROFILE) {
+    console.error(`[deleteAsset] refused ${publicId}: shared default avatar`);
     return undefined;
   }
   try {
