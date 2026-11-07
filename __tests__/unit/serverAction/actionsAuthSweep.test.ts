@@ -86,7 +86,7 @@ vi.mock("@/lib/auth", () => ({
     },
   },
 }));
-vi.mock("@/lib/cloudinary", () => ({ deleteAsset: vi.fn(), uploadImageFile: vi.fn() }));
+vi.mock("@/lib/cloudinary", () => ({ deleteAsset: vi.fn(), uploadImage: vi.fn() }));
 vi.mock("@/lib/services/user-service", () => ({ createUser: vi.fn() }));
 vi.mock("@/lib/services/tea-guess-service", () => ({
   calculatePointsFromGuess: vi.fn(),
@@ -128,7 +128,7 @@ function expectNoWrites(actionName: string) {
     expect(dalMock[name], `${actionName} reached dal.${name}`).not.toHaveBeenCalled();
   }
   expect(prismaTouched, `${actionName} used the Prisma client directly`).not.toHaveBeenCalled();
-  for (const name of ["uploadImageFile", "deleteAsset"]) {
+  for (const name of ["uploadImage", "deleteAsset"]) {
     expect(cloudinaryMock[name], `${actionName} reached cloudinary.${name}`).not.toHaveBeenCalled();
   }
 }

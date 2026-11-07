@@ -4,7 +4,7 @@ import { z } from "zod";
 
 import { Prisma } from "@/generated/prisma/client";
 import { Role } from "@/generated/prisma/enums";
-import { deleteAsset, uploadImageFile } from "@/lib/cloudinary";
+import { deleteAsset, uploadImage } from "@/lib/cloudinary";
 import {
   add25Days,
   addDay,
@@ -127,7 +127,9 @@ export async function addTeaInfo(
         throw new Error("Cannot create story tea");
       }
       if (data.images) {
-        const publicIds = await Promise.all(data.images.map(async (image) => await uploadImageFile(image, "teaDay")));
+        const publicIds = await Promise.all(
+          data.images.map(async (image) => await uploadImage(image, { kind: "teaDay", year: edition.year })),
+        );
         for (const [i, publicId] of publicIds.entries()) {
           if (publicId) {
             await addStoryImage(publicId, i, storyCreated.id);
@@ -220,14 +222,14 @@ export async function editTeaInfoAction(
     }
 
     let storyId = currentTea.story?.id || null;
-    // Only managers move a tea, and only when the form asks for another day. A tea without a day
-    // (guest teas) belongs to the active edition, so that is the year its new day is looked up in.
+    // A tea without a day (guest teas) belongs to the active edition: its images and any new day go there.
+    const year = currentTea.day?.year ?? (await getActiveEdition())?.year;
+    if (year === undefined) {
+      throw new Error("Cannot edit a tea without an active edition.");
+    }
+    // Only managers move a tea, and only when the form asks for another day.
     let newDay: DayYear | undefined = undefined;
     if (isPrivileged && day !== currentTea.day?.dayNumber) {
-      const year = currentTea.day?.year ?? (await getActiveEdition())?.year;
-      if (year === undefined) {
-        throw new Error("Cannot move a tea without an active edition.");
-      }
       newDay = { dayNumber: day, year };
     }
     const editedTea = await editTea(
@@ -275,7 +277,7 @@ export async function editTeaInfoAction(
       slotsByPosition[data.keptImagesOrder?.[i] ?? i] = { id, kind: "existing" };
     });
     if (newImages.length > 0) {
-      const publicIds = await Promise.all(newImages.map((image) => uploadImageFile(image, "teaDay")));
+      const publicIds = await Promise.all(newImages.map((image) => uploadImage(image, { kind: "teaDay", year })));
       publicIds.forEach((publicId, i) => {
         if (publicId) slotsByPosition[data.imagesOrder?.[i] ?? slotsByPosition.length] = { kind: "new", publicId };
       });

@@ -1,13 +1,10 @@
 import { v2 as cloudinary, UploadApiResponse } from "cloudinary";
-import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { CloudinaryFolders, deleteAsset, getAssetInfo, uploadImage } from "@/lib/cloudinary";
+import { assetFolder, deleteAsset, uploadImage } from "@/lib/cloudinary";
 
 vi.mock("cloudinary", () => ({
   v2: {
-    api: {
-      resource: vi.fn(),
-    },
     config: vi.fn(),
     uploader: {
       destroy: vi.fn(),
@@ -24,59 +21,60 @@ describe("Cloudinary integration", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(cloudinary.uploader.upload).mockResolvedValue({
-      public_id: "advientea/2025-Caoslendario/axvcr1ufv0gpdmwbebmc",
+      public_id: "advientea/2026/teaDay/axvcr1ufv0gpdmwbebmc",
       secure_url:
         "https://res.cloudinary.com/dljj7f5mi/image/upload/v1762707856/advientea/2025-Caoslendario/avatars/axvcr1ufv0gpdmwbebmc.png",
       url: "http://res.cloudinary.com/dljj7f5mi/image/upload/v1762707856/advientea/2025-Caoslendario/avatars/axvcr1ufv0gpdmwbebmc.png",
     } as UploadApiResponse);
     vi.mocked(cloudinary.uploader.destroy).mockResolvedValue({ result: "ok" });
-    vi.mocked(cloudinary.api.resource).mockResolvedValue({
-      asset_id: "5de5e79847577b586aa5d1849bfde8ca",
-      public_id: "advientea/2025-Caoslendario/avatars/axvcr1ufv0gpdmwbebmc",
-      secure_url:
-        "https://res.cloudinary.com/dljj7f5mi/image/upload/v1762707272/advientea/2025-Caoslendario/avatars/axvcr1ufv0gpdmwbebmc.png",
-      url: "http://res.cloudinary.com/dljj7f5mi/image/upload/v1762707272/advientea/2025-Caoslendario/avatars/axvcr1ufv0gpdmwbebmc.png",
+  });
+
+  describe("assetFolder", () => {
+    afterEach(() => {
+      vi.unstubAllEnvs();
+    });
+
+    it("puts production under advientea, avatars outside any year", () => {
+      vi.stubEnv("VERCEL_ENV", "production");
+      expect(assetFolder({ kind: "avatars" })).toBe("advientea/avatars");
+      expect(assetFolder({ kind: "teaDay", year: 2026 })).toBe("advientea/2026/teaDay");
+    });
+
+    it("sends every Vercel preview, develop included, to advientea-staging", () => {
+      vi.stubEnv("VERCEL_ENV", "preview");
+      expect(assetFolder({ kind: "teaDay", year: 2026 })).toBe("advientea-staging/2026/teaDay");
+    });
+
+    it("treats anything that is not Vercel as local", () => {
+      vi.stubEnv("VERCEL_ENV", "");
+      expect(assetFolder({ kind: "avatars" })).toBe("advientea-local/avatars");
     });
   });
 
   describe("uploadImage", () => {
-    it("should upload an image and return url and publicId", async () => {
-      const mockImageData =
-        "data:image/jpeg;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAIAAADTED8xAAADSklEQVR4nOzVIW4UYBhF0WEyBgskaDA4VjFjWAOGJUCCJcEjQCBJkARFIEHUVLSirrZdwaiabqBdxC++NPecFTxz83b/L19tHrLfm5/TE5b82v+bnrDk/f7d9IQl2+kBMEkApAmANAGQJgDSBECaAEgTAGkCIE0ApAmANAGQJgDSBECaAEgTAGkCIE0ApAmANAGQJgDSBECaAEgTAGkCIE0ApAmANAGQJgDSBECaAEgTAGkCIE0ApAmANAGQJgDSBECaAEgTAGkCIE0ApAmANAGQJgDSBECaAEgTAGkCIE0ApAmANAGQJgDSBECaAEgTAGkCIE0ApAmANAGQJgDSBECaAEh79PTlxfSGJS+uvkxPWHL8+HZ6wpLv53+nJyzxAKQJgDQBkCYA0gRAmgBIEwBpAiBNAKQJgDQBkCYA0gRAmgBIEwBpAiBNAKQJgDQBkCYA0gRAmgBIEwBpAiBNAKQJgDQBkCYA0gRAmgBIEwBpAiBNAKQJgDQBkCYA0gRAmgBIEwBpAiBNAKQJgDQBkCYA0gRAmgBIEwBpAiBNAKQJgDQBkCYA0gRAmgBIEwBpAiBNAKQJgDQBkCYA0gRAmgBIEwBpu+uvT6Y3LPlxPExPWPLt5MP0hCXbP5+nJyzxAKQJgDQBkCYA0gRAmgBIEwBpAiBNAKQJgDQBkCYA0gRAmgBIEwBpAiBNAKQJgDQBkCYA0gRAmgBIEwBpAiBNAKQJgDQBkCYA0gRAmgBIEwBpAiBNAKQJgDQBkCYA0gRAmgBIEwBpAiBNAKQJgDQBkCYA0gRAmgBIEwBpAiBNAKQJgDQBkCYA0gRAmgBIEwBpAiBNAKQJgDQBkCYA0gRAmgBIEwBpu7Pb59MbltzcvZmesOTTs9PpCUsOj19PT1jiAUgTAGkCIE0ApAmANAGQJgDSBECaAEgTAGkCIE0ApAmANAGQJgDSBECaAEgTAGkCIE0ApAmANAGQJgDSBECaAEgTAGkCIE0ApAmANAGQJgDSBECaAEgTAGkCIE0ApAmANAGQJgDSBECaAEgTAGkCIE0ApAmANAGQJgDSBECaAEgTAGkCIE0ApAmANAGQJgDSBECaAEgTAGkCIE0ApAmANAGQJgDS7gMAAP//yh4Z+WMgoO4AAAAASUVORK5CYII=";
-      const result = await uploadImage(mockImageData, "image/jpeg", CloudinaryFolders.AVATARS);
+    const png = new File([new Uint8Array([137, 80, 78, 71])], "tea.png", { type: "image/png" });
 
-      expect(result).toBeDefined();
-      expect(typeof result).toBe("object");
-      expect(result).toHaveProperty("public_id");
-      if (result && result.public_id) {
-        expect(result.public_id).toBeTruthy();
-        expect(result.public_id).toContain("advientea/2025-Caoslendario/");
-      }
-    });
-  });
+    it("uploads the file as a data URI with the environment folder in the public id and returns it", async () => {
+      vi.stubEnv("VERCEL_ENV", "production");
 
-  describe("getAssetInfo", () => {
-    it("should return the info for an upload image", async () => {
-      const publicId = "advientea/2025-Caoslendario/avatars/axvcr1ufv0gpdmwbebmc";
-      const result = await getAssetInfo(publicId);
+      const publicId = await uploadImage(png, { kind: "teaDay", year: 2026 });
 
-      expect(result).toBeDefined();
-      expect(typeof result).toBe("object");
-      expect(result).toHaveProperty("public_id");
-      expect(result).toHaveProperty("secure_url");
-      if (result && result.public_id) {
-        expect(result.public_id).toContain("advientea/2025-Caoslendario/");
-        expect(result.public_id).toBe(publicId);
-        expect(result.secure_url).toContain("advientea/2025-Caoslendario/");
-        expect(result.secure_url).toContain(publicId);
-      }
+      expect(cloudinary.uploader.upload).toHaveBeenCalledWith(
+        expect.stringMatching(/^data:image\/png;base64,/),
+        expect.objectContaining({
+          allowed_formats: expect.arrayContaining(["png", "jpg"]),
+          asset_folder: "advientea/2026/teaDay",
+          public_id_prefix: "advientea/2026/teaDay",
+        }),
+      );
+      expect(publicId).toBe("advientea/2026/teaDay/axvcr1ufv0gpdmwbebmc");
+      vi.unstubAllEnvs();
     });
 
-    it("should return undefined for a non-existent publicId", async () => {
-      vi.mocked(cloudinary.api.resource).mockRejectedValueOnce(undefined);
+    it("returns undefined when Cloudinary rejects the upload", async () => {
+      vi.mocked(cloudinary.uploader.upload).mockRejectedValueOnce(new Error("Invalid image file"));
 
-      const result = await getAssetInfo("nnnnaaaokok123123123.$$$");
-      expect(result).toBeUndefined();
+      expect(await uploadImage(png, { kind: "avatars" })).toBeUndefined();
     });
   });
 
