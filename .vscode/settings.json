@@ -11,5 +11,8 @@
     "classList",
     "ngClass"
   ],
-  "js/ts.tsserver.experimental.enableProjectDiagnostics": true
+  "js/ts.tsserver.experimental.enableProjectDiagnostics": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "always"
+  }
 }
