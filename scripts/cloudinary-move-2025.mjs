@@ -5,13 +5,19 @@
 //   node scripts/cloudinary-move-2025.mjs --copy          # 1. copies each asset to its new public id; both ids work
 //   node scripts/cloudinary-move-2025.mjs --delete-old    # 2. once production runs 20261107180000_move_2025_assets AND
 //                                                        #    the release that reads the new ids is deployed and checked
+//   node scripts/cloudinary-move-2025.mjs --delete-unused <ids file> --referenced <ids file>... [--apply]
+//                                                        # removes advientea assets no database references (see below)
+//
+// --delete-unused takes the ids to remove (one per line) and the ids every database still references (one per line,
+// or the JSON the Neon console exports). It touches only the advientea roots, never the shared default avatar, never
+// an id that any reference names in its old or new spelling, and it saves each original first. Dry run without --apply.
 //
 // --delete-old removes an old id only when its copy exists with the same size, and only after saving the original
 // under .cloudinary-backup/ (gitignored). One shared account, so this runs once, from a machine whose .env holds
 // its credentials.
 import nextEnv from "@next/env";
 import { v2 as cloudinary } from "cloudinary";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
 // @next/env is CommonJS: no named export from ESM.
@@ -28,11 +34,47 @@ const MOVES = [
   { from: `${OLD_PREFIX}avatars/`, to: "advientea/avatars/" },
 ];
 const flags = process.argv.slice(2);
-if (flags.includes("--copy") && flags.includes("--delete-old")) {
-  throw new Error("--copy and --delete-old are separate passes.");
+if (
+  [flags.includes("--copy"), flags.includes("--delete-old"), flags.includes("--delete-unused")].filter(Boolean).length >
+  1
+) {
+  throw new Error("--copy, --delete-old and --delete-unused are separate passes.");
 }
-const mode = flags.includes("--copy") ? "copy" : flags.includes("--delete-old") ? "delete-old" : "dry-run";
+const mode = flags.includes("--copy")
+  ? "copy"
+  : flags.includes("--delete-old")
+    ? "delete-old"
+    : flags.includes("--delete-unused")
+      ? "delete-unused"
+      : "dry-run";
 const BACKUP_DIR = join(process.cwd(), ".cloudinary-backup");
+const DEFAULT_AVATAR_IDS = new Set([
+  "advientea/2025-Caoslendario/avatars/kmz6ttle9ihjuosyqyns",
+  "advientea/avatars/kmz6ttle9ihjuosyqyns",
+]);
+
+function toNewId(publicId) {
+  const move = MOVES.find((candidate) => publicId.startsWith(candidate.from));
+  return move ? move.to + publicId.slice(move.from.length) : publicId;
+}
+function toOldId(publicId) {
+  const move = MOVES.find((candidate) => publicId.startsWith(candidate.to));
+  return move ? move.from + publicId.slice(move.to.length) : publicId;
+}
+
+/** Ids from a file: one per line, or the `[{"id": ...}]` JSON the Neon console exports. */
+async function readIds(file) {
+  const text = (await readFile(file, "utf8")).trim();
+  if (text.startsWith("[")) {
+    return JSON.parse(text)
+      .map((row) => row.id ?? row.publicId ?? row.image)
+      .filter(Boolean);
+  }
+  return text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
 
 async function listAssets(prefix) {
   const assets = [];
@@ -48,6 +90,77 @@ async function listAssets(prefix) {
 function destinationOf(publicId) {
   const move = MOVES.find((candidate) => publicId.startsWith(candidate.from));
   return move ? move.to + publicId.slice(move.from.length) : null;
+}
+
+if (mode === "delete-unused") {
+  const apply = flags.includes("--apply");
+  const unusedFile = flags[flags.indexOf("--delete-unused") + 1];
+  const referencedFiles = flags.flatMap((flag, i) => (flag === "--referenced" ? [flags[i + 1]] : []));
+  if (
+    !unusedFile ||
+    unusedFile.startsWith("--") ||
+    referencedFiles.length === 0 ||
+    referencedFiles.some((f) => !f || f.startsWith("--"))
+  ) {
+    throw new Error("Usage: --delete-unused <ids file> --referenced <ids file> [--referenced <ids file>...] [--apply]");
+  }
+  // Every reference protects both spellings of its id: the databases that have not migrated name the old one.
+  const protectedIds = new Set(DEFAULT_AVATAR_IDS);
+  for (const file of referencedFiles) {
+    for (const id of await readIds(file)) {
+      protectedIds.add(id);
+      protectedIds.add(toNewId(id));
+      protectedIds.add(toOldId(id));
+    }
+  }
+  const inAccount = new Map();
+  for (const root of ["advientea/", "advientea-local/"]) {
+    for (const asset of await listAssets(root)) {
+      inAccount.set(asset.public_id, asset);
+    }
+  }
+  const requested = await readIds(unusedFile);
+  const plan = requested.map((id) => {
+    const asset = inAccount.get(id);
+    const reason =
+      !id.startsWith("advientea/") && !id.startsWith("advientea-local/")
+        ? "outside the advientea roots"
+        : protectedIds.has(id)
+          ? "still referenced or the default avatar"
+          : !asset
+            ? "not in Cloudinary"
+            : null;
+    return { asset, id, reason };
+  });
+  const deletions = plan.filter((entry) => entry.reason === null);
+  console.log(
+    `${requested.length} ids requested: ${deletions.length} to delete, ${plan.length - deletions.length} refused`,
+  );
+  for (const entry of plan.filter((e) => e.reason !== null)) {
+    console.log(`  refuse  ${entry.id} (${entry.reason})`);
+  }
+  for (const entry of deletions) {
+    console.log(`  ${apply ? "delete" : "would "}  ${entry.id}  ${entry.asset.bytes} bytes`);
+  }
+  if (!apply) {
+    console.log("\nDry run. Add --apply to save each original under .cloudinary-backup/unused/ and delete it.");
+    process.exit(0);
+  }
+  let failedUnused = 0;
+  for (const entry of deletions) {
+    try {
+      await backup({ format: entry.asset.format, from: `unused/${entry.id}`, url: entry.asset.secure_url });
+      const result = await cloudinary.uploader.destroy(entry.id, { invalidate: true, resource_type: "image" });
+      if (result.result !== "ok") {
+        throw new Error(`destroy answered ${result.result}`);
+      }
+    } catch (error) {
+      failedUnused += 1;
+      console.error(`  FAILED ${entry.id}: ${error?.error?.message ?? error?.message ?? error}`);
+    }
+  }
+  console.log(`\ndelete-unused: ${deletions.length - failedUnused} deleted, ${failedUnused} failed.`);
+  process.exit(failedUnused === 0 ? 0 : 1);
 }
 
 const assets = await listAssets(OLD_PREFIX);
