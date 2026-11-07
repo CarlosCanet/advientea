@@ -65,15 +65,25 @@ function toOldId(publicId) {
 /** Ids from a file: one per line, or the `[{"id": ...}]` JSON the Neon console exports. */
 async function readIds(file) {
   const text = (await readFile(file, "utf8")).trim();
+  let ids;
   if (text.startsWith("[")) {
-    return JSON.parse(text)
-      .map((row) => row.id ?? row.publicId ?? row.image)
+    ids = JSON.parse(text)
+      .map((row) => row.publicId ?? row.image ?? row.id)
+      .filter(Boolean);
+  } else {
+    ids = text
+      .split(/\r?\n/)
+      .map((line) => line.trim())
       .filter(Boolean);
   }
-  return text
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
+  // A row's primary key would protect nothing: refuse the list rather than delete what it was meant to keep.
+  const rowIds = ids.filter((id) => /^c[a-z0-9]{24}$/.test(id));
+  if (rowIds.length > 0) {
+    throw new Error(
+      `${file} holds database row ids (${rowIds[0]}…), not Cloudinary public ids; export only the id column.`,
+    );
+  }
+  return ids;
 }
 
 async function listAssets(prefix) {
