@@ -2,7 +2,7 @@ import { Prisma, Role, User } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 
 export type UserBasic = Prisma.UserGetPayload<{ select: { id: true; username: true } }>;
-export type UserForAdmin = Prisma.UserGetPayload<{
+export type UserForManagement = Prisma.UserGetPayload<{
   select: { daysAssigned: { include: { day: true } }; email: true; id: true; image: true; role: true; username: true };
 }>;
 
@@ -22,15 +22,20 @@ export async function getUser(email: string): Promise<User> {
   return data;
 }
 
-export async function getAllUsers(isAdmin: boolean): Promise<Array<UserForAdmin>> {
+export async function getUsersBasic(): Promise<Array<UserBasic>> {
+  const data = await prisma.user.findMany({ orderBy: { username: "asc" }, select: { id: true, username: true } });
+  return data;
+}
+
+export async function getAllUsers(): Promise<Array<UserForManagement>> {
   const data = await prisma.user.findMany({
     orderBy: { username: "asc" },
     select: {
       daysAssigned: { include: { day: true } },
-      email: isAdmin,
+      email: true,
       id: true,
       image: true,
-      role: isAdmin,
+      role: true,
       username: true,
     },
   });

@@ -6,7 +6,7 @@ import { BsFillPatchQuestionFill } from "react-icons/bs";
 import { TeaType } from "@/generated/prisma/enums";
 import { getAdvienteaDayState } from "@/lib/advientea-rules";
 import { auth } from "@/lib/auth";
-import { getAllAssigners, getAllIngredients, getDayById, getDayForGuessing, getEditionInfo } from "@/lib/dal";
+import { getAllIngredients, getAssignees, getDayById, getDayForGuessing, getEditionInfo } from "@/lib/dal";
 import { canUserGuessPerson, canUserGuessTea } from "@/lib/services/tea-guess-service";
 import { SelectOption } from "@/lib/types";
 import { TEA_TYPE_LABELS } from "@/lib/utils";
@@ -29,26 +29,26 @@ export default async function TeaGuessCard({ dayId }: TeaGuessCardProps) {
     }))
     .toSorted((type1, type2) => type1.name.localeCompare(type2.name));
 
+  const day = await getDayById(dayId);
+  if (!day) {
+    notFound();
+  }
+
   const [ingredients, dayForGuessing, users] = await Promise.all([
     getAllIngredients(),
     getDayForGuessing(dayId),
-    getAllAssigners(),
+    getAssignees(day.year),
   ]);
 
   const ingredientList: Array<SelectOption> =
     ingredients?.map((ingredient) => ({ id: ingredient.id, name: ingredient.name })) ?? [];
   const teaHasIngredients: boolean =
     Array.isArray(dayForGuessing?.tea?.ingredients) && dayForGuessing.tea.ingredients.length > 0;
-  const userList: Array<SelectOption> =
-    users
-      ?.map((user) => ({ id: user.userId ?? "", name: user.user?.username ?? user.guestName ?? "" }))
-      .toSorted((user1, user2) => user1.name.localeCompare(user2.name)) ?? [];
+  const userList: Array<SelectOption> = users
+    .map((user) => ({ id: user.userId ?? "", name: user.user?.username ?? user.guestName ?? "" }))
+    .toSorted((user1, user2) => user1.name.localeCompare(user2.name));
   const canGuessTea = await canUserGuessTea(dayId, session.user.id);
   const canGuessPerson = await canUserGuessPerson(dayId, session.user.id);
-  const day = await getDayById(dayId);
-  if (!day) {
-    notFound();
-  }
   const advienteaDayState = getAdvienteaDayState(
     day.dayNumber,
     await getEditionInfo(day.year),

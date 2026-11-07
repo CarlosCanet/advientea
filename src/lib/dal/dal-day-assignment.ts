@@ -51,9 +51,10 @@ export async function getAllDayAssignment(year: number): Promise<Array<DayAssign
   }
 }
 
-export async function getAllAssigners(): Promise<Array<Assignee> | null> {
+export async function getAssignees(year: number): Promise<Array<Assignee>> {
   const result = await prisma.dayAssignment.findMany({
     select: { guestName: true, user: { select: { username: true } }, userId: true },
+    where: { year },
   });
   return result;
 }

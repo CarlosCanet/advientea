@@ -8,9 +8,9 @@ import { auth } from "@/lib/auth";
 import {
   getActiveEdition,
   getAllDayAssignment,
-  getAllUsers,
   getDayAssignmentByUserId,
   getUpcomingEdition,
+  getUsersBasic,
 } from "@/lib/dal";
 
 async function AddTeaInfo() {
@@ -26,7 +26,7 @@ async function AddTeaInfo() {
     assignment = await getDayAssignmentByUserId(session.user.id, edition.year);
     if (isUserPrivileged) {
       const allAssignments = await getAllDayAssignment(edition.year);
-      const allUsers = await getAllUsers(isUserPrivileged);
+      const allUsers = await getUsersBasic();
       const usersWithAssignments = allAssignments.map((assignment) => assignment.user?.username);
       users = allUsers.map((user) => user.username).filter((user) => !usersWithAssignments.includes(user));
     }

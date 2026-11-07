@@ -11,7 +11,7 @@ import NoActiveEdition from "@/components/ui/NoActiveEdition";
 import WaitForDayAssignment from "@/components/ui/WaitForDayAssignment";
 import { Role } from "@/generated/prisma/client";
 import { auth } from "@/lib/auth";
-import { getActiveEdition, getAllDays, getAllUsers, getDayAssignmentByUserId, getUpcomingEdition } from "@/lib/dal";
+import { getActiveEdition, getAllDays, getDayAssignmentByUserId, getUpcomingEdition, getUsersBasic } from "@/lib/dal";
 
 async function EditTeaInfo() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -32,7 +32,7 @@ async function EditTeaInfo() {
     }
   }
 
-  const users = await getAllUsers(isUserPrivileged);
+  const users = await getUsersBasic();
   const days = await getAllDays(edition.year);
 
   return (

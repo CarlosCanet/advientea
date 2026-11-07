@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { assignDay, getDayByDayNumber, unassignDay } from "@/lib/dal";
+import { EditionStatus } from "@/generated/prisma/enums";
+import { assignDay, getAssignees, getDayByDayNumber, unassignDay, upsertEdition } from "@/lib/dal";
 import { ConflictError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 
@@ -22,6 +23,20 @@ async function userWithoutDay() {
 }
 
 describe("dal DayAssignment", () => {
+  describe("getAssignees", () => {
+    it("returns the people of the given edition only, users and guests alike", async () => {
+      await upsertEdition(2030, EditionStatus.PREPARING);
+      const otherDay = await prisma.day.create({ data: { dayNumber: 1, year: 2030 } });
+      await prisma.dayAssignment.create({ data: { dayId: otherDay.id, guestName: "Fantasma", year: 2030 } });
+
+      const assignees = await getAssignees(2025);
+
+      expect(assignees).toHaveLength(5);
+      expect(assignees.map((assignee) => assignee.guestName ?? assignee.user?.username)).toContain("Anónimo");
+      expect(assignees.map((assignee) => assignee.guestName)).not.toContain("Fantasma");
+    });
+  });
+
   describe("assignDay", () => {
     it("puts a user with no participation on a free day, taking the year from the day", async () => {
       const user = await userWithoutDay();
