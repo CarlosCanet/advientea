@@ -63,9 +63,6 @@ export type Assignee = { guestName: string } | { userId: string };
 // Only a day that has not opened yet can change hands: no guess can exist on it.
 async function assertDayNotReleased(dayNumber: number, year: number, now: Date): Promise<void> {
   const edition = await getEditionInfo(year);
-  if (!edition) {
-    throw new Error(`The edition ${year} does not exist.`);
-  }
   if (getDaySchedule(dayNumber, edition, now).isReleased) {
     throw new ConflictError("Ese día ya ha pasado o es hoy y no se puede cambiar.");
   }

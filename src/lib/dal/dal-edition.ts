@@ -15,12 +15,13 @@ export const getActiveEdition = cache(async function getActiveEdition(): Promise
   });
 });
 
-export const getEditionInfo = cache(async function getEditionInfo(year: number): Promise<EditionInfo | null> {
+export const getEditionInfo = cache(async function getEditionInfo(year: number): Promise<EditionInfo> {
   const edition = await prisma.edition.findUnique({
     where: { year },
   });
+  // Every year the rules ask about comes from a Day, and Day.year is a FK: a missing edition is a broken invariant, not a case.
   if (!edition) {
-    return null;
+    throw new Error(`The edition ${year} does not exist.`);
   }
   const result = await prisma.day.aggregate({ _max: { dayNumber: true }, where: { year } });
   const lastDayNumber = result._max.dayNumber ?? 0;
