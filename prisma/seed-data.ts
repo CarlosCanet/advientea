@@ -4,7 +4,7 @@ import {
   addStoryTea,
   addTea,
   assignDay,
-  Assignee,
+  AssigneeInput,
   createPrismaUser,
   getDayByDayNumber,
   replaceStoryImages,
@@ -128,7 +128,7 @@ export async function seedDatabase({ accounts = true, year = 2025 }: SeedOptions
 
   // Assigning is only allowed on days that have not opened, so the seed clock sits before the edition.
   const seedNow = new Date(`${year}-11-01T12:00:00+01:00`);
-  const assign = async (dayNumber: number, assignee: Assignee) => {
+  const assign = async (dayNumber: number, assignee: AssigneeInput) => {
     const seededDay = await getDayByDayNumber({ dayNumber, year });
     if (!seededDay) {
       throw new Error(`Day ${dayNumber}/${year} was not created`);

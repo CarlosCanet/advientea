@@ -2,11 +2,7 @@ import { Prisma, Role, User } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 
 export type UserBasic = Prisma.UserGetPayload<{ select: { id: true; username: true } }>;
-type UserBase = Prisma.UserGetPayload<{
-  select: { daysAssigned: { include: { day: true } }; id: true; image: true; username: true };
-}>;
-type SafeUser = UserBase & { email?: null | string; role?: Role };
-export type UserWithDayAssignedDay = Prisma.UserGetPayload<{
+export type UserForAdmin = Prisma.UserGetPayload<{
   select: { daysAssigned: { include: { day: true } }; email: true; id: true; image: true; role: true; username: true };
 }>;
 
@@ -26,7 +22,7 @@ export async function getUser(email: string): Promise<User> {
   return data;
 }
 
-export async function getAllUsers(isAdmin: boolean): Promise<Array<UserWithDayAssignedDay>> {
+export async function getAllUsers(isAdmin: boolean): Promise<Array<UserForAdmin>> {
   const data = await prisma.user.findMany({
     orderBy: { username: "asc" },
     select: {
@@ -39,6 +35,10 @@ export async function getAllUsers(isAdmin: boolean): Promise<Array<UserWithDayAs
     },
   });
   return data;
+}
+
+export async function createPrismaUser(data: Prisma.UserCreateInput): Promise<User> {
+  return await prisma.user.create({ data });
 }
 
 export async function editUser(id: string, data: Prisma.UserUpdateInput): Promise<User> {
@@ -60,8 +60,4 @@ export async function changeUserRole(id: string, role: Role): Promise<User> {
 export async function deleteUser(id: string): Promise<User> {
   const deleted = await prisma.user.delete({ where: { id } });
   return deleted;
-}
-
-export async function createPrismaUser(data: Prisma.UserCreateInput): Promise<User> {
-  return await prisma.user.create({ data });
 }

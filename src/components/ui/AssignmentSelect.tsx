@@ -1,14 +1,11 @@
 "use client";
 import { useState, useTransition } from "react";
 
+import type { UserBasic } from "@/lib/dal";
+
 import { assignUserToDay } from "@/app/actions/teaInfoActions";
 
 import ActionToast, { useActionToast } from "./ActionToast";
-
-interface UserBasic {
-  id: string;
-  username: string;
-}
 
 interface AssignmentSelectProps {
   dayId: string;

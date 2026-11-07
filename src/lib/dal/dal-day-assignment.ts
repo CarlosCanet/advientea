@@ -10,7 +10,7 @@ export type DayAssignmentWithDayTeaAndUser = Prisma.DayAssignmentGetPayload<{
   include: { day: { include: { tea: true } }; user: true };
 }>;
 export type DayAssignmentWithDayAndUser = Prisma.DayAssignmentGetPayload<{ include: { day: true; user: true } }>;
-export type Assigners = Prisma.DayAssignmentGetPayload<{
+export type Assignee = Prisma.DayAssignmentGetPayload<{
   select: { guestName: true; user: { select: { username: true } }; userId: true };
 }>;
 
@@ -51,14 +51,12 @@ export async function getAllDayAssignment(year: number): Promise<Array<DayAssign
   }
 }
 
-export async function getAllAssigners(): Promise<Array<Assigners> | null> {
+export async function getAllAssigners(): Promise<Array<Assignee> | null> {
   const result = await prisma.dayAssignment.findMany({
     select: { guestName: true, user: { select: { username: true } }, userId: true },
   });
   return result;
 }
-
-export type Assignee = { guestName: string } | { userId: string };
 
 // Only a day that has not opened yet can change hands: no guess can exist on it.
 async function assertDayNotReleased(dayNumber: number, year: number, now: Date): Promise<void> {
@@ -68,9 +66,11 @@ async function assertDayNotReleased(dayNumber: number, year: number, now: Date):
   }
 }
 
+export type AssigneeInput = { guestName: string } | { userId: string };
+
 export async function assignDay(
   dayId: string,
-  assignee: Assignee,
+  assignee: AssigneeInput,
   now: Date = getNow(),
 ): Promise<DayAssignmentWithDayAndUser> {
   return prisma.$transaction(async (tx) => {

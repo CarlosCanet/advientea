@@ -48,7 +48,7 @@ describe("DAL StoryImage", () => {
     });
 
     it("should get image by Order/Day/Year", async () => {
-      const mockTeaWithStory: dalTea.TeaWithDayAndCompleteStory = {
+      const mockTeaWithStory: dalTea.TeaWithDayAndIngredientsAndStoryImages = {
         addMilk: false,
         canReinfuse: false,
         createdAt: new Date(),
@@ -95,7 +95,7 @@ describe("DAL StoryImage", () => {
     });
 
     it("should throw if tea has no story", async () => {
-      const mockTeaNoStory: dalTea.TeaWithDayAndCompleteStory = {
+      const mockTeaNoStory: dalTea.TeaWithDayAndIngredientsAndStoryImages = {
         addMilk: false,
         canReinfuse: false,
         createdAt: new Date(),
@@ -137,7 +137,7 @@ describe("DAL StoryImage", () => {
   });
 
   describe("addStoryImage", () => {
-    const mockTeaResponse: dalTea.TeaWithDayAndCompleteStory = {
+    const mockTeaResponse: dalTea.TeaWithDayAndIngredientsAndStoryImages = {
       addMilk: false,
       canReinfuse: false,
       createdAt: new Date(),

@@ -11,8 +11,8 @@ import {
   getAllStoriesTea,
   getStoryTeaByDayNumber,
   getStoryTeaById,
-  StoryWithTea,
-  StoryWithTeaAndImages,
+  StoryTeaWithImagesAndTea,
+  StoryTeaWithTea,
 } from "@/lib/dal/dal-story-tea";
 vi.mock("@/lib/dal/dal-day");
 const dalDayMock = vi.mocked(dalDay);
@@ -23,7 +23,7 @@ describe("DAL StoryTea", () => {
   });
 
   describe("getStoryTea", () => {
-    const mockStoryComplete: StoryWithTeaAndImages = {
+    const mockStoryComplete: StoryTeaWithImagesAndTea = {
       createdAt: new Date(),
       id: "story-1",
       images: [],
@@ -72,7 +72,7 @@ describe("DAL StoryTea", () => {
     });
 
     it("should get story by Day and reconstruct object", async () => {
-      const mockDayResponse: dalDay.DayWithTeaComplete = {
+      const mockDayResponse: dalDay.DayWithTeaStoryImages = {
         createdAt: new Date(),
         dayNumber: 5,
         id: "day-1",
@@ -123,7 +123,7 @@ describe("DAL StoryTea", () => {
     });
 
     it("should return null if day has no tea", async () => {
-      const mockDayNoTea: dalDay.DayWithTeaComplete = {
+      const mockDayNoTea: dalDay.DayWithTeaStoryImages = {
         createdAt: new Date(),
         dayNumber: 5,
         id: "day-1",
@@ -138,7 +138,7 @@ describe("DAL StoryTea", () => {
     });
 
     it("should return null if tea has no story", async () => {
-      const mockDayNoStory: dalDay.DayWithTeaComplete = {
+      const mockDayNoStory: dalDay.DayWithTeaStoryImages = {
         createdAt: new Date(),
         dayNumber: 5,
         id: "day-1",
@@ -188,7 +188,7 @@ describe("DAL StoryTea", () => {
 
   describe("addStoryTea", () => {
     it("should create story connected to tea", async () => {
-      const mockCreated: StoryWithTea = {
+      const mockCreated: StoryTeaWithTea = {
         createdAt: new Date(),
         id: "new-story",
         onlyMusic: false,
@@ -219,7 +219,7 @@ describe("DAL StoryTea", () => {
 
   describe("editStoryTea", () => {
     it("should update story", async () => {
-      const mockUpdated: StoryWithTea = {
+      const mockUpdated: StoryTeaWithTea = {
         createdAt: new Date(),
         id: "s1",
         onlyMusic: false,
@@ -246,7 +246,7 @@ describe("DAL StoryTea", () => {
 
   describe("deleteStoryTea", () => {
     it("should delete story", async () => {
-      const mockDeleted: StoryWithTea = {
+      const mockDeleted: StoryTeaWithTea = {
         createdAt: new Date(),
         id: "s1",
         onlyMusic: false,

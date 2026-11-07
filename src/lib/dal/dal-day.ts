@@ -1,10 +1,10 @@
 import { Day, Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 
-export type DayWithTeaComplete = Prisma.DayGetPayload<{
+export type DayWithTeaStoryImages = Prisma.DayGetPayload<{
   include: { tea: { include: { story: { include: { images: true } } } } };
 }>;
-export type DayWithAssignmentAndTeaComplete = Prisma.DayGetPayload<{
+export type DayWithAssignmentUserAndTeaStoryImages = Prisma.DayGetPayload<{
   include: { assignment: { include: { user: true } }; tea: { include: { story: { include: { images: true } } } } };
 }>;
 export type DayForGuessing = Prisma.DayGetPayload<{
@@ -21,7 +21,7 @@ export type DayYear = {
   year: number;
 };
 
-export async function getDayById(id: string): Promise<DayWithTeaComplete | null> {
+export async function getDayById(id: string): Promise<DayWithTeaStoryImages | null> {
   const dayResponse = await prisma.day.findUnique({
     include: { tea: { include: { story: { include: { images: { orderBy: { order: "asc" } } } } } } },
     where: { id },
@@ -30,7 +30,7 @@ export async function getDayById(id: string): Promise<DayWithTeaComplete | null>
   return dayResponse;
 }
 
-export async function getDayByDayNumber(dayYear: DayYear): Promise<DayWithTeaComplete | null> {
+export async function getDayByDayNumber(dayYear: DayYear): Promise<DayWithTeaStoryImages | null> {
   const dayResponse = await prisma.day.findUnique({
     include: { tea: { include: { story: { include: { images: { orderBy: { order: "asc" } } } } } } },
     where: { dayNumber_year: { dayNumber: dayYear.dayNumber, year: dayYear.year } },
@@ -68,7 +68,7 @@ export async function getDayForGuessing(id: string): Promise<DayForGuessing | nu
   return dayResponse;
 }
 
-export async function getAllDays(year: number): Promise<Array<DayWithAssignmentAndTeaComplete>> {
+export async function getAllDays(year: number): Promise<Array<DayWithAssignmentUserAndTeaStoryImages>> {
   const allDays = await prisma.day.findMany({
     include: {
       assignment: { include: { user: true } },
@@ -135,7 +135,7 @@ export async function editDay(data: Prisma.DayUncheckedUpdateInput, id: string):
   return dayUpdated;
 }
 
-export async function deleteDay(id: string): Promise<DayWithTeaComplete> {
+export async function deleteDay(id: string): Promise<DayWithTeaStoryImages> {
   // The assignment goes with the day on purpose: since the editions migration its day is SetNull, and
   // an orphan row would still hold the (userId, year) unique and block assigning that person again.
   return prisma.$transaction(async (tx) => {

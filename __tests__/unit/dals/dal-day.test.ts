@@ -6,8 +6,8 @@ import {
   add25Days,
   addDay,
   addNextDay,
-  DayWithAssignmentAndTeaComplete,
-  DayWithTeaComplete,
+  DayWithAssignmentUserAndTeaStoryImages,
+  DayWithTeaStoryImages,
   deleteDay,
   editDay,
   getAllDays,
@@ -21,7 +21,7 @@ describe("DAL Day", () => {
   });
 
   describe("getDay", () => {
-    const mockDayComplete: DayWithTeaComplete = {
+    const mockDayComplete: DayWithTeaStoryImages = {
       createdAt: new Date(),
       dayNumber: 1,
       id: "day-1",
@@ -93,7 +93,7 @@ describe("DAL Day", () => {
 
   describe("getAllDays", () => {
     it("should return array of days ordered by number", async () => {
-      const mockDays: DayWithAssignmentAndTeaComplete[] = [
+      const mockDays: DayWithAssignmentUserAndTeaStoryImages[] = [
         {
           assignment: null,
           createdAt: new Date(),

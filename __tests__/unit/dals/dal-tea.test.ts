@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { Day, Role, TeaIngredient, TeaType } from "@/generated/prisma/client";
 import { prismaMock } from "@/lib/__mocks__/prisma";
-import { DayWithAssignmentAndTeaComplete, DayWithTeaComplete } from "@/lib/dal";
+import { DayWithAssignmentUserAndTeaStoryImages, DayWithTeaStoryImages } from "@/lib/dal";
 import * as dalDay from "@/lib/dal/dal-day";
 import { getTeaById } from "@/lib/dal/dal-tea";
 import {
@@ -14,8 +14,8 @@ import {
   getAllTeas,
   getTeaByDayNumber,
   getUsernameAssignedToTea,
-  TeaWithDay,
-  TeaWithDayAndCompleteStory,
+  TeaWithDayAndIngredients,
+  TeaWithDayAndIngredientsAndStoryImages,
 } from "@/lib/dal/dal-tea";
 vi.mock("@/lib/dal/dal-day");
 const dalDayMock = vi.mocked(dalDay);
@@ -45,7 +45,7 @@ describe("DAL Tea", () => {
         year: 2025,
       };
 
-      const mockTea: TeaWithDayAndCompleteStory = {
+      const mockTea: TeaWithDayAndIngredientsAndStoryImages = {
         addMilk: false,
         canReinfuse: false,
         createdAt: new Date(),
@@ -88,7 +88,7 @@ describe("DAL Tea", () => {
         year: 2025,
       };
 
-      const mockTea: TeaWithDayAndCompleteStory = {
+      const mockTea: TeaWithDayAndIngredientsAndStoryImages = {
         addMilk: false,
         canReinfuse: false,
         createdAt: new Date(),
@@ -130,7 +130,7 @@ describe("DAL Tea", () => {
     });
 
     it("should include story and images in response", async () => {
-      const mockTea: TeaWithDayAndCompleteStory = {
+      const mockTea: TeaWithDayAndIngredientsAndStoryImages = {
         addMilk: false,
         canReinfuse: true,
         createdAt: new Date(),
@@ -199,7 +199,7 @@ describe("DAL Tea", () => {
 
   describe("getAllTeas", () => {
     it("should return all teas for a specific year", async () => {
-      const mockTeas: Array<TeaWithDayAndCompleteStory> = [
+      const mockTeas: Array<TeaWithDayAndIngredientsAndStoryImages> = [
         {
           addMilk: false,
           canReinfuse: false,
@@ -274,7 +274,7 @@ describe("DAL Tea", () => {
 
   describe("getUsernameAssignedToTea", () => {
     it("should return username when user is assigned to day", async () => {
-      const mockDay: DayWithAssignmentAndTeaComplete = {
+      const mockDay: DayWithAssignmentUserAndTeaStoryImages = {
         assignment: {
           createdAt: new Date(),
           dayId: "day-cuid",
@@ -303,7 +303,7 @@ describe("DAL Tea", () => {
         updatedAt: new Date(),
         year: 2025,
       };
-      const mockTea: TeaWithDay = {
+      const mockTea: TeaWithDayAndIngredients = {
         addMilk: false,
         canReinfuse: false,
         createdAt: new Date(),
@@ -331,7 +331,7 @@ describe("DAL Tea", () => {
     });
 
     it("should return guestName when guest is assigned", async () => {
-      const mockDay: DayWithAssignmentAndTeaComplete = {
+      const mockDay: DayWithAssignmentUserAndTeaStoryImages = {
         assignment: {
           createdAt: new Date(),
           dayId: "day-cuid",
@@ -351,7 +351,7 @@ describe("DAL Tea", () => {
         year: 2025,
       };
 
-      const mockTea: TeaWithDay = {
+      const mockTea: TeaWithDayAndIngredients = {
         addMilk: false,
         canReinfuse: false,
         createdAt: new Date(),
@@ -397,7 +397,7 @@ describe("DAL Tea", () => {
         year: 2025,
       };
 
-      const mockCreatedTea: TeaWithDay = {
+      const mockCreatedTea: TeaWithDayAndIngredients = {
         addMilk: false,
         canReinfuse: true,
         createdAt: new Date(),
@@ -457,7 +457,7 @@ describe("DAL Tea", () => {
     });
 
     it("should create a tea without day assignment (Draft)", async () => {
-      const mockTea: TeaWithDay = {
+      const mockTea: TeaWithDayAndIngredients = {
         addMilk: false,
         canReinfuse: true,
         createdAt: new Date(),
@@ -498,7 +498,7 @@ describe("DAL Tea", () => {
     });
 
     it("should throw error if target day is occupied on addTea", async () => {
-      const occupiedDay: DayWithTeaComplete = {
+      const occupiedDay: DayWithTeaStoryImages = {
         createdAt: new Date(),
         dayNumber: 1,
         id: "day-1",
@@ -557,7 +557,7 @@ describe("DAL Tea", () => {
         year: 2025,
       };
 
-      const mockTea: TeaWithDay = {
+      const mockTea: TeaWithDayAndIngredients = {
         addMilk: false,
         canReinfuse: true,
         createdAt: new Date(),
@@ -608,7 +608,7 @@ describe("DAL Tea", () => {
   });
 
   describe("editTea", () => {
-    const mockCurrentTea: TeaWithDay = {
+    const mockCurrentTea: TeaWithDayAndIngredients = {
       addMilk: false,
       canReinfuse: true,
       createdAt: new Date(),
@@ -627,7 +627,7 @@ describe("DAL Tea", () => {
       updatedAt: new Date(),
       url: "https://newstore.com",
     };
-    const mockUpdatedTea: TeaWithDay = {
+    const mockUpdatedTea: TeaWithDayAndIngredients = {
       addMilk: false,
       canReinfuse: true,
       createdAt: new Date(),

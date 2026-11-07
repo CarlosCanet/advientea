@@ -9,7 +9,7 @@ import {
   editUser,
   getAllUsers,
   getUser,
-  UserWithDayAssignedDay,
+  UserForAdmin,
 } from "@/lib/dal/dal-user";
 
 describe("DAL User", () => {
@@ -49,7 +49,7 @@ describe("DAL User", () => {
   });
 
   describe("getAllUsers", () => {
-    const mockUsersList: Array<UserWithDayAssignedDay> = [
+    const mockUsersList: Array<UserForAdmin> = [
       {
         daysAssigned: [],
         email: "a@a.com",

@@ -1,15 +1,14 @@
 import { Prisma } from "@/generated/prisma/client";
-import { TeaGuessCreateInput, TeaGuessGetPayload } from "@/generated/prisma/models";
 import { prisma } from "@/lib/prisma";
 
 import { TeaGuessFormData } from "../types";
 
-export type TeaGuessWithIngredients = TeaGuessGetPayload<{ include: { guessedIngredients: true } }>;
-export type TeaGuessWithIngredientsAndUser = TeaGuessGetPayload<{
+export type TeaGuessWithGuessedIngredients = Prisma.TeaGuessGetPayload<{ include: { guessedIngredients: true } }>;
+export type TeaGuessWithGuessedIngredientsAndUser = Prisma.TeaGuessGetPayload<{
   include: { guessedIngredients: true; user: { select: { image: true; username: true } } };
 }>;
 
-export async function getLastGuess(userId: string, dayId: string): Promise<null | TeaGuessWithIngredients> {
+export async function getLastGuess(userId: string, dayId: string): Promise<null | TeaGuessWithGuessedIngredients> {
   const result = await prisma.teaGuess.findFirst({
     include: { guessedIngredients: true },
     orderBy: { createdAt: "desc" },
@@ -18,7 +17,7 @@ export async function getLastGuess(userId: string, dayId: string): Promise<null 
   return result;
 }
 
-export async function getGuessesByDayId(dayId: string): Promise<Array<TeaGuessWithIngredientsAndUser>> {
+export async function getGuessesByDayId(dayId: string): Promise<Array<TeaGuessWithGuessedIngredientsAndUser>> {
   const result = await prisma.teaGuess.findMany({
     include: { guessedIngredients: true, user: { select: { image: true, username: true } } },
     orderBy: { createdAt: "desc" },
@@ -27,7 +26,7 @@ export async function getGuessesByDayId(dayId: string): Promise<Array<TeaGuessWi
   return result;
 }
 
-export async function getGuessesByYear(year: number): Promise<Array<TeaGuessWithIngredientsAndUser>> {
+export async function getGuessesByYear(year: number): Promise<Array<TeaGuessWithGuessedIngredientsAndUser>> {
   const result = await prisma.teaGuess.findMany({
     include: { guessedIngredients: true, user: { select: { image: true, username: true } } },
     orderBy: { createdAt: "desc" },
@@ -36,7 +35,7 @@ export async function getGuessesByYear(year: number): Promise<Array<TeaGuessWith
   return result;
 }
 
-export async function getAllGuesses(userId: string, dayId: string): Promise<Array<TeaGuessWithIngredients>> {
+export async function getAllGuesses(userId: string, dayId: string): Promise<Array<TeaGuessWithGuessedIngredients>> {
   const result = await prisma.teaGuess.findMany({
     include: { guessedIngredients: true },
     orderBy: { createdAt: "desc" },
@@ -50,8 +49,8 @@ export async function createTeaGuess(
   dayId: string,
   guessData: TeaGuessFormData,
   points: number,
-): Promise<null | TeaGuessWithIngredients> {
-  const newGuess: TeaGuessCreateInput = {
+): Promise<null | TeaGuessWithGuessedIngredients> {
+  const newGuess: Prisma.TeaGuessCreateInput = {
     day: { connect: { id: dayId } },
     points,
     user: { connect: { id: userId } },
