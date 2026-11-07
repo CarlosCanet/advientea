@@ -56,3 +56,6 @@ dev.db
 
 # lefthook per-machine overrides (e.g. no_tty on Windows)
 lefthook-local.yml
+
+# originals saved by scripts/cloudinary-move-2025.mjs --delete-old
+.cloudinary-backup/

@@ -1,6 +1,6 @@
 import { TeaType } from "@/generated/prisma/client";
 
-export const DEFAULT_IMAGE_PROFILE = "advientea/2025-Caoslendario/avatars/kmz6ttle9ihjuosyqyns";
+export const DEFAULT_IMAGE_PROFILE = "advientea/avatars/kmz6ttle9ihjuosyqyns";
 export interface SignUpFormData {
   email: string;
   image: File;
