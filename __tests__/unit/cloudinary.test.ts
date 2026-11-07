@@ -78,29 +78,54 @@ describe("Cloudinary integration", () => {
     });
   });
 
-  describe("deleteImage", () => {
-    it("should delete asset and return success result", async () => {
-      const publicId = "advientea/2025-Caoslendario/avatars/axvcr1ufv0gpdmwbebmc";
-      const result = await deleteAsset(publicId);
-
-      expect(result).toBeDefined();
-      if (result) {
-        expect(typeof result).toBe("object");
-        expect(result).toHaveProperty("result");
-        expect(result.result).toBe("ok");
-      }
+  describe("deleteAsset", () => {
+    afterEach(() => {
+      vi.unstubAllEnvs();
     });
 
-    it("should return not-found for a non-existent publicId", async () => {
+    it("deletes an asset of its own environment and returns Cloudinary's answer", async () => {
+      vi.stubEnv("VERCEL_ENV", "preview");
+
+      const result = await deleteAsset("advientea-staging/2026/teaDay/axvcr1ufv0gpdmwbebmc");
+
+      expect(cloudinary.uploader.destroy).toHaveBeenCalledWith("advientea-staging/2026/teaDay/axvcr1ufv0gpdmwbebmc", {
+        resource_type: "image",
+      });
+      expect(result?.result).toBe("ok");
+    });
+
+    it("production still owns the 2025 assets, which sit under its root in their old folder", async () => {
+      vi.stubEnv("VERCEL_ENV", "production");
+
+      await deleteAsset("advientea/2025-Caoslendario/avatars/axvcr1ufv0gpdmwbebmc");
+
+      expect(cloudinary.uploader.destroy).toHaveBeenCalledTimes(1);
+    });
+
+    it("refuses a production asset from staging or local: their databases are copies of production", async () => {
+      vi.stubEnv("VERCEL_ENV", "preview");
+      expect(await deleteAsset("advientea/2025-Caoslendario/avatars/axvcr1ufv0gpdmwbebmc")).toBeUndefined();
+
+      vi.stubEnv("VERCEL_ENV", "");
+      expect(await deleteAsset("advientea/2026/teaDay/axvcr1ufv0gpdmwbebmc")).toBeUndefined();
+
+      expect(cloudinary.uploader.destroy).not.toHaveBeenCalled();
+    });
+
+    it("refuses the other roots from production even though they start with its name", async () => {
+      vi.stubEnv("VERCEL_ENV", "production");
+
+      expect(await deleteAsset("advientea-staging/avatars/axvcr1ufv0gpdmwbebmc")).toBeUndefined();
+      expect(await deleteAsset("advientea-local/avatars/axvcr1ufv0gpdmwbebmc")).toBeUndefined();
+      expect(cloudinary.uploader.destroy).not.toHaveBeenCalled();
+    });
+
+    it("passes Cloudinary's not-found answer through", async () => {
       vi.mocked(cloudinary.uploader.destroy).mockResolvedValueOnce({ result: "not found" });
 
-      const result = await deleteAsset("nnnnaaaokok123123123.$$$");
-      expect(result).toBeDefined();
-      if (result) {
-        expect(typeof result).toBe("object");
-        expect(result).toHaveProperty("result");
-        expect(result.result).toBe("not found");
-      }
+      const result = await deleteAsset("advientea-local/avatars/gone");
+
+      expect(result?.result).toBe("not found");
     });
   });
 });

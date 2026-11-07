@@ -57,8 +57,14 @@ export async function uploadImage(file: File, folder: AssetFolder): Promise<stri
   }
 }
 
-/** Cloudinary's answer to the deletion, or undefined when the call failed. */
+/** Cloudinary's answer to the deletion, or undefined when the call failed or the asset is not this environment's. */
 export async function deleteAsset(publicId: string): Promise<undefined | UploadApiResponse> {
+  // The trailing slash matters: "advientea" is a plain prefix of "advientea-staging".
+  const root = `${assetRoot()}/`;
+  if (!publicId.startsWith(root)) {
+    console.error(`[deleteAsset] refused ${publicId}: outside ${root}`);
+    return undefined;
+  }
   try {
     const result = await cloudinary.uploader.destroy(publicId, { resource_type: "image" });
     return result;
