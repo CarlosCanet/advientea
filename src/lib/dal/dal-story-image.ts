@@ -1,36 +1,9 @@
-import { Prisma, StoryImage } from "@/generated/prisma/client";
+import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 
-import { deleteAsset } from "../cloudinary";
-import { DayYear } from "./dal-day";
 import { getStoryTeaById } from "./dal-story-tea";
-import { getTeaByDayNumber } from "./dal-tea";
 
 export type StoryImageWithStory = Prisma.StoryImageGetPayload<{ include: { story: true } }>;
-
-export async function getStoryImageById(id: string): Promise<StoryImage> {
-  const image = await prisma.storyImage.findUnique({ where: { id } });
-  if (!image) {
-    throw new Error(`No story image found for id ${id}`);
-  }
-  return image;
-}
-
-export async function getStoryImageByDayNumber(dayYear: DayYear, order: number): Promise<StoryImage> {
-  const teaResponse = await getTeaByDayNumber(dayYear);
-  if (!teaResponse || !teaResponse.story || !teaResponse.story.images) {
-    throw new Error(`No story found for day ${dayYear.dayNumber}/${dayYear.year}`);
-  }
-  return teaResponse.story.images[order];
-}
-
-export async function getAllStoryImages(storyTeaId: string): Promise<StoryImage[]> {
-  const images = await prisma.storyImage.findMany({
-    orderBy: { order: "asc" },
-    where: { storyTeaId },
-  });
-  return images;
-}
 
 export async function addStoryImage(publicId: string, order: number, storyId: string): Promise<StoryImageWithStory> {
   const storyRecord = await getStoryTeaById(storyId);
@@ -57,17 +30,6 @@ export async function addStoryImage(publicId: string, order: number, storyId: st
     return imageCreated;
   });
   return result;
-}
-
-export async function editStoryImage(data: Prisma.StoryImageUncheckedUpdateInput, id: string): Promise<StoryImage> {
-  const imageUpdated = await prisma.storyImage.update({ data, where: { id } });
-  return imageUpdated;
-}
-
-export async function deleteStoryImage(id: string): Promise<StoryImage> {
-  const imageDeleted = await prisma.storyImage.delete({ where: { id } });
-  await deleteAsset(imageDeleted.publicId);
-  return imageDeleted;
 }
 
 export type StoryImageSlot = { id: string; kind: "existing" } | { kind: "new"; publicId: string };
