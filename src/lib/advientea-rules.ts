@@ -1,6 +1,6 @@
 import { EditionStatus, Role } from "@/generated/prisma/enums";
 
-import { getNow, toDateNumber, toMadridDateTime } from "./advientea-time";
+import { getNow, toDateNumber, toEditionDate, toMadridDateTime } from "./advientea-time";
 
 export interface AdvienteaDayState {
   isPart1Released: boolean;
@@ -55,8 +55,8 @@ export function getDaySchedule(dayNumber: number, edition: EditionInfo, now: Dat
   }
   const madrid = toMadridDateTime(now);
   const today = toDateNumber(madrid);
-  const day = toDateNumber({ day: dayNumber, month: 12, year: edition.year });
-  const lastDay = toDateNumber({ day: edition.lastDayNumber, month: 12, year: edition.year });
+  const day = toDateNumber(toEditionDate(edition.year, dayNumber));
+  const lastDay = toDateNumber(toEditionDate(edition.year, edition.lastDayNumber));
   const isPersonNameReleased = today > lastDay || (today === lastDay && madrid.hour >= HOURS.NAME);
 
   if (today < day) {
