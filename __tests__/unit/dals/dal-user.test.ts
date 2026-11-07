@@ -9,7 +9,8 @@ import {
   editUser,
   getAllUsers,
   getUser,
-  UserWithDayAssignedDay,
+  getUsersBasic,
+  UserForManagement,
 } from "@/lib/dal/dal-user";
 
 describe("DAL User", () => {
@@ -49,7 +50,7 @@ describe("DAL User", () => {
   });
 
   describe("getAllUsers", () => {
-    const mockUsersList: Array<UserWithDayAssignedDay> = [
+    const mockUsersList: Array<UserForManagement> = [
       {
         daysAssigned: [],
         email: "a@a.com",
@@ -60,36 +61,30 @@ describe("DAL User", () => {
       },
     ];
 
-    it("should select sensitive fields if isAdmin is TRUE", async () => {
+    it("selects email and role for the managers' user page", async () => {
       prismaMock.user.findMany.mockResolvedValue(mockUsersList as unknown as Array<User>);
 
-      await getAllUsers(true);
+      await getAllUsers();
 
       expect(prismaMock.user.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          select: expect.objectContaining({
-            email: true,
-            id: true,
-            role: true,
-          }),
+          select: expect.objectContaining({ email: true, id: true, role: true }),
         }),
       );
     });
+  });
 
-    it("should NOT select sensitive fields if isAdmin is FALSE", async () => {
-      prismaMock.user.findMany.mockResolvedValue(mockUsersList as unknown as Array<User>);
+  describe("getUsersBasic", () => {
+    it("selects only id and username, ordered by username", async () => {
+      prismaMock.user.findMany.mockResolvedValue([{ id: "1", username: "A" }] as unknown as Array<User>);
 
-      await getAllUsers(false);
+      const result = await getUsersBasic();
 
-      expect(prismaMock.user.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          select: expect.objectContaining({
-            email: false,
-            id: true,
-            role: false,
-          }),
-        }),
-      );
+      expect(prismaMock.user.findMany).toHaveBeenCalledWith({
+        orderBy: { username: "asc" },
+        select: { id: true, username: true },
+      });
+      expect(result).toEqual([{ id: "1", username: "A" }]);
     });
   });
 

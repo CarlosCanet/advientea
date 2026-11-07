@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 
-import { Prisma } from "@/generated/prisma/client";
+import type { StoryTeaWithImages } from "@/lib/dal";
+
 import { getYouTubeId } from "@/lib/utils";
 
 import CarouselComponent from "./ui/CarouselComponent";
@@ -11,7 +12,7 @@ interface StoryTeaComponentProps {
   isPart1Released: boolean;
   isPart2Released: boolean;
   isPart3Released: boolean;
-  story: Prisma.StoryTeaGetPayload<{ include: { images: true } }>;
+  story: StoryTeaWithImages;
 }
 export default function StoryTeaComponent({
   isPart1Released,

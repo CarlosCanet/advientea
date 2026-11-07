@@ -3,9 +3,9 @@ import { notFound } from "next/navigation";
 import { FaAward } from "react-icons/fa6";
 
 import RankingList from "@/components/RankingList";
-import { editionInfoForYear, getAdvienteaDayState } from "@/lib/advientea-rules";
+import { getAdvienteaDayState } from "@/lib/advientea-rules";
 import { auth } from "@/lib/auth";
-import { getDay } from "@/lib/dal";
+import { getDayById, getEditionInfo } from "@/lib/dal";
 import { getDailyRanking } from "@/lib/services/ranking-service";
 
 interface RankingPageProps {
@@ -14,12 +14,17 @@ interface RankingPageProps {
 
 export default async function RankingPage({ params }: RankingPageProps) {
   const { dayId } = await params;
-  const day = await getDay(dayId);
+  const day = await getDayById(dayId);
   const session = await auth.api.getSession({ headers: await headers() });
   if (!day || !session) {
     notFound();
   }
-  const advienteaDayState = getAdvienteaDayState(day.dayNumber, editionInfoForYear(day.year), session.user.role, false);
+  const advienteaDayState = getAdvienteaDayState(
+    day.dayNumber,
+    await getEditionInfo(day.year),
+    session.user.role,
+    false,
+  );
   const ranking = await getDailyRanking(dayId);
   if (!ranking) {
     notFound();

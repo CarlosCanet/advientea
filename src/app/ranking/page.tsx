@@ -4,8 +4,10 @@ import { BsCupFill } from "react-icons/bs";
 import { FaAward, FaTrophy } from "react-icons/fa6";
 
 import RankingList from "@/components/RankingList";
-import { editionInfoForYear, getAdvienteaDayState } from "@/lib/advientea-rules";
+import NoActiveEdition from "@/components/ui/NoActiveEdition";
+import { getAdvienteaDayState } from "@/lib/advientea-rules";
 import { auth } from "@/lib/auth";
+import { getActiveEdition, getEditionInfo, getUpcomingEdition } from "@/lib/dal";
 import { getOverallRanking } from "@/lib/services/ranking-service";
 
 export default async function OverallRankingPage() {
@@ -13,14 +15,13 @@ export default async function OverallRankingPage() {
   if (!session) {
     notFound();
   }
-  const today = new Date();
-  const advienteaDayState = getAdvienteaDayState(
-    today.getDate(),
-    editionInfoForYear(today.getFullYear()),
-    session.user.role,
-    false,
-  );
-  const ranking = await getOverallRanking();
+  const edition = await getActiveEdition();
+  if (!edition) {
+    return <NoActiveEdition nextYear={(await getUpcomingEdition())?.year} />;
+  }
+  const editionInfo = await getEditionInfo(edition.year);
+  const advienteaDayState = getAdvienteaDayState(editionInfo.lastDayNumber, editionInfo, session.user.role, false);
+  const ranking = await getOverallRanking(edition.year);
   if (!ranking) {
     notFound();
   }
@@ -33,7 +34,7 @@ export default async function OverallRankingPage() {
             Salón de la Taza <BsCupFill />
           </h2>
           <h2 className="card-title text-lg">
-            <FaAward /> Ranking {today.getFullYear()} <FaAward />
+            <FaAward /> Ranking {edition.year} <FaAward />
           </h2>
         </div>
       </div>

@@ -1,21 +1,27 @@
 import { headers } from "next/headers";
 import Link from "next/link";
 import { BsCupHot, BsCupHotFill } from "react-icons/bs";
-import { MdBackHand } from "react-icons/md";
 
+import NoActiveEdition from "@/components/ui/NoActiveEdition";
 import TeaInfusionInfo from "@/components/ui/TeaInfusionInfo";
 import { Role } from "@/generated/prisma/enums";
-import { editionInfoForYear, getAdvienteaDayState, getDaySchedule } from "@/lib/advientea-rules";
+import { getAdvienteaDayState, getDaySchedule } from "@/lib/advientea-rules";
 import { getNow } from "@/lib/advientea-time";
 import { auth } from "@/lib/auth";
-import { getAllDays } from "@/lib/dal";
+import { getActiveEdition, getAllDays, getEditionInfo, getUpcomingEdition } from "@/lib/dal";
 
 export default async function DaysList() {
   const session = await auth.api.getSession({ headers: await headers() });
-  let days = await getAllDays(2025);
 
+  const edition = await getActiveEdition();
+  if (!edition) {
+    return <NoActiveEdition nextYear={(await getUpcomingEdition())?.year} />;
+  }
+
+  let days = await getAllDays(edition.year);
+  const editionInfo = await getEditionInfo(edition.year);
   if (session?.user.role !== Role.ADMIN && session?.user.role !== Role.EXECUTEAVE) {
-    days = days.filter((day) => getDaySchedule(day.dayNumber, editionInfoForYear(day.year), getNow()).isReleased);
+    days = days.filter((day) => getDaySchedule(day.dayNumber, editionInfo, getNow()).isReleased);
   }
 
   return (
@@ -24,35 +30,10 @@ export default async function DaysList() {
         <li className="p-4 pb-2 text-xl font-bold opacity-60 tracking-wide text-center rounded-none border-b border-b-secondary/70">
           Calendario de Advienté{" "}
         </li>
-        {days.length === 0 && (
-          <li className="list-row items-center justify-center text-center gap-1 rounded-none border-b border-b-secondary/70">
-            {/* <div className="text-4xl font-thin opacity-30 tabular-nums">{day.dayNumber.toString().padStart(2, "0")}</div> */}
-            <div className="flex flex-col items-center rounded-lg shadow-md overflow-hidden border border-base-200">
-              {/* Calendar header */}
-              <div className="w-full h-2 bg-secondary"></div>
-
-              {/* Calendar day */}
-              <div className="flex items-center justify-center px-2 py-2 ">
-                <span className="text-lg font-bold text-base-content tabular-nums leading-none">00</span>
-              </div>
-            </div>
-            <div className="list-col-grow">
-              <div className="font-[Griffy] text-lg">
-                Vuelve el 1 de <br /> diciembre de 2025
-              </div>
-            </div>
-            <MdBackHand />
-          </li>
-        )}
         {days
           .toSorted((day1, day2) => day2.dayNumber - day1.dayNumber)
           .map((day) => {
-            const advienteaDayState = getAdvienteaDayState(
-              day.dayNumber,
-              editionInfoForYear(day.year),
-              session?.user.role,
-              false,
-            );
+            const advienteaDayState = getAdvienteaDayState(day.dayNumber, editionInfo, session?.user.role, false);
             const assigneeName = day.assignment?.guestName ?? day.assignment?.user?.username;
             const advienteaDayTitle =
               advienteaDayState.isPersonNameReleased && assigneeName

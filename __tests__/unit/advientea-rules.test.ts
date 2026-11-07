@@ -203,6 +203,37 @@ describe("getDaySchedule", () => {
     });
   });
 
+  describe("days beyond December", () => {
+    // More than 31 participants: day 32 is 1 January of the next year.
+    const active35Days = edition(EditionStatus.ACTIVE, 2026, 35);
+
+    it("keeps day 3 on 3 December, whatever the length of the edition", () => {
+      expect(getDaySchedule(3, active35Days, madrid("2026-12-03", "07:00"))).toEqual(
+        state({ isPart1Released: true, isReleased: true }),
+      );
+    });
+
+    it("keeps day 32 closed on 31 December at 23:59", () => {
+      expect(getDaySchedule(32, active35Days, madrid("2026-12-31", "23:59"))).toEqual(allFalse);
+    });
+
+    it("opens day 32 on 1 January without parts at 06:59", () => {
+      expect(getDaySchedule(32, active35Days, madrid("2027-01-01", "06:59"))).toEqual(state({ isReleased: true }));
+    });
+
+    it("releases part 1 of day 35 on 4 January at 07:00", () => {
+      expect(getDaySchedule(35, active35Days, madrid("2027-01-04", "07:00"))).toEqual(
+        state({ isPart1Released: true, isReleased: true }),
+      );
+    });
+
+    it("reveals the names on 4 January at 20:00 when day 35 is the last one", () => {
+      expect(getDaySchedule(35, active35Days, madrid("2027-01-04", "19:59")).isPersonNameReleased).toBe(false);
+      expect(getDaySchedule(35, active35Days, madrid("2027-01-04", "20:00")).isPersonNameReleased).toBe(true);
+      expect(getDaySchedule(3, active35Days, madrid("2027-01-05", "10:00"))).toEqual(allTrue);
+    });
+  });
+
   describe("edition status", () => {
     it("releases everything for an archived edition whatever the date", () => {
       expect(getDaySchedule(3, archived2025, madrid("2026-11-15", "10:00"))).toEqual(allTrue);

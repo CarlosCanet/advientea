@@ -6,7 +6,7 @@ import { RxHamburgerMenu } from "react-icons/rx";
 import { signout } from "@/app/actions/authActions";
 import { Role } from "@/generated/prisma/enums";
 import { auth } from "@/lib/auth";
-import { getDayAssignment } from "@/lib/dal";
+import { getActiveEdition } from "@/lib/dal";
 import { DEFAULT_IMAGE_PROFILE } from "@/lib/types";
 
 import ProfileImage from "./ui/ProfileImage";
@@ -15,6 +15,7 @@ async function Navbar() {
   const session = await auth.api.getSession({
     headers: await headers(),
   });
+  const edition = await getActiveEdition();
 
   return (
     <nav className="navbar bg-neutral shadow-sm fixed z-50 h-16">
@@ -26,7 +27,7 @@ async function Navbar() {
       <div className="navbar-center">
         <Link className="btn btn-ghost text-xl text-neutral-content" href="/">
           <div>
-            Advien<i>té</i> 2025
+            Advien<i>té</i> {edition?.year}
           </div>
         </Link>
       </div>

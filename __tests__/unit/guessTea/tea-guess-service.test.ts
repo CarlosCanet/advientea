@@ -1,8 +1,8 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { TeaIngredient } from "@/generated/prisma/client";
-import { TeaType } from "@/generated/prisma/enums";
-import { DayForGuessing, getDayForGuessing } from "@/lib/dal";
+import { EditionStatus, TeaType } from "@/generated/prisma/enums";
+import { DayForGuessing, getDayForGuessing, getEditionInfo } from "@/lib/dal";
 import {
   calculatePointsFromGuess,
   canUserGuessPerson,
@@ -13,6 +13,7 @@ import { TeaGuessFormData } from "@/lib/types";
 
 vi.mock("@/lib/dal", () => ({
   getDayForGuessing: vi.fn(),
+  getEditionInfo: vi.fn(),
 }));
 
 function createMockFormData(data: TeaGuessFormData): FormData {
@@ -60,6 +61,8 @@ describe("Tea service", () => {
   describe("Business logic rules", () => {
     beforeEach(() => {
       vi.useFakeTimers();
+      // The cases below expect the names on day 21 at 20:00, so the edition ends on day 21.
+      vi.mocked(getEditionInfo).mockResolvedValue({ lastDayNumber: 21, status: EditionStatus.ACTIVE, year: 2025 });
     });
     afterEach(() => {
       vi.resetAllMocks();

@@ -48,3 +48,9 @@ export function toMadridDateTime(date: Date): MadridDateTime {
 export function toDateNumber(date: Pick<MadridDateTime, "day" | "month" | "year">): number {
   return date.year * 10000 + date.month * 100 + date.day;
 }
+
+/** The calendar date of day N of the edition, into January past the 31st: UTC in and out because it is a date, not an instant. */
+export function toEditionDate(year: number, dayNumber: number): { day: number; month: number; year: number } {
+  const date = new Date(Date.UTC(year, 11, dayNumber));
+  return { day: date.getUTCDate(), month: date.getUTCMonth() + 1, year: date.getUTCFullYear() };
+}

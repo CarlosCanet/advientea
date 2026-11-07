@@ -9,9 +9,10 @@ import {
   deleteStoryTea,
   editStoryTea,
   getAllStoriesTea,
-  getStoryTea,
-  StoryWithTea,
-  StoryWithTeaAndImages,
+  getStoryTeaByDayNumber,
+  getStoryTeaById,
+  StoryTeaWithImagesAndTea,
+  StoryTeaWithTea,
 } from "@/lib/dal/dal-story-tea";
 vi.mock("@/lib/dal/dal-day");
 const dalDayMock = vi.mocked(dalDay);
@@ -22,7 +23,7 @@ describe("DAL StoryTea", () => {
   });
 
   describe("getStoryTea", () => {
-    const mockStoryComplete: StoryWithTeaAndImages = {
+    const mockStoryComplete: StoryTeaWithImagesAndTea = {
       createdAt: new Date(),
       id: "story-1",
       images: [],
@@ -55,23 +56,23 @@ describe("DAL StoryTea", () => {
     it("should get story by ID string", async () => {
       prismaMock.storyTea.findUnique.mockResolvedValue(mockStoryComplete);
 
-      const result = await getStoryTea("story-1");
+      const result = await getStoryTeaById("story-1");
 
       expect(result).toEqual(mockStoryComplete);
       expect(prismaMock.storyTea.findUnique).toHaveBeenCalledWith({
-        include: { images: true, tea: true },
+        include: { images: { orderBy: { order: "asc" } }, tea: true },
         where: { id: "story-1" },
       });
     });
 
     it("should return null if ID not found", async () => {
       prismaMock.storyTea.findUnique.mockResolvedValue(null);
-      const result = await getStoryTea("missing");
+      const result = await getStoryTeaById("missing");
       expect(result).toBeNull();
     });
 
     it("should get story by Day and reconstruct object", async () => {
-      const mockDayResponse: dalDay.DayWithTeaComplete = {
+      const mockDayResponse: dalDay.DayWithTeaStoryImages = {
         createdAt: new Date(),
         dayNumber: 5,
         id: "day-1",
@@ -104,11 +105,11 @@ describe("DAL StoryTea", () => {
         },
       };
 
-      dalDayMock.getDay.mockResolvedValue(realGetDayResponse);
+      dalDayMock.getDayByDayNumber.mockResolvedValue(realGetDayResponse);
 
-      const result = await getStoryTea(5, 2025);
+      const result = await getStoryTeaByDayNumber({ dayNumber: 5, year: 2025 });
 
-      expect(dalDayMock.getDay).toHaveBeenCalledWith(5, 2025);
+      expect(dalDayMock.getDayByDayNumber).toHaveBeenCalledWith({ dayNumber: 5, year: 2025 });
       expect(result).toBeDefined();
       expect(result?.id).toBe("story-1");
       expect(result?.tea.id).toBe("tea-1");
@@ -116,13 +117,13 @@ describe("DAL StoryTea", () => {
     });
 
     it("should return null if day not found", async () => {
-      dalDayMock.getDay.mockResolvedValue(null);
-      const result = await getStoryTea(5, 2025);
+      dalDayMock.getDayByDayNumber.mockResolvedValue(null);
+      const result = await getStoryTeaByDayNumber({ dayNumber: 5, year: 2025 });
       expect(result).toBeNull();
     });
 
     it("should return null if day has no tea", async () => {
-      const mockDayNoTea: dalDay.DayWithTeaComplete = {
+      const mockDayNoTea: dalDay.DayWithTeaStoryImages = {
         createdAt: new Date(),
         dayNumber: 5,
         id: "day-1",
@@ -130,14 +131,14 @@ describe("DAL StoryTea", () => {
         updatedAt: new Date(),
         year: 2025,
       };
-      dalDayMock.getDay.mockResolvedValue(mockDayNoTea);
+      dalDayMock.getDayByDayNumber.mockResolvedValue(mockDayNoTea);
 
-      const result = await getStoryTea(5, 2025);
+      const result = await getStoryTeaByDayNumber({ dayNumber: 5, year: 2025 });
       expect(result).toBeNull();
     });
 
     it("should return null if tea has no story", async () => {
-      const mockDayNoStory: dalDay.DayWithTeaComplete = {
+      const mockDayNoStory: dalDay.DayWithTeaStoryImages = {
         createdAt: new Date(),
         dayNumber: 5,
         id: "day-1",
@@ -162,9 +163,9 @@ describe("DAL StoryTea", () => {
         updatedAt: new Date(),
         year: 2025,
       };
-      dalDayMock.getDay.mockResolvedValue(mockDayNoStory);
+      dalDayMock.getDayByDayNumber.mockResolvedValue(mockDayNoStory);
 
-      const result = await getStoryTea(5, 2025);
+      const result = await getStoryTeaByDayNumber({ dayNumber: 5, year: 2025 });
       expect(result).toBeNull();
     });
   });
@@ -187,7 +188,7 @@ describe("DAL StoryTea", () => {
 
   describe("addStoryTea", () => {
     it("should create story connected to tea", async () => {
-      const mockCreated: StoryWithTea = {
+      const mockCreated: StoryTeaWithTea = {
         createdAt: new Date(),
         id: "new-story",
         onlyMusic: false,
@@ -218,7 +219,7 @@ describe("DAL StoryTea", () => {
 
   describe("editStoryTea", () => {
     it("should update story", async () => {
-      const mockUpdated: StoryWithTea = {
+      const mockUpdated: StoryTeaWithTea = {
         createdAt: new Date(),
         id: "s1",
         onlyMusic: false,
@@ -245,7 +246,7 @@ describe("DAL StoryTea", () => {
 
   describe("deleteStoryTea", () => {
     it("should delete story", async () => {
-      const mockDeleted: StoryWithTea = {
+      const mockDeleted: StoryTeaWithTea = {
         createdAt: new Date(),
         id: "s1",
         onlyMusic: false,

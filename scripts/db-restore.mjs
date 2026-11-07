@@ -47,3 +47,6 @@ if (status !== 0) {
   process.exit(status);
 }
 console.log("[db-restore] done. Check pending migrations with: pnpm exec prisma migrate status");
+console.log(
+  "[db-restore] the restored rows point at production images: run pnpm cloudinary:clone --apply for local copies",
+);

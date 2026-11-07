@@ -19,6 +19,7 @@
     "db:seed": "prisma db seed",
     "db:reset": "prisma migrate reset --force",
     "db:restore": "node scripts/db-restore.mjs",
+    "cloudinary:clone": "tsx scripts/cloudinary-clone-env.ts",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down"
   },

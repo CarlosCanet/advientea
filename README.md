@@ -168,7 +168,7 @@ pnpm exec prisma migrate deploy  # create the schema in the dev database
 pnpm db:seed                     # optional: synthetic data and sign-in accounts
 ```
 
-The dev database keeps its data in a Docker volume; `pnpm docker:down` stops the containers without losing it. To load a `pg_dump` custom-format file instead of the seed, run `pnpm db:restore <file>` (it recreates the database first).
+The dev database keeps its data in a Docker volume; `pnpm docker:down` stops the containers without losing it. To load a `pg_dump` custom-format file instead of the seed, run `pnpm db:restore <file>` (it recreates the database first), then `pnpm cloudinary:clone --apply` so the restored rows get local copies of their images instead of pointing at production's.
 
 If you ran the integration tests before the dev database moved to Docker, remove the old test container once, or it keeps port 5433: `docker rm -f integration-tests`.
 

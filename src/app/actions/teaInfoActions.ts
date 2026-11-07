@@ -4,29 +4,29 @@ import { z } from "zod";
 
 import { Prisma } from "@/generated/prisma/client";
 import { Role } from "@/generated/prisma/enums";
-import { deleteAsset } from "@/lib/cloudinary";
-import { uploadImageFile } from "@/lib/cloudinary";
+import { deleteAsset, uploadImage } from "@/lib/cloudinary";
 import {
   add25Days,
   addDay,
-  addDayAssignment,
   addStoryImage,
   addStoryTea,
   addTea,
+  assignDay,
+  DayYear,
   deleteDay,
-  deleteDayAssignmentByDay,
   editStoryTea,
   editTea,
+  getActiveEdition,
   getDayAssignmentByUserId,
-  getTea,
+  getTeaById,
   replaceStoryImages,
   requireRole,
   requireSession,
   StoryImageSlot,
-  upsertDayAssignment,
+  unassignDay,
   verifySession,
 } from "@/lib/dal";
-import { ForbiddenError, UnauthenticatedError } from "@/lib/errors";
+import { ConflictError, ForbiddenError, UnauthenticatedError } from "@/lib/errors";
 import { teaInfoFormSchema } from "@/lib/schemas/tea";
 import { ActionResponse, TeaInfoActionResponse, TeaInfoFormData } from "@/lib/types";
 
@@ -38,6 +38,14 @@ export async function addTeaInfo(
 ): Promise<TeaInfoActionResponse> {
   try {
     const { isAuth, userId } = await verifySession();
+    const edition = await getActiveEdition();
+    if (!edition) {
+      return {
+        errors: { errors: ["No active edition found"] },
+        message: "No active edition found",
+        success: false,
+      };
+    }
     const rawData: TeaInfoFormData = {
       addMilk: getFormBoolean(formData, "addMilk"),
       canReinfuse: getFormBoolean(formData, "canReinfuse"),
@@ -73,7 +81,7 @@ export async function addTeaInfo(
     let day = data.dayNumber;
     if (data.dayNumber === 0) {
       day = Math.floor(Math.random() * 50000) + 25;
-      await addDay(day);
+      await addDay({ dayNumber: day, year: edition.year });
     }
     const teaCreated = await addTea(
       {
@@ -89,7 +97,10 @@ export async function addTeaInfo(
         url: data.urlStore,
       },
       [],
-      day,
+      {
+        dayNumber: day,
+        year: edition.year,
+      },
     );
     if (!teaCreated) {
       throw new Error("Cannot create tea");
@@ -116,7 +127,9 @@ export async function addTeaInfo(
         throw new Error("Cannot create story tea");
       }
       if (data.images) {
-        const publicIds = await Promise.all(data.images.map(async (image) => await uploadImageFile(image, "teaDay")));
+        const publicIds = await Promise.all(
+          data.images.map(async (image) => await uploadImage(image, { kind: "teaDay", year: edition.year })),
+        );
         for (const [i, publicId] of publicIds.entries()) {
           if (publicId) {
             await addStoryImage(publicId, i, storyCreated.id);
@@ -125,19 +138,17 @@ export async function addTeaInfo(
       }
     }
 
-    const dayAssignmentCreated = isAuth
-      ? await addDayAssignment({ userId: userId }, day)
-      : await addDayAssignment({ guestName: data.personName }, day);
-    if (!dayAssignmentCreated) {
-      throw new Error(
-        `Cannot create dayAssignment for user ${isAuth ? userId : data.personName} in day with id ${teaCreated.dayId}`,
-      );
+    if (isAuth) {
+      await assignDay(teaCreated.dayId!, { userId });
+    } else {
+      await assignDay(teaCreated.dayId!, { guestName: data.personName });
     }
     return {
       message: "Té guardado",
       success: true,
     };
   } catch (error: unknown) {
+    // A conflict here would name the day's holder to whoever submitted, guests included: keep it generic.
     const isGuardError = error instanceof UnauthenticatedError || error instanceof ForbiddenError;
     if (isGuardError) {
       console.warn(`[addTeaInfo] rejected: ${error.name} — ${error.message}`);
@@ -198,7 +209,7 @@ export async function editTeaInfoAction(
     if (!data.teaId) throw new Error("Tea id is missing.");
 
     const day = data.dayNumber;
-    const currentTea = await getTea(data.teaId);
+    const currentTea = await getTeaById(data.teaId);
     if (!currentTea) throw new Error(`Cannot find tea with id ${data.teaId}`);
     const isPrivileged = role === Role.ADMIN || role === Role.EXECUTEAVE;
     if (!isPrivileged) {
@@ -211,9 +222,15 @@ export async function editTeaInfoAction(
     }
 
     let storyId = currentTea.story?.id || null;
-    let newDayNumber: number | undefined = undefined;
-    if (isPrivileged) {
-      newDayNumber = currentTea.day?.dayNumber === day ? undefined : day;
+    // A tea without a day (guest teas) belongs to the active edition: its images and any new day go there.
+    const year = currentTea.day?.year ?? (await getActiveEdition())?.year;
+    if (year === undefined) {
+      throw new Error("Cannot edit a tea without an active edition.");
+    }
+    // Only managers move a tea, and only when the form asks for another day.
+    let newDay: DayYear | undefined = undefined;
+    if (isPrivileged && day !== currentTea.day?.dayNumber) {
+      newDay = { dayNumber: day, year };
     }
     const editedTea = await editTea(
       {
@@ -229,7 +246,7 @@ export async function editTeaInfoAction(
         url: data.urlStore,
       },
       data.teaId,
-      newDayNumber,
+      newDay,
     );
     if (!editedTea) {
       throw new Error("Cannot edit tea");
@@ -260,7 +277,7 @@ export async function editTeaInfoAction(
       slotsByPosition[data.keptImagesOrder?.[i] ?? i] = { id, kind: "existing" };
     });
     if (newImages.length > 0) {
-      const publicIds = await Promise.all(newImages.map((image) => uploadImageFile(image, "teaDay")));
+      const publicIds = await Promise.all(newImages.map((image) => uploadImage(image, { kind: "teaDay", year })));
       publicIds.forEach((publicId, i) => {
         if (publicId) slotsByPosition[data.imagesOrder?.[i] ?? slotsByPosition.length] = { kind: "new", publicId };
       });
@@ -297,30 +314,20 @@ export async function editTeaInfoAction(
   }
 }
 
-export async function assignUserToDay(
-  dayId: string,
-  userId: string,
-  year: number = 2025,
-  guestName?: string,
-): Promise<ActionResponse> {
+export async function assignUserToDay(dayId: string, value: string): Promise<ActionResponse> {
   try {
     await requireRole(Role.ADMIN, Role.EXECUTEAVE);
-    if (!userId && !guestName) {
-      await deleteDayAssignmentByDay(dayId);
+    if (!value) {
+      await unassignDay(dayId);
       revalidatePath("/edit-tea-info");
       return { message: "Asignación eliminada", success: true };
     }
-
-    const assignment = { dayId, guestName: guestName || null, userId: userId || null, year };
-    if (assignment.userId && assignment.guestName) {
-      assignment.guestName = null;
-    }
-
-    await upsertDayAssignment(dayId, assignment);
+    await assignDay(dayId, { userId: value });
     revalidatePath("/edit-tea-info");
     return { message: "Asignación actualizada", success: true };
   } catch (error: unknown) {
-    const isGuardError = error instanceof UnauthenticatedError || error instanceof ForbiddenError;
+    const isGuardError =
+      error instanceof UnauthenticatedError || error instanceof ForbiddenError || error instanceof ConflictError;
     const isAlreadyAssigned = error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
     if (isGuardError || isAlreadyAssigned) {
       console.warn(`[assignUserToDay] rejected: ${error.name} — dayId=${dayId} — ${error.message}`);
@@ -334,7 +341,7 @@ export async function assignUserToDay(
   }
 }
 
-export async function addDaysAction(year: number = 2025): Promise<ActionResponse> {
+export async function addDaysAction(year: number): Promise<ActionResponse> {
   try {
     await requireRole(Role.ADMIN);
     await add25Days(year);
