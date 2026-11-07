@@ -4,13 +4,13 @@ import { notFound } from "next/navigation";
 import { BsFillPatchQuestionFill } from "react-icons/bs";
 
 import { TeaType } from "@/generated/prisma/enums";
-import { editionInfoForYear, getAdvienteaDayState } from "@/lib/advientea-rules";
+import { getAdvienteaDayState } from "@/lib/advientea-rules";
 import { auth } from "@/lib/auth";
+import { getAllAssigners, getAllIngredients, getDayById, getDayForGuessing, getEditionInfo } from "@/lib/dal";
 import { canUserGuessPerson, canUserGuessTea } from "@/lib/services/tea-guess-service";
 import { SelectOption } from "@/lib/types";
 import { TEA_TYPE_LABELS } from "@/lib/utils";
 
-import { getAllAssigners, getAllIngredients, getDayById, getDayForGuessing } from "../lib/dal";
 import TeaGuessForm from "./TeaGuessForm";
 
 interface TeaGuessCardProps {
@@ -49,7 +49,12 @@ export default async function TeaGuessCard({ dayId }: TeaGuessCardProps) {
   if (!day) {
     notFound();
   }
-  const advienteaDayState = getAdvienteaDayState(day.dayNumber, editionInfoForYear(day.year), session.user.role, false);
+  const advienteaDayState = getAdvienteaDayState(
+    day.dayNumber,
+    await getEditionInfo(day.year),
+    session.user.role,
+    false,
+  );
   const isAssignee = dayForGuessing?.assignment?.user?.id === session.user.id;
 
   return (

@@ -89,8 +89,3 @@ export function getAdvienteaDayState(
   }
   return base;
 }
-
-/** Scaffold until the system reads the real edition: today's behaviour, an active edition with names on day 21. */
-export function editionInfoForYear(year: number): EditionInfo {
-  return { lastDayNumber: 21, status: EditionStatus.ACTIVE, year };
-}

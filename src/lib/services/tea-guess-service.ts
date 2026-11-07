@@ -3,9 +3,9 @@ import z from "zod";
 import { getFormString, getFormStringsByPrefix } from "@/app/actions/commonActions";
 import { Role, TeaType } from "@/generated/prisma/enums";
 
-import { editionInfoForYear, getAdvienteaDayState } from "../advientea-rules";
+import { getAdvienteaDayState } from "../advientea-rules";
 import { getNow } from "../advientea-time";
-import { getDayForGuessing } from "../dal";
+import { getDayForGuessing, getEditionInfo } from "../dal";
 import { calculateDailyScore } from "../tea-guess-scoring";
 import { TeaGuessFormData } from "../types";
 
@@ -54,7 +54,7 @@ export async function canUserGuessTea(dayId: string, currentUserId: string): Pro
   const dayRecord = await getDayForGuessing(dayId);
   if (!dayRecord || !dayRecord.tea) return false;
   if (dayRecord.assignment?.user?.id === currentUserId) return false;
-  const dayState = getAdvienteaDayState(dayRecord.dayNumber, editionInfoForYear(dayRecord.year), Role.USER);
+  const dayState = getAdvienteaDayState(dayRecord.dayNumber, await getEditionInfo(dayRecord.year), Role.USER);
   if (!dayState.isReleased) return false;
   return !dayState.isTeaReleased;
 }
@@ -63,7 +63,7 @@ export async function canUserGuessPerson(dayId: string, currentUserId: string): 
   const dayRecord = await getDayForGuessing(dayId);
   if (!dayRecord || !dayRecord.tea) return false;
   if (dayRecord.assignment?.user?.id === currentUserId) return false;
-  const dayState = getAdvienteaDayState(dayRecord.dayNumber, editionInfoForYear(dayRecord.year), Role.USER);
+  const dayState = getAdvienteaDayState(dayRecord.dayNumber, await getEditionInfo(dayRecord.year), Role.USER);
   if (!dayState.isReleased) return false;
   return !dayState.isPersonNameReleased;
 }

@@ -1,13 +1,13 @@
 import { Role } from "@/generated/prisma/enums";
 import { DEFAULT_IMAGE_PROFILE, RankingEntry } from "@/lib/types";
 
-import { editionInfoForYear, getAdvienteaDayState } from "../advientea-rules";
-import { getDayById, getGuessesByDayId, getGuessesByYear } from "../dal";
+import { getAdvienteaDayState } from "../advientea-rules";
+import { getDayById, getEditionInfo, getGuessesByDayId, getGuessesByYear } from "../dal";
 
 export async function getDailyRanking(dayId: string): Promise<Array<RankingEntry> | null> {
   const day = await getDayById(dayId);
   if (!day) return null;
-  const advienteaDayState = getAdvienteaDayState(day.dayNumber, editionInfoForYear(day.year), Role.USER, false);
+  const advienteaDayState = getAdvienteaDayState(day.dayNumber, await getEditionInfo(day.year), Role.USER, false);
   const isPersonNameReleased = advienteaDayState.isPersonNameReleased;
   const allGuesses = await getGuessesByDayId(dayId);
   const uniqueGuesses = new Map<string, (typeof allGuesses)[0]>();
