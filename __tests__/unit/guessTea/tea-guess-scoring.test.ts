@@ -7,7 +7,6 @@ import {
   calculatePersonNameScore,
   calculateTeaNameScore,
   calculateTeaTypeScore,
-  calculateTimeScore,
 } from "@/lib/tea-guess-scoring";
 import { TeaGuessFormData } from "@/lib/types";
 
@@ -60,36 +59,6 @@ describe("Tea guess scoring", () => {
       expect(result1).toBe(0);
       expect(result2).toBe(0);
       expect(result3).toBe(0);
-    });
-  });
-
-  describe("Timestamp scoring", () => {
-    it("should give 200 points if you guessed it before 10:00 h", () => {
-      const date = new Date();
-      date.setHours(9, 57, 0, 0);
-      const result1 = calculateTimeScore(date);
-      expect(result1).toBe(200);
-    });
-    it("should give less than 200 points if you guessed it just after 10:00 h", () => {
-      const date = new Date();
-      date.setHours(11, 5, 0, 0);
-      const result1 = calculateTimeScore(date);
-      expect(result1).toBeLessThan(200);
-    });
-    it("should give 100 points if you guessed it at 15:00 h ", () => {
-      const date = new Date();
-      date.setHours(15, 0, 0, 0);
-      const result1 = calculateTimeScore(date);
-      expect(result1).toBe(100);
-    });
-    it("should give 0 points if you guessed it after 20:00 h", () => {
-      const date = new Date();
-      date.setHours(20, 0, 0, 0);
-      const result1 = calculateTimeScore(date);
-      date.setHours(20, 0, 0, 0);
-      const result2 = calculateTimeScore(date);
-      expect(result1).toBe(0);
-      expect(result2).toBe(0);
     });
   });
 
@@ -191,10 +160,8 @@ describe("Tea guess scoring", () => {
         teaName: "tea-name",
         teaType: TeaType.GREEN,
       };
-      const timestamp = new Date();
-      timestamp.setHours(9, 58, 0, 0);
+      const timestamp = new Date("2026-12-03T09:58:00+01:00"); // Madrid wall-clock time
       const result1 = calculateDailyScore(originalTea, guess, timestamp);
-      timestamp.setHours(9, 58, 0, 0);
       const result2 = calculateDailyScore(originalTea, guess, timestamp);
 
       expect(result1).toBe(1000);
@@ -208,8 +175,7 @@ describe("Tea guess scoring", () => {
         teaName: "zsr1awbxM125Ac",
         teaType: TeaType.BLACK,
       };
-      const timestamp = new Date();
-      timestamp.setHours(20, 8, 0, 0);
+      const timestamp = new Date("2026-12-03T20:08:00+01:00"); // Madrid wall-clock time
       const result = calculateDailyScore(originalTea, guess, timestamp);
       expect(result).toBe(0);
     });
@@ -221,8 +187,7 @@ describe("Tea guess scoring", () => {
         teaName: "tea-name",
         teaType: TeaType.BLACK,
       };
-      const timestamp = new Date();
-      timestamp.setHours(15, 0, 0, 0);
+      const timestamp = new Date("2026-12-03T15:00:00+01:00"); // Madrid wall-clock time
       const result1 = calculateDailyScore(originalTea, guess, timestamp);
       const result2 = calculateDailyScore(originalTea, { ...guess, ingredients: ["i2-id", "i1-id"] }, timestamp);
       const result3 = calculateDailyScore(originalTea, { ...guess, teaType: TeaType.GREEN }, timestamp);
@@ -237,8 +202,7 @@ describe("Tea guess scoring", () => {
         personName: "zsr1awbxM125Ac",
         teaName: "tea-name",
       };
-      const timestamp = new Date();
-      timestamp.setHours(15, 0, 0, 0);
+      const timestamp = new Date("2026-12-03T15:00:00+01:00"); // Madrid wall-clock time
       const result1 = calculateDailyScore(originalTea, guess, timestamp);
 
       expect(result1).toBe(300);
@@ -259,8 +223,7 @@ describe("Tea guess scoring", () => {
         teaName: "tea-name",
         teaType: TeaType.BLACK,
       };
-      const timestamp = new Date();
-      timestamp.setHours(15, 0, 0, 0);
+      const timestamp = new Date("2026-12-03T15:00:00+01:00"); // Madrid wall-clock time
       const result1 = calculateDailyScore(incompleteTea, guess1, timestamp);
       const result2 = calculateDailyScore(incompleteTea, guess2, timestamp);
 

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { Day, User } from "@/generated/prisma/client";
-import { createTeaGuess, getAllGuesses, getLastGuess, TeaWithIngredients } from "@/lib/dal";
+import { createTeaGuess, getAllGuesses, getLastGuess } from "@/lib/dal";
 import { prisma } from "@/lib/prisma";
 import { TeaGuessFormData } from "@/lib/types";
 
@@ -28,12 +28,14 @@ describe("Dal tea guess", async () => {
     });
     const ownerDay1 = dayAssignmentRecord1.user;
     testUser = await prisma.user.findFirstOrThrow({ where: { id: { not: ownerDay1!.id } } });
+    if (!dayAssignmentRecord1.day || !dayAssignmentRecord2.day)
+      throw new Error("DB test seed has assignments without a day");
     testDay1 = dayAssignmentRecord1.day;
     testDay2 = dayAssignmentRecord2.day;
     if (!dayAssignmentRecord1.day.tea) throw new Error("DB test seed has no valid teas");
     if (!dayAssignmentRecord2.day.tea) throw new Error("DB test seed has no valid teas");
-    const tea1: TeaWithIngredients = dayAssignmentRecord1.day.tea;
-    const tea2: TeaWithIngredients = dayAssignmentRecord2.day.tea;
+    const tea1 = dayAssignmentRecord1.day.tea;
+    const tea2 = dayAssignmentRecord2.day.tea;
     guessComplete1 = {
       ingredients: tea1.ingredients.map((ingredient) => ingredient.id),
       personName: ownerDay1?.username ?? "",

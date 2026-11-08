@@ -11,3 +11,9 @@ export class ForbiddenError extends Error {
     this.name = "ForbiddenError";
   }
 }
+export class ConflictError extends Error {
+  constructor(message: string = "Conflicto detectado con la situación actual") {
+    super(message);
+    this.name = "ConflictError";
+  }
+}

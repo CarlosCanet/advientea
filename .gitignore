@@ -46,6 +46,7 @@ next-env.d.ts
 # DB
 /src/generated/prisma
 dev.db
+*.dump
 
 # Planning & internal docs
 .docs/
@@ -55,3 +56,6 @@ dev.db
 
 # lefthook per-machine overrides (e.g. no_tty on Windows)
 lefthook-local.yml
+
+# originals saved by scripts/cloudinary-move-2025.mjs --delete-old
+.cloudinary-backup/

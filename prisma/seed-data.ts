@@ -1,5 +1,15 @@
-import { Role, TeaType } from "@/generated/prisma/enums";
-import { add25Days, addDayAssignment, addStoryTea, addTea, createPrismaUser, replaceStoryImages } from "@/lib/dal";
+import { EditionStatus, Role, TeaType } from "@/generated/prisma/enums";
+import {
+  add25Days,
+  addStoryTea,
+  addTea,
+  assignDay,
+  AssigneeInput,
+  createPrismaUser,
+  getDayByDayNumber,
+  replaceStoryImages,
+  upsertEdition,
+} from "@/lib/dal";
 import { prisma } from "@/lib/prisma";
 import { createUser } from "@/lib/services/user-service";
 
@@ -44,6 +54,8 @@ export async function seedDatabase({ accounts = true, year = 2025 }: SeedOptions
   const ana = await createSeedUser(USERS.ana);
   const sony = await createSeedUser(USERS.sony);
 
+  // Active: the seeded year is the one dev and the tests play with, and nothing else creates editions.
+  await upsertEdition(year, EditionStatus.ACTIVE);
   await add25Days(year);
 
   const tea1 = await addTea(
@@ -60,8 +72,10 @@ export async function seedDatabase({ accounts = true, year = 2025 }: SeedOptions
       url: "https://www.tiendadelasespecias.com/rutadeldesierto",
     },
     [apple.id, lemon.id],
-    1,
-    year,
+    {
+      dayNumber: 1,
+      year,
+    },
   );
   if (!tea1) throw new Error("Tea for day 1 was not created");
   const story1 = await addStoryTea(
@@ -95,8 +109,10 @@ export async function seedDatabase({ accounts = true, year = 2025 }: SeedOptions
       url: "https://www.tiendadelasespecias.com/rutadeldesierto",
     },
     [clove.id, cinnamon.id, cardamom.id],
-    2,
-    year,
+    {
+      dayNumber: 2,
+      year,
+    },
   );
   if (!tea2) throw new Error("Tea for day 2 was not created");
   const story2 = await addStoryTea(
@@ -110,9 +126,18 @@ export async function seedDatabase({ accounts = true, year = 2025 }: SeedOptions
   );
   await replaceStoryImages(story2.id, [{ kind: "new", publicId: "samples/breakfast" }]);
 
-  await addDayAssignment({ userId: manager.id }, 1, year);
-  await addDayAssignment({ guestName: "Anónimo" }, 2, year);
-  await addDayAssignment({ userId: ana.id }, 3, year);
-  await addDayAssignment({ userId: sony.id }, 4, year);
-  await addDayAssignment({ userId: miko.id }, 5, year);
+  // Assigning is only allowed on days that have not opened, so the seed clock sits before the edition.
+  const seedNow = new Date(`${year}-11-01T12:00:00+01:00`);
+  const assign = async (dayNumber: number, assignee: AssigneeInput) => {
+    const seededDay = await getDayByDayNumber({ dayNumber, year });
+    if (!seededDay) {
+      throw new Error(`Day ${dayNumber}/${year} was not created`);
+    }
+    await assignDay(seededDay.id, assignee, seedNow);
+  };
+  await assign(1, { userId: manager.id });
+  await assign(2, { guestName: "Anónimo" });
+  await assign(3, { userId: ana.id });
+  await assign(4, { userId: sony.id });
+  await assign(5, { userId: miko.id });
 }

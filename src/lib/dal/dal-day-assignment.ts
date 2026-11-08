@@ -1,52 +1,30 @@
 import { Prisma } from "@/generated/prisma/client";
+import { getDaySchedule } from "@/lib/advientea-rules";
+import { getNow } from "@/lib/advientea-time";
+import { ConflictError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
+
+import { getEditionInfo } from "./dal-edition";
 
 export type DayAssignmentWithDayTeaAndUser = Prisma.DayAssignmentGetPayload<{
   include: { day: { include: { tea: true } }; user: true };
 }>;
 export type DayAssignmentWithDayAndUser = Prisma.DayAssignmentGetPayload<{ include: { day: true; user: true } }>;
-export type Assigners = Prisma.DayAssignmentGetPayload<{
+export type Assignee = Prisma.DayAssignmentGetPayload<{
   select: { guestName: true; user: { select: { username: true } }; userId: true };
 }>;
 
-export async function getDayAssignment(id: string): Promise<DayAssignmentWithDayTeaAndUser | null>;
-export async function getDayAssignment(year: number, email: string): Promise<DayAssignmentWithDayTeaAndUser | null>;
-
-export async function getDayAssignment(
-  yearOrId: number | string,
-  email?: string,
-): Promise<DayAssignmentWithDayTeaAndUser | null> {
-  try {
-    if (typeof yearOrId === "string") {
-      const assignment = await prisma.dayAssignment.findUnique({
-        include: { day: { include: { tea: true } }, user: true },
-        where: { id: yearOrId },
-      });
-      return assignment;
-    }
-
-    if (!email) {
-      throw new Error("Email is mandatory when getting by year");
-    }
-    const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) {
-      throw new Error(`The user with email ${email} doesn't exist`);
-    }
-    const year = yearOrId;
-    const assignment = await prisma.dayAssignment.findUnique({
-      include: { day: { include: { tea: true } }, user: true },
-      where: { userId_year: { userId: user.id, year } },
-    });
-    return assignment;
-  } catch (error) {
-    console.error(error);
-    throw error;
-  }
+export async function getDayAssignmentById(id: string): Promise<DayAssignmentWithDayTeaAndUser | null> {
+  const assignment = await prisma.dayAssignment.findUnique({
+    include: { day: { include: { tea: true } }, user: true },
+    where: { id },
+  });
+  return assignment;
 }
 
 export async function getDayAssignmentByUserId(
   userId: string,
-  year: number = 2025,
+  year: number,
 ): Promise<DayAssignmentWithDayTeaAndUser | null> {
   try {
     const assignment = await prisma.dayAssignment.findUnique({
@@ -60,7 +38,7 @@ export async function getDayAssignmentByUserId(
   }
 }
 
-export async function getAllDayAssignment(year: number = 2025): Promise<Array<DayAssignmentWithDayTeaAndUser>> {
+export async function getAllDayAssignment(year: number): Promise<Array<DayAssignmentWithDayTeaAndUser>> {
   try {
     const assignments = await prisma.dayAssignment.findMany({
       include: { day: { include: { tea: true } }, user: true },
@@ -73,84 +51,102 @@ export async function getAllDayAssignment(year: number = 2025): Promise<Array<Da
   }
 }
 
-export async function getAllAssigners(): Promise<Array<Assigners> | null> {
+export async function getAssignees(year: number): Promise<Array<Assignee>> {
   const result = await prisma.dayAssignment.findMany({
     select: { guestName: true, user: { select: { username: true } }, userId: true },
+    where: { year },
   });
   return result;
 }
 
-interface AssigneeInput {
-  guestName?: string;
-  userId?: string;
-}
-
-export async function addDayAssignment(
-  assignee: AssigneeInput,
-  day: number,
-  year: number = 2025,
-): Promise<DayAssignmentWithDayAndUser> {
-  const dayResponse = await prisma.day.findUnique({
-    where: { dayNumber_year: { dayNumber: day, year } },
-  });
-  if (!dayResponse) throw new Error(`The day ${day}/${year} does not exist yet.`);
-
-  const data: Prisma.DayAssignmentCreateInput = {
-    day: { connect: { id: dayResponse.id } },
-    guestName: null,
-    year,
-  };
-
-  if (assignee.userId) {
-    data.user = { connect: { id: assignee.userId } };
-  } else if (assignee.guestName) {
-    data.guestName = assignee.guestName;
-  } else {
-    throw new Error("Must provide either userId or guestName");
+// Only a day that has not opened yet can change hands: no guess can exist on it.
+async function assertDayNotReleased(dayNumber: number, year: number, now: Date): Promise<void> {
+  const edition = await getEditionInfo(year);
+  if (getDaySchedule(dayNumber, edition, now).isReleased) {
+    throw new ConflictError("Ese día ya ha pasado o es hoy y no se puede cambiar.");
   }
-
-  const dayAssignment = await prisma.dayAssignment.create({
-    data,
-    include: { day: true, user: true },
-  });
-  return dayAssignment;
 }
 
-export async function editDayAssignment(
-  data: Prisma.DayAssignmentUncheckedUpdateInput,
-  id: string,
-): Promise<DayAssignmentWithDayAndUser> {
-  const dayAssignmentUpdated = await prisma.dayAssignment.update({
-    data,
-    include: { day: true, user: true },
-    where: { id: id },
-  });
-  return dayAssignmentUpdated;
-}
+export type AssigneeInput = { guestName: string } | { userId: string };
 
-export async function upsertDayAssignment(
+export async function assignDay(
   dayId: string,
-  assignment: Prisma.DayAssignmentUncheckedCreateInput,
+  assignee: AssigneeInput,
+  now: Date = getNow(),
 ): Promise<DayAssignmentWithDayAndUser> {
-  const dayAssignment = await prisma.dayAssignment.upsert({
-    create: assignment,
-    include: { day: true, user: true },
-    update: assignment,
-    where: { dayId },
+  return prisma.$transaction(async (tx) => {
+    const dayRecord = await tx.day.findUnique({
+      include: { assignment: { include: { user: true } } },
+      where: { id: dayId },
+    });
+    if (!dayRecord) {
+      throw new Error(`The day with id ${dayId} does not exist.`);
+    }
+    const current = dayRecord.assignment;
+    if (current) {
+      // Asking for the person already there changes nothing, so it is fine even once the day has opened:
+      // a participant uploads their tea after the calendar opens and the add flow reassigns them.
+      const samePerson =
+        "userId" in assignee ? current.userId === assignee.userId : current.guestName === assignee.guestName;
+      if (samePerson) {
+        return tx.dayAssignment.findUniqueOrThrow({ include: { day: true, user: true }, where: { id: current.id } });
+      }
+      await assertDayNotReleased(dayRecord.dayNumber, dayRecord.year, now);
+      // Never replace in silence: the manager frees the day first (S3.3 offers swap or unassign).
+      const holder = current.user?.username ?? current.guestName ?? "otra persona";
+      throw new ConflictError(`Ese día ya tiene asignada a ${holder}. Libéralo antes de asignar a otra persona.`);
+    }
+    await assertDayNotReleased(dayRecord.dayNumber, dayRecord.year, now);
+
+    if ("guestName" in assignee) {
+      return tx.dayAssignment.create({
+        data: {
+          day: { connect: { id: dayRecord.id } },
+          edition: { connect: { year: dayRecord.year } },
+          guestName: assignee.guestName,
+        },
+        include: { day: true, user: true },
+      });
+    }
+
+    const participation = await tx.dayAssignment.findUnique({
+      include: { day: true },
+      where: { userId_year: { userId: assignee.userId, year: dayRecord.year } },
+    });
+    if (participation?.day) {
+      throw new ConflictError(`Esa persona ya tiene el día ${participation.day.dayNumber}.`);
+    }
+    if (participation) {
+      return tx.dayAssignment.update({
+        data: { day: { connect: { id: dayRecord.id } } },
+        include: { day: true, user: true },
+        where: { id: participation.id },
+      });
+    }
+    return tx.dayAssignment.create({
+      data: {
+        day: { connect: { id: dayRecord.id } },
+        edition: { connect: { year: dayRecord.year } },
+        user: { connect: { id: assignee.userId } },
+      },
+      include: { day: true, user: true },
+    });
   });
-  return dayAssignment;
 }
 
-export async function deleteDayAssignment(id: string): Promise<DayAssignmentWithDayAndUser> {
-  const dayAssignmentDeleted = await prisma.dayAssignment.delete({
-    include: { day: true, user: true },
-    where: { id },
-  });
-  return dayAssignmentDeleted;
-}
-
-export async function deleteDayAssignmentByDay(dayId: string): Promise<void> {
-  await prisma.dayAssignment.deleteMany({
-    where: { dayId },
+export async function unassignDay(dayId: string, now: Date = getNow()): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    const dayRecord = await tx.day.findUnique({ include: { assignment: true, tea: true }, where: { id: dayId } });
+    if (!dayRecord) {
+      throw new Error(`The day with id ${dayId} does not exist.`);
+    }
+    if (!dayRecord.assignment) {
+      return;
+    }
+    await assertDayNotReleased(dayRecord.dayNumber, dayRecord.year, now);
+    if (dayRecord.tea) {
+      throw new ConflictError("Ese día tiene un té. Muévelo antes de liberar el día.");
+    }
+    await tx.dayAssignment.update({ data: { day: { disconnect: true } }, where: { id: dayRecord.assignment.id } });
   });
 }

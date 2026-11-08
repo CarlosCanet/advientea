@@ -8,15 +8,16 @@ import ActionToast, { useActionToast } from "./ActionToast";
 
 interface ButtonAddDaysProps {
   daysNumber: number;
+  year: number;
 }
 
-export default function ButtonAddDays({ daysNumber }: ButtonAddDaysProps) {
+export default function ButtonAddDays({ daysNumber, year }: ButtonAddDaysProps) {
   const [isPending, startTransition] = useTransition();
   const { showToast, toast } = useActionToast();
 
   const addDays = () => {
     startTransition(async () => {
-      showToast(await addDaysAction());
+      showToast(await addDaysAction(year));
     });
   };
 

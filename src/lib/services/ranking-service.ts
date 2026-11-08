@@ -1,20 +1,15 @@
 import { Role } from "@/generated/prisma/enums";
-import { prisma } from "@/lib/prisma";
 import { DEFAULT_IMAGE_PROFILE, RankingEntry } from "@/lib/types";
 
 import { getAdvienteaDayState } from "../advientea-rules";
-import { getDay } from "../dal";
+import { getDayById, getEditionInfo, getGuessesByDayId, getGuessesByYear } from "../dal";
 
 export async function getDailyRanking(dayId: string): Promise<Array<RankingEntry> | null> {
-  const day = await getDay(dayId);
+  const day = await getDayById(dayId);
   if (!day) return null;
-  const advienteaDayState = getAdvienteaDayState(day.dayNumber, day.year, Role.USER, false);
+  const advienteaDayState = getAdvienteaDayState(day.dayNumber, await getEditionInfo(day.year), Role.USER, false);
   const isPersonNameReleased = advienteaDayState.isPersonNameReleased;
-  const allGuesses = await prisma.teaGuess.findMany({
-    include: { user: { select: { image: true, username: true } } },
-    orderBy: { createdAt: "desc" },
-    where: { dayId },
-  });
+  const allGuesses = await getGuessesByDayId(dayId);
   const uniqueGuesses = new Map<string, (typeof allGuesses)[0]>();
   for (const guess of allGuesses) {
     if (!uniqueGuesses.has(guess.userId)) {
@@ -51,13 +46,8 @@ export async function getDailyRanking(dayId: string): Promise<Array<RankingEntry
   return rankingList;
 }
 
-export async function getOverallRanking(year: number = 2025): Promise<Array<RankingEntry>> {
-  // TODO better handle year
-  const allGuesses = await prisma.teaGuess.findMany({
-    include: { user: { select: { image: true, username: true } } },
-    orderBy: { createdAt: "desc" },
-    where: { day: { year } },
-  });
+export async function getOverallRanking(year: number): Promise<Array<RankingEntry>> {
+  const allGuesses = await getGuessesByYear(year);
   const uniqueGuesses = new Map<string, (typeof allGuesses)[0]>();
   for (const guess of allGuesses) {
     const compositeKey = `${guess.userId}_${guess.dayId}`;

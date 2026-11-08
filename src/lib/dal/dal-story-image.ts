@@ -1,48 +1,12 @@
-import { Prisma, StoryImage } from "@/generated/prisma/client";
+import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 
-import { deleteAsset } from "../cloudinary";
-import { getStoryTea } from "./dal-story-tea";
-import { getTea } from "./dal-tea";
+import { getStoryTeaById } from "./dal-story-tea";
 
 export type StoryImageWithStory = Prisma.StoryImageGetPayload<{ include: { story: true } }>;
 
-export async function getStoryImage(id: string): Promise<StoryImage>;
-export async function getStoryImage(order: number, day: number, year: number): Promise<StoryImage>;
-
-export async function getStoryImage(
-  idOrOrder: number | string,
-  day?: number,
-  year: number = 2025,
-): Promise<StoryImage> {
-  if (typeof idOrOrder === "string") {
-    const image = await prisma.storyImage.findUnique({ where: { id: idOrOrder } });
-    if (!image) {
-      throw new Error(`No story image found for id ${idOrOrder}`);
-    }
-    return image;
-  }
-  if (!day) {
-    throw new Error("Day is mandatory when searching by day");
-  }
-  const order = idOrOrder;
-  const teaResponse = await getTea(day, year);
-  if (!teaResponse.story || !teaResponse.story.images) {
-    throw new Error(`No story found for day ${day}/${year}`);
-  }
-  return teaResponse.story.images[order];
-}
-
-export async function getAllStoryImages(storyTeaId: string): Promise<StoryImage[]> {
-  const images = await prisma.storyImage.findMany({
-    orderBy: { order: "asc" },
-    where: { storyTeaId },
-  });
-  return images;
-}
-
 export async function addStoryImage(publicId: string, order: number, storyId: string): Promise<StoryImageWithStory> {
-  const storyRecord = await getStoryTea(storyId);
+  const storyRecord = await getStoryTeaById(storyId);
   if (!storyRecord) throw new Error(`There is not story tea with id ${storyId}.`);
   const result = await prisma.$transaction(async (tx) => {
     const count = await tx.storyImage.count({ where: { storyTeaId: storyId } });
@@ -66,17 +30,6 @@ export async function addStoryImage(publicId: string, order: number, storyId: st
     return imageCreated;
   });
   return result;
-}
-
-export async function editStoryImage(data: Prisma.StoryImageUncheckedUpdateInput, id: string): Promise<StoryImage> {
-  const imageUpdated = await prisma.storyImage.update({ data, where: { id } });
-  return imageUpdated;
-}
-
-export async function deleteStoryImage(id: string): Promise<StoryImage> {
-  const imageDeleted = await prisma.storyImage.delete({ where: { id } });
-  await deleteAsset(imageDeleted.publicId);
-  return imageDeleted;
 }
 
 export type StoryImageSlot = { id: string; kind: "existing" } | { kind: "new"; publicId: string };

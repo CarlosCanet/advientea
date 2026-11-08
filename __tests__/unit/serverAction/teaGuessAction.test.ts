@@ -4,7 +4,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { submitTeaGuess } from "@/app/actions/teaGuessActions";
 import { TeaIngredient } from "@/generated/prisma/client";
 import { Role, TeaType } from "@/generated/prisma/enums";
-import { createTeaGuess, requireSession, TeaGuessWithIngredients } from "@/lib/dal";
+import { createTeaGuess, requireSession, TeaGuessWithGuessedIngredients } from "@/lib/dal";
 import { UnauthenticatedError } from "@/lib/errors";
 import {
   calculatePointsFromGuess,
@@ -57,7 +57,7 @@ describe("teaGuessAction", () => {
     name: "ingredient2-id",
     updatedAt: new Date(),
   };
-  const mockTeaGuessCreated: TeaGuessWithIngredients = {
+  const mockTeaGuessCreated: TeaGuessWithGuessedIngredients = {
     createdAt: new Date(),
     dayId: "day-id",
     guessedIngredients: [mockIngredient1, mockIngredient2],

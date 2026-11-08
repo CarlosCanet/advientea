@@ -8,7 +8,7 @@ import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
 import { Role } from "@/generated/prisma/enums";
 import { auth } from "@/lib/auth";
-import { deleteAsset, uploadImageFile } from "@/lib/cloudinary";
+import { deleteAsset, uploadImage } from "@/lib/cloudinary";
 import { changeUserRole, editUser, requireRole, requireSession } from "@/lib/dal";
 import { ForbiddenError, UnauthenticatedError } from "@/lib/errors";
 import { signupFormSchema, updateProfileFormSchema } from "@/lib/schemas/auth";
@@ -54,7 +54,7 @@ export async function signup(
       username: validatedFields.data.username,
     });
     if (validatedFields.data.image) {
-      const imgPublicId = await uploadImageFile(validatedFields.data.image, "avatars");
+      const imgPublicId = await uploadImage(validatedFields.data.image, { kind: "avatars" });
       if (imgPublicId) {
         try {
           await editUser(user.id, { image: imgPublicId });
@@ -187,6 +187,14 @@ export async function updateUserProfile(
       };
     }
 
+    // The avatar goes up first: a failed upload changes nothing, while a password change cannot be undone.
+    if (validatedFields.data.image) {
+      newImageId = (await uploadImage(validatedFields.data.image, { kind: "avatars" })) ?? null;
+      if (!newImageId) {
+        return { inputs: rawData, message: "No se pudo subir la imagen. Inténtalo de nuevo.", success: false };
+      }
+    }
+
     if (validatedFields.data.currentPassword && validatedFields.data.newPassword) {
       await auth.api.changePassword({
         body: {
@@ -197,10 +205,6 @@ export async function updateUserProfile(
         headers: await headers(),
       });
       passwordChanged = true;
-    }
-
-    if (validatedFields.data.image) {
-      newImageId = (await uploadImageFile(validatedFields.data.image, "avatars")) ?? null;
     }
     await editUser(session.userId, {
       username: validatedFields.data.username,

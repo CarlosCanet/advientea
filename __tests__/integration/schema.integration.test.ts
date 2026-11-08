@@ -14,17 +14,18 @@ describe("Schema rules & constrains", () => {
       expect(teaCheck).toBeNull();
     });
 
-    it("should delete Assignments when User is deleted", async () => {
+    it("should keep the Assignment, without user, when the User is deleted", async () => {
+      // SetNull since the editions migration: the day and whatever hangs from it survive the user.
       const user = await prisma.user.findFirst({
         include: { daysAssigned: true },
         where: { daysAssigned: { some: {} } },
       });
       expect(user).not.toBeNull();
       expect(user!.daysAssigned.length).toBeGreaterThan(0);
-      const assignmentId = user!.daysAssigned[0].id;
+      const assignment = user!.daysAssigned[0];
       await prisma.user.delete({ where: { id: user!.id } });
-      const assignmentCheck = await prisma.dayAssignment.findUnique({ where: { id: assignmentId } });
-      expect(assignmentCheck).toBeNull();
+      const assignmentCheck = await prisma.dayAssignment.findUnique({ where: { id: assignment.id } });
+      expect(assignmentCheck).toMatchObject({ dayId: assignment.dayId, userId: null });
     });
   });
 

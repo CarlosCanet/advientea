@@ -2,19 +2,18 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BsCupHotFill } from "react-icons/bs";
-import { FaStore, FaUser } from "react-icons/fa";
+import { FaStore } from "react-icons/fa";
 import { MdComputer } from "react-icons/md";
 
 import StoryTeaComponent from "@/components/StoryTeaComponent";
 import TeaGuessCard from "@/components/TeaGuessCard";
-import TeaGuessForm from "@/components/TeaGuessForm";
 import Timer from "@/components/Timer";
+import AuthorName from "@/components/ui/AuthorName";
 import TeaInfusionInfo from "@/components/ui/TeaInfusionInfo";
 import WaitForDayToCome from "@/components/ui/WaitForDayToCome";
-import { Role } from "@/generated/prisma/enums";
 import { getAdvienteaDayState } from "@/lib/advientea-rules";
 import { auth } from "@/lib/auth";
-import { getDay, getUsernameAssignedToTea } from "@/lib/dal";
+import { getDayById, getEditionInfo, getUsernameAssignedToTea } from "@/lib/dal";
 
 interface TeaDayPageProps {
   params: Promise<{ dayId: string }>;
@@ -23,19 +22,23 @@ interface TeaDayPageProps {
 
 export default async function TeaDayPage({ params, searchParams }: TeaDayPageProps) {
   const { dayId } = await params;
-  const day = await getDay(dayId);
+  const day = await getDayById(dayId);
   if (!day) {
     notFound();
   }
   const simulated = Boolean((await searchParams).simulated);
   const tea = day.tea;
-  const userName = tea ? await getUsernameAssignedToTea(tea.id) : "";
   const session = await auth.api.getSession({ headers: await headers() });
-  const advienteaDayState = getAdvienteaDayState(day.dayNumber, day.year, session?.user.role as Role, simulated);
-
+  const advienteaDayState = getAdvienteaDayState(
+    day.dayNumber,
+    await getEditionInfo(day.year),
+    session?.user.role,
+    simulated,
+  );
   if (!advienteaDayState.isReleased) {
     return <WaitForDayToCome dayNumber={day.dayNumber} />;
   }
+  const userName = tea && advienteaDayState.isPersonNameReleased ? await getUsernameAssignedToTea(tea.id) : "";
 
   return (
     <div className="flex flex-col justify-center items-center mx-5 mt-5 gap-3">
@@ -48,12 +51,7 @@ export default async function TeaDayPage({ params, searchParams }: TeaDayPagePro
           ) : (
             <div className="skeleton skeleton-text font-[Griffy] text-2xl">Té desconocido</div>
           )}
-          {advienteaDayState.isPersonNameReleased && (
-            <div className="flex gap-2 items-center">
-              <FaUser />
-              {userName}
-            </div>
-          )}
+          {session && advienteaDayState.isPersonNameReleased && <AuthorName name={userName} />}
         </div>
       </div>
 
@@ -69,7 +67,7 @@ export default async function TeaDayPage({ params, searchParams }: TeaDayPagePro
         <>
           <div className="collapse collapse-arrow bg-base-100 w-full max-w-xl">
             <input defaultChecked={true} type="checkbox" />
-            <div className="collapse-title font-semibold text-4xl after:start-5 after:end-auto pe-4 ps-12">
+            <div className="collapse-title font-semibold text-4xl after:inset-s-5 after:inset-e-auto pe-4 ps-12">
               Informa<span className="italic">Té</span>
             </div>
             <div className="collapse-content text-sm">

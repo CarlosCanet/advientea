@@ -12,7 +12,7 @@ export default async function Users() {
   if (!session || !isUserPrivileged) {
     redirect("/");
   }
-  const users = await getAllUsers(isUserPrivileged);
+  const users = await getAllUsers();
 
   return (
     <div className="flex justify-center">
@@ -41,9 +41,11 @@ export default async function Users() {
                     <td>{user.username}</td>
                     <td>{user.email}</td>
                     <td className="text-center">
-                      <CheckboxUsersExecuteave role={user.role} userId={user.id} />
+                      {session.user.role === Role.ADMIN && (
+                        <CheckboxUsersExecuteave role={user.role} userId={user.id} />
+                      )}
                     </td>
-                    <td className="text-center">{user.daysAssigned[0]?.day.dayNumber}</td>
+                    <td className="text-center">{user.daysAssigned[0]?.day?.dayNumber}</td>
                   </tr>
                 );
               })}

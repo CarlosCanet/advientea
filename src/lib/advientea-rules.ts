@@ -1,4 +1,6 @@
-import { Role } from "@/generated/prisma/enums";
+import { EditionStatus, Role } from "@/generated/prisma/enums";
+
+import { getNow, toDateNumber, toEditionDate, toMadridDateTime } from "./advientea-time";
 
 export interface AdvienteaDayState {
   isPart1Released: boolean;
@@ -9,80 +11,81 @@ export interface AdvienteaDayState {
   isTeaReleased: boolean;
 }
 
-function getToday(): Date {
-  const today = new Date().getTime();
-  const TIME_OFFSET_HOURS = 1;
-  return new Date(today + TIME_OFFSET_HOURS * 3600000);
+export type EditionInfo = {
+  lastDayNumber: number;
+  status: EditionStatus;
+  year: number;
+};
+
+const HOURS = {
+  NAME: 20,
+  PART1: 7,
+  PART2: 13,
+  PART3: 18,
+  TEA: 20,
+};
+
+function allFlags(value: boolean): AdvienteaDayState {
+  return {
+    isPart1Released: value,
+    isPart2Released: value,
+    isPart3Released: value,
+    isPersonNameReleased: value,
+    isReleased: value,
+    isTeaReleased: value,
+  };
 }
 
-export function isDatePast(targetDate: Date): boolean {
-  const today = getToday();
-  today.setHours(0, 0, 0, 0);
-  const target = new Date(targetDate);
-  target.setHours(0, 0, 0, 0);
-  return today > target;
+function gatesAt(hour: number) {
+  return {
+    isPart1Released: hour >= HOURS.PART1,
+    isPart2Released: hour >= HOURS.PART2,
+    isPart3Released: hour >= HOURS.PART3,
+    isTeaReleased: hour >= HOURS.TEA,
+  };
 }
 
-export function isDateTodayOrPast(targetDate: Date): boolean {
-  const today = getToday();
-  today.setHours(0, 0, 0, 0);
-  const target = new Date(targetDate);
-  target.setHours(0, 0, 0, 0);
-  return today >= target;
+/** The calendar alone: what day N of the edition has released at `now`, whoever is looking. */
+export function getDaySchedule(dayNumber: number, edition: EditionInfo, now: Date): AdvienteaDayState {
+  if (edition.status === EditionStatus.ARCHIVED) {
+    return allFlags(true);
+  }
+  if (edition.status === EditionStatus.PREPARING) {
+    return allFlags(false);
+  }
+  const madrid = toMadridDateTime(now);
+  const today = toDateNumber(madrid);
+  const day = toDateNumber(toEditionDate(edition.year, dayNumber));
+  const lastDay = toDateNumber(toEditionDate(edition.year, edition.lastDayNumber));
+  const isPersonNameReleased = today > lastDay || (today === lastDay && madrid.hour >= HOURS.NAME);
+
+  if (today < day) {
+    return { ...allFlags(false), isPersonNameReleased };
+  }
+  if (today > day) {
+    return { ...allFlags(true), isPersonNameReleased };
+  }
+  return { isReleased: true, ...gatesAt(madrid.hour), isPersonNameReleased };
 }
 
+/** The calendar as a viewer sees it: anonymous visitors never get names, calendar managers may simulate. */
 export function getAdvienteaDayState(
   dayNumber: number,
-  year: number,
-  userRole: Role,
+  edition: EditionInfo,
+  userRole: Role | undefined,
   isSimulated = false,
+  now = getNow(),
 ): AdvienteaDayState {
-  const HOURS = {
-    NAME: 20,
-    PART1: 7,
-    PART2: 13,
-    PART3: 18,
-    TEA: 20,
-  };
-  const RELEASE_NAME_DAY = new Date(year, 11, 21);
-
-  const state: AdvienteaDayState = {
-    isPart1Released: false,
-    isPart2Released: false,
-    isPart3Released: false,
-    isPersonNameReleased: false,
-    isReleased: false,
-    isTeaReleased: false,
-  };
-
-  const today = getToday();
-  const currentHour = today.getHours();
-  const teaDate = new Date(year, 11, dayNumber);
-
-  const isExec = userRole === Role.ADMIN || userRole === Role.EXECUTEAVE;
-  const canBeSimulated = today > teaDate || isExec;
-
-  const effectiveDate = canBeSimulated && isSimulated ? today : teaDate;
-
-  const isDayReached = today >= effectiveDate;
-  const isPastDate = isDatePast(effectiveDate);
-
-  state.isReleased = isDayReached;
-
-  if (isPastDate && !isSimulated) {
-    state.isPart1Released = true;
-    state.isPart2Released = true;
-    state.isPart3Released = true;
-    state.isTeaReleased = true;
-  } else {
-    state.isPart1Released = currentHour >= HOURS.PART1;
-    state.isPart2Released = currentHour >= HOURS.PART2;
-    state.isPart3Released = currentHour >= HOURS.PART3;
-    state.isTeaReleased = currentHour >= HOURS.TEA;
+  let base = getDaySchedule(dayNumber, edition, now);
+  if (
+    isSimulated &&
+    edition.status !== EditionStatus.ARCHIVED &&
+    (userRole === Role.ADMIN || userRole === Role.EXECUTEAVE)
+  ) {
+    base = { ...base, isReleased: true, ...gatesAt(toMadridDateTime(now).hour) };
   }
-
-  state.isPersonNameReleased =
-    isDatePast(RELEASE_NAME_DAY) || (isDateTodayOrPast(RELEASE_NAME_DAY) && currentHour >= HOURS.NAME);
-
-  return state;
+  if (!userRole) {
+    base = { ...base, isPersonNameReleased: false };
+  }
+  return base;
 }

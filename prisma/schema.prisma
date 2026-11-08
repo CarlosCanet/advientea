@@ -10,10 +10,11 @@ datasource db {
 model Day {
   id        String @id @default(cuid())
   dayNumber Int
-  year      Int    @default(2025)
+  year      Int
 
   tea        Tea?
   assignment DayAssignment?
+  edition    Edition        @relation(fields: [year], references: [year], onDelete: Restrict)
 
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
@@ -60,11 +61,11 @@ model Tea {
 }
 
 model TeaIngredient {
-  id      String     @id @default(cuid())
-  name    String     @unique
+  id   String @id @default(cuid())
+  name String @unique
 
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 
   teas    Tea[]      @relation("TeaIngredients")
   guesses TeaGuess[] @relation("GuessedIngredients")
@@ -74,13 +75,15 @@ model DayAssignment {
   id        String   @id @default(cuid())
   userId    String?
   guestName String?
-  dayId     String   @unique
+  dayId     String?  @unique
   year      Int
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
-  day  Day   @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  user       User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+  day        Day?    @relation(fields: [dayId], references: [id], onDelete: SetNull)
+  edition    Edition @relation(fields: [year], references: [year], onDelete: Restrict)
+  guestToken String? @unique
 
   @@unique([userId, year])
   @@index([year])
@@ -132,13 +135,13 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  daysAssigned    DayAssignment[]
-  guesses         TeaGuess[]
+  daysAssigned  DayAssignment[]
+  guesses       TeaGuess[]
   // badges       UserBadge[]
-  name            String?
-  emailVerified   Boolean         @default(false)
-  sessions        Session[]
-  accounts        Account[]
+  name          String?
+  emailVerified Boolean         @default(false)
+  sessions      Session[]
+  accounts      Account[]
 
   @@map("user")
 }
@@ -156,8 +159,8 @@ model TeaGuess {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user        User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  day         Day   @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  day  Day  @relation(fields: [dayId], references: [id], onDelete: Cascade)
 
   @@index([dayId])
 }
@@ -232,4 +235,21 @@ model Verification {
 
   @@index([identifier])
   @@map("verification")
+}
+
+enum EditionStatus {
+  ACTIVE
+  ARCHIVED
+  PREPARING
+}
+
+model Edition {
+  year      Int           @id
+  name      String
+  status    EditionStatus @default(PREPARING)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @default(now()) @updatedAt
+
+  days        Day[]
+  assignments DayAssignment[]
 }
