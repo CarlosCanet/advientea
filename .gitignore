@@ -57,5 +57,5 @@ dev.db
 # lefthook per-machine overrides (e.g. no_tty on Windows)
 lefthook-local.yml
 
-# originals saved by scripts/cloudinary-move-2025.mjs --delete-old
+# originals of the 2025 Cloudinary assets removed when they moved to the edition folder (Nov 2026)
 .cloudinary-backup/
