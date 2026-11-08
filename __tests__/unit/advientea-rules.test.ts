@@ -1,7 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { EditionStatus, Role } from "@/generated/prisma/enums";
-import { type AdvienteaDayState, type EditionInfo, getAdvienteaDayState, getDaySchedule } from "@/lib/advientea-rules";
+import {
+  type AdvienteaDayState,
+  canEditTea,
+  type EditionInfo,
+  getAdvienteaDayState,
+  getDaySchedule,
+} from "@/lib/advientea-rules";
 import { getNow, toMadridDateTime } from "@/lib/advientea-time";
 import { calculateTimeScore } from "@/lib/tea-guess-scoring";
 
@@ -317,5 +323,34 @@ describe("calculateTimeScore", () => {
 
   it("uses the Madrid hour, not the machine's local hour", () => {
     expect(calculateTimeScore(new Date("2026-12-03T14:00:00Z"))).toBe(100);
+  });
+});
+
+describe("canEditTea", () => {
+  const current = 2026;
+  const ownCurrent = { editionYear: 2026, isOwn: true };
+  const otherCurrent = { editionYear: 2026, isOwn: false };
+  const ownArchived = { editionYear: 2025, isOwn: true };
+
+  it("lets an admin edit any tea, archived editions included", () => {
+    expect(canEditTea(Role.ADMIN, otherCurrent, current)).toBe(true);
+    expect(canEditTea(Role.ADMIN, ownArchived, current)).toBe(true);
+    expect(canEditTea(Role.ADMIN, ownArchived, undefined)).toBe(true);
+  });
+
+  it("lets a calendar manager edit every tea of the current edition and nothing else", () => {
+    expect(canEditTea(Role.EXECUTEAVE, otherCurrent, current)).toBe(true);
+    expect(canEditTea(Role.EXECUTEAVE, ownArchived, current)).toBe(false);
+    expect(canEditTea(Role.EXECUTEAVE, otherCurrent, undefined)).toBe(false);
+  });
+
+  it("lets a user edit only their own tea of the current edition", () => {
+    expect(canEditTea(Role.USER, ownCurrent, current)).toBe(true);
+    expect(canEditTea(Role.USER, otherCurrent, current)).toBe(false);
+    expect(canEditTea(Role.USER, ownArchived, current)).toBe(false);
+  });
+
+  it("never lets a visitor without an account edit", () => {
+    expect(canEditTea(undefined, ownCurrent, current)).toBe(false);
   });
 });

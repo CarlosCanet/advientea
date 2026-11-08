@@ -5,7 +5,8 @@ import EditTeaInfoForm from "@/components/EditTeaInfoForm";
 import WaitForDayAssignment from "@/components/ui/WaitForDayAssignment";
 import { Role } from "@/generated/prisma/enums";
 import { auth } from "@/lib/auth";
-import { getActiveEdition, getDayAssignmentByUserId, getTeaById, getUsernameAssignedToTea } from "@/lib/dal";
+import { getCurrentEdition, getDayAssignmentByUserId, getTeaById, getUsernameAssignedToTea } from "@/lib/dal";
+import { userCanEditTea } from "@/lib/services/tea-edit-service";
 
 async function EditTeaInfoDayPage({ params }: { params: Promise<{ teaId: string }> }) {
   const { teaId } = await params;
@@ -13,12 +14,9 @@ async function EditTeaInfoDayPage({ params }: { params: Promise<{ teaId: string 
   if (!session) {
     redirect("/");
   }
-  const edition = await getActiveEdition();
-  if (!edition) {
-    notFound();
-  }
+  const edition = await getCurrentEdition();
 
-  if (session.user.role === Role.USER) {
+  if (session.user.role === Role.USER && edition) {
     const assignment = await getDayAssignmentByUserId(session.user.id, edition.year);
     if (!assignment) {
       return <WaitForDayAssignment />;
@@ -29,7 +27,7 @@ async function EditTeaInfoDayPage({ params }: { params: Promise<{ teaId: string 
     }
   }
   const teaCompleteInfo = await getTeaById(teaId);
-  if (!teaCompleteInfo) {
+  if (!teaCompleteInfo || !(await userCanEditTea(session.user, teaCompleteInfo))) {
     notFound();
   }
   const username = await getUsernameAssignedToTea(teaId);
@@ -38,7 +36,6 @@ async function EditTeaInfoDayPage({ params }: { params: Promise<{ teaId: string 
     <div className="flex justify-center">
       <EditTeaInfoForm
         dayNumber={teaCompleteInfo.day?.dayNumber}
-        isExecuTEAve={session.user.role !== Role.USER}
         teaCompleteInfo={teaCompleteInfo}
         teaId={teaId}
         username={username || ""}

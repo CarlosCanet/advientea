@@ -1,10 +1,32 @@
 import { describe, expect, it } from "vitest";
 
 import { EditionStatus } from "@/generated/prisma/enums";
-import { upsertEdition } from "@/lib/dal";
+import { getCurrentEdition, upsertEdition } from "@/lib/dal";
 import { prisma } from "@/lib/prisma";
 
 describe("dal Edition", () => {
+  describe("getCurrentEdition", () => {
+    it("is the active edition when there is one", async () => {
+      // The seed makes 2025 the active edition.
+      await upsertEdition(2026, EditionStatus.PREPARING);
+
+      expect((await getCurrentEdition())?.year).toBe(2025);
+    });
+
+    it("is the edition being prepared while none is active", async () => {
+      await upsertEdition(2025, EditionStatus.ARCHIVED);
+      await upsertEdition(2026, EditionStatus.PREPARING);
+
+      expect((await getCurrentEdition())?.year).toBe(2026);
+    });
+
+    it("is null when every edition is archived", async () => {
+      await upsertEdition(2025, EditionStatus.ARCHIVED);
+
+      expect(await getCurrentEdition()).toBeNull();
+    });
+  });
+
   describe("upsertEdition", () => {
     it("creates the edition once and only updates its status on a second call", async () => {
       const created = await upsertEdition(2030, EditionStatus.PREPARING);

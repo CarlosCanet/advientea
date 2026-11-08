@@ -33,6 +33,11 @@ export const getUpcomingEdition = cache(async function getUpcomingEdition(): Pro
   return prisma.edition.findFirst({ orderBy: { year: "asc" }, where: { status: EditionStatus.PREPARING } });
 });
 
+/** The edition being worked on: the active one, or the one being prepared while none is active. */
+export const getCurrentEdition = cache(async function getCurrentEdition(): Promise<Edition | null> {
+  return (await getActiveEdition()) ?? getUpcomingEdition();
+});
+
 export async function upsertEdition(year: number, status: EditionStatus): Promise<Edition> {
   return prisma.edition.upsert({
     create: { name: `Advienté ${year}`, status, year },
