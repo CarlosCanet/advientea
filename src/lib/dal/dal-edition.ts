@@ -17,33 +17,24 @@ export async function createEdition(name: string, year: number): Promise<Edition
   }
 }
 
-export async function activateEdition(year: number): Promise<Edition> {
+export async function changeEditionStatus(year: number, status: EditionStatus): Promise<Edition> {
   return prisma.$transaction(async (tx) => {
     const edition = await tx.edition.findUnique({ where: { year } });
     if (!edition) {
       throw new ConflictError(`La edición ${year} no existe.`);
     }
-    if (edition.status !== EditionStatus.PREPARING) {
-      throw new ConflictError(`La edición ${year} no está en preparación.`);
+    if (edition.status === status) {
+      throw new ConflictError(`La edición ${year} ya tiene ese estado.`);
     }
-    const editionActive = await tx.edition.findFirst({ where: { status: EditionStatus.ACTIVE } });
-    if (editionActive) {
-      throw new ConflictError(`La edición ${editionActive.year} está activa. Debes archivarla antes de activar otra.`);
+    if (status === EditionStatus.ACTIVE) {
+      const editionActive = await tx.edition.findFirst({ where: { status: EditionStatus.ACTIVE } });
+      if (editionActive) {
+        throw new ConflictError(
+          `La edición ${editionActive.year} está activa. Debes cambiarle el estado antes de activar otra.`,
+        );
+      }
     }
-    return tx.edition.update({ data: { status: EditionStatus.ACTIVE }, where: { year } });
-  });
-}
-
-export async function archiveEdition(year: number): Promise<Edition> {
-  return prisma.$transaction(async (tx) => {
-    const edition = await tx.edition.findUnique({ where: { year } });
-    if (!edition) {
-      throw new ConflictError(`La edición ${year} no existe.`);
-    }
-    if (edition.status !== EditionStatus.ACTIVE) {
-      throw new ConflictError(`La edición ${year} no está activa y no puede archivarse.`);
-    }
-    return tx.edition.update({ data: { status: EditionStatus.ARCHIVED }, where: { year } });
+    return tx.edition.update({ data: { status }, where: { year } });
   });
 }
 

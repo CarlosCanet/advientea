@@ -2,11 +2,12 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { Role } from "@/generated/prisma/enums";
-import { activateEdition, archiveEdition, createEdition, deleteEdition, requireRole } from "@/lib/dal";
+import { EditionStatus, Role } from "@/generated/prisma/enums";
+import { changeEditionStatus, createEdition, deleteEdition, requireRole } from "@/lib/dal";
 import { ConflictError, ForbiddenError, UnauthenticatedError } from "@/lib/errors";
-import { editionFormSchema } from "@/lib/schemas/edition";
+import { editionFormSchema, editionStatusChangeSchema } from "@/lib/schemas/edition";
 import { ActionResponse, EditionActionResponse, EditionFormData } from "@/lib/types";
+import { EDITION_STATUS_LABELS } from "@/lib/utils";
 
 import { getFormNumber, getFormString } from "./commonActions";
 
@@ -53,25 +54,22 @@ export async function createEditionAction(
   }
 }
 
-export async function activateEditionAction(year: number): Promise<ActionResponse> {
+export async function changeEditionStatusAction(year: number, status: EditionStatus): Promise<ActionResponse> {
   try {
     await requireRole(Role.ADMIN);
-    await activateEdition(year);
+    const validatedFields = editionStatusChangeSchema.safeParse({ status, year });
+    if (!validatedFields.success) {
+      return { message: "El estado o el año no son válidos.", success: false };
+    }
+    const { status: newStatus, year: editionYear } = validatedFields.data;
+    await changeEditionStatus(editionYear, newStatus);
     revalidatePath("/editions");
-    return { message: `Edición ${year} activada.`, success: true };
+    return {
+      message: `La edición ${editionYear} ahora está ${EDITION_STATUS_LABELS[newStatus].toLowerCase()}.`,
+      success: true,
+    };
   } catch (error: unknown) {
-    return failure("activateEditionAction", error, "No se pudo activar la edición. Inténtalo de nuevo.");
-  }
-}
-
-export async function archiveEditionAction(year: number): Promise<ActionResponse> {
-  try {
-    await requireRole(Role.ADMIN);
-    await archiveEdition(year);
-    revalidatePath("/editions");
-    return { message: `Edición ${year} archivada.`, success: true };
-  } catch (error: unknown) {
-    return failure("archiveEditionAction", error, "No se pudo archivar la edición. Inténtalo de nuevo.");
+    return failure("changeEditionStatusAction", error, "No se pudo cambiar el estado. Inténtalo de nuevo.");
   }
 }
 

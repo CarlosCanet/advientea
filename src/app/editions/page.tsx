@@ -2,16 +2,18 @@ import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 
 import CreateEditionDialog from "@/components/CreateEditionDialog";
-import EditionStatusButton from "@/components/ui/EditionStatusButton";
+import DeleteEditionButton from "@/components/ui/DeleteEditionButton";
+import EditionStatusSelect from "@/components/ui/EditionStatusSelect";
 import { EditionStatus, Role } from "@/generated/prisma/enums";
 import { getNow, toMadridDateTime } from "@/lib/advientea-time";
 import { auth } from "@/lib/auth";
 import { getAllEditions } from "@/lib/dal";
+import { EDITION_STATUS_LABELS } from "@/lib/utils";
 
-const STATUS_LABELS: Record<EditionStatus, { className: string; label: string }> = {
-  [EditionStatus.ACTIVE]: { className: "badge-success", label: "Activa" },
-  [EditionStatus.ARCHIVED]: { className: "badge-ghost", label: "Archivada" },
-  [EditionStatus.PREPARING]: { className: "badge-warning", label: "En preparación" },
+const STATUS_BADGES: Record<EditionStatus, string> = {
+  [EditionStatus.ACTIVE]: "badge-success",
+  [EditionStatus.ARCHIVED]: "badge-ghost",
+  [EditionStatus.PREPARING]: "badge-warning",
 };
 
 export default async function EditionsPage() {
@@ -54,21 +56,17 @@ export default async function EditionsPage() {
                     <td className="tabular-nums">{edition.year}</td>
                     <td>{edition.name}</td>
                     <td>
-                      <span className={`badge ${STATUS_LABELS[edition.status].className}`}>
-                        {STATUS_LABELS[edition.status].label}
-                      </span>
+                      {isAdmin ? (
+                        <EditionStatusSelect status={edition.status} year={edition.year} />
+                      ) : (
+                        <span className={`badge ${STATUS_BADGES[edition.status]}`}>
+                          {EDITION_STATUS_LABELS[edition.status]}
+                        </span>
+                      )}
                     </td>
                     {isAdmin && (
                       <td className="text-right">
-                        {edition.status === EditionStatus.PREPARING && (
-                          <div className="flex justify-end gap-2">
-                            <EditionStatusButton change="activate" year={edition.year} />
-                            <EditionStatusButton change="delete" year={edition.year} />
-                          </div>
-                        )}
-                        {edition.status === EditionStatus.ACTIVE && (
-                          <EditionStatusButton change="archive" year={edition.year} />
-                        )}
+                        {edition.status === EditionStatus.PREPARING && <DeleteEditionButton year={edition.year} />}
                       </td>
                     )}
                   </tr>

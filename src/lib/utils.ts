@@ -1,3 +1,5 @@
+import { EditionStatus } from "@/generated/prisma/enums";
+
 export function getYouTubeId(url: string): null | string {
   if (!url) return null;
 
@@ -30,4 +32,10 @@ export const TEA_TYPE_LABELS: Record<string, string> = {
   RED: "Té Rojo (Pu-Ehr)",
   ROOIBOS: "Rooibos",
   WHITE: "Té Blanco",
+};
+
+export const EDITION_STATUS_LABELS: Record<EditionStatus, string> = {
+  [EditionStatus.ACTIVE]: "Activa",
+  [EditionStatus.ARCHIVED]: "Archivada",
+  [EditionStatus.PREPARING]: "En preparación",
 };

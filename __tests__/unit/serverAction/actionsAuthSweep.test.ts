@@ -24,10 +24,9 @@ const PUBLIC_ACTIONS: Record<string, string> = {
 
 // Require ADMIN or EXECUTEAVE. A USER must never get past the guard.
 const PRIVILEGED_ACTIONS: Record<string, string> = {
-  activateEditionAction: "ADMIN",
   addDaysAction: "ADMIN",
-  archiveEditionAction: "ADMIN",
   assignUserToDay: "ADMIN or EXECUTEAVE",
+  changeEditionStatusAction: "ADMIN",
   changeRoleAction: "ADMIN",
   createEditionAction: "ADMIN",
   deleteDayAction: "ADMIN",
@@ -38,14 +37,13 @@ const { DAL_FUNCTIONS, GUARDS, prismaTouched } = vi.hoisted(() => ({
   GUARDS: ["requireSession", "requireRole", "verifySession"] as const,
   // Every DAL export the action modules import. Keep in sync with their `@/lib/dal` imports.
   DAL_FUNCTIONS: [
-    "activateEdition",
     "add25Days",
     "addDay",
     "assignDay",
     "addStoryImage",
     "addStoryTea",
     "addTea",
-    "archiveEdition",
+    "changeEditionStatus",
     "changeUserRole",
     "createEdition",
     "createTeaGuess",

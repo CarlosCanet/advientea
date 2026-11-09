@@ -1,14 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { EditionStatus } from "@/generated/prisma/enums";
-import {
-  activateEdition,
-  archiveEdition,
-  createEdition,
-  deleteEdition,
-  getAllEditions,
-  upsertEdition,
-} from "@/lib/dal";
+import { changeEditionStatus, createEdition, deleteEdition, getAllEditions, upsertEdition } from "@/lib/dal";
 import { ConflictError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 
@@ -27,44 +20,39 @@ describe("dal Edition", () => {
     });
   });
 
-  describe("activateEdition", () => {
+  describe("changeEditionStatus", () => {
     it("activates an edition in preparation once no other is active", async () => {
       await upsertEdition(2025, EditionStatus.ARCHIVED);
       await createEdition("Advienté 2026", 2026);
 
-      const activated = await activateEdition(2026);
+      const activated = await changeEditionStatus(2026, EditionStatus.ACTIVE);
 
       expect(activated.status).toBe(EditionStatus.ACTIVE);
     });
 
-    it("refuses while another edition is active, naming it, and changes nothing", async () => {
+    it("refuses to activate while another edition is active, naming it, and changes nothing", async () => {
       await createEdition("Advienté 2026", 2026);
 
-      await expect(activateEdition(2026)).rejects.toThrow(/2025/);
-      await expect(activateEdition(2026)).rejects.toBeInstanceOf(ConflictError);
+      await expect(changeEditionStatus(2026, EditionStatus.ACTIVE)).rejects.toThrow(/2025/);
+      await expect(changeEditionStatus(2026, EditionStatus.ACTIVE)).rejects.toBeInstanceOf(ConflictError);
       expect((await prisma.edition.findUniqueOrThrow({ where: { year: 2026 } })).status).toBe(EditionStatus.PREPARING);
     });
 
-    it("refuses an edition that is not in preparation, or does not exist", async () => {
-      await upsertEdition(2025, EditionStatus.ARCHIVED);
-
-      await expect(activateEdition(2025)).rejects.toBeInstanceOf(ConflictError);
-      await expect(activateEdition(2031)).rejects.toBeInstanceOf(ConflictError);
-    });
-  });
-
-  describe("archiveEdition", () => {
-    it("archives the active edition", async () => {
-      const archived = await archiveEdition(2025);
-
-      expect(archived.status).toBe(EditionStatus.ARCHIVED);
+    it("moves editions backwards too: active to preparation, archived to active", async () => {
+      expect((await changeEditionStatus(2025, EditionStatus.PREPARING)).status).toBe(EditionStatus.PREPARING);
+      expect((await changeEditionStatus(2025, EditionStatus.ARCHIVED)).status).toBe(EditionStatus.ARCHIVED);
+      expect((await changeEditionStatus(2025, EditionStatus.ACTIVE)).status).toBe(EditionStatus.ACTIVE);
     });
 
-    it("refuses an edition that is not active", async () => {
+    it("archives an edition straight from preparation", async () => {
       await createEdition("Advienté 2026", 2026);
 
-      await expect(archiveEdition(2026)).rejects.toBeInstanceOf(ConflictError);
-      expect((await prisma.edition.findUniqueOrThrow({ where: { year: 2026 } })).status).toBe(EditionStatus.PREPARING);
+      expect((await changeEditionStatus(2026, EditionStatus.ARCHIVED)).status).toBe(EditionStatus.ARCHIVED);
+    });
+
+    it("refuses the status the edition already has, and a year with no edition", async () => {
+      await expect(changeEditionStatus(2025, EditionStatus.ACTIVE)).rejects.toBeInstanceOf(ConflictError);
+      await expect(changeEditionStatus(2031, EditionStatus.PREPARING)).rejects.toBeInstanceOf(ConflictError);
     });
   });
 
