@@ -89,3 +89,18 @@ export function getAdvienteaDayState(
   }
   return base;
 }
+
+/** Who may change a tea: admins always, managers any tea of an edition not archived, users only their own there. */
+export function canEditTea(role: Role | undefined, tea: { editionStatus: EditionStatus; isOwn: boolean }): boolean {
+  if (role === Role.ADMIN) {
+    return true;
+  }
+  const isOpen = tea.editionStatus !== EditionStatus.ARCHIVED;
+  if (role === Role.EXECUTEAVE) {
+    return isOpen;
+  }
+  if (role === Role.USER) {
+    return isOpen && tea.isOwn;
+  }
+  return false;
+}

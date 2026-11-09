@@ -26,8 +26,11 @@ const PUBLIC_ACTIONS: Record<string, string> = {
 const PRIVILEGED_ACTIONS: Record<string, string> = {
   addDaysAction: "ADMIN",
   assignUserToDay: "ADMIN or EXECUTEAVE",
+  changeEditionStatusAction: "ADMIN",
   changeRoleAction: "ADMIN",
+  createEditionAction: "ADMIN",
   deleteDayAction: "ADMIN",
+  deleteEditionAction: "ADMIN",
 };
 
 const { DAL_FUNCTIONS, GUARDS, prismaTouched } = vi.hoisted(() => ({
@@ -40,17 +43,20 @@ const { DAL_FUNCTIONS, GUARDS, prismaTouched } = vi.hoisted(() => ({
     "addStoryImage",
     "addStoryTea",
     "addTea",
+    "changeEditionStatus",
     "changeUserRole",
+    "createEdition",
     "createTeaGuess",
     "deleteDay",
+    "deleteEdition",
     "editStoryTea",
-    "editTea",
     "editUser",
     "getActiveEdition",
     "getDayAssignmentByUserId",
     "getTeaById",
     "replaceStoryImages",
     "unassignDay",
+    "updateTeaContent",
   ] as const,
   prismaTouched: vi.fn(),
 }));
@@ -97,13 +103,14 @@ vi.mock("@/lib/services/tea-guess-service", () => ({
 }));
 
 import * as authActions from "@/app/actions/authActions";
+import * as editionActions from "@/app/actions/editionActions";
 import * as teaGuessActions from "@/app/actions/teaGuessActions";
 import * as teaInfoActions from "@/app/actions/teaInfoActions";
 import * as cloudinary from "@/lib/cloudinary";
 import * as dal from "@/lib/dal";
 
 type ActionModule = Record<string, unknown>;
-const MODULES: Record<string, ActionModule> = { authActions, teaGuessActions, teaInfoActions };
+const MODULES: Record<string, ActionModule> = { authActions, editionActions, teaGuessActions, teaInfoActions };
 // commonActions.ts holds form-parsing helpers, not Server Actions.
 const NON_ACTION_FILES = new Set(["commonActions"]);
 const ACTIONS_DIR = path.join(process.cwd(), "src", "app", "actions");

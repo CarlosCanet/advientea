@@ -12,22 +12,21 @@ import {
   addStoryTea,
   addTea,
   assignDay,
-  DayYear,
   deleteDay,
   editStoryTea,
-  editTea,
   getActiveEdition,
-  getDayAssignmentByUserId,
   getTeaById,
   replaceStoryImages,
   requireRole,
   requireSession,
   StoryImageSlot,
   unassignDay,
+  updateTeaContent,
   verifySession,
 } from "@/lib/dal";
 import { ConflictError, ForbiddenError, UnauthenticatedError } from "@/lib/errors";
 import { teaInfoFormSchema } from "@/lib/schemas/tea";
+import { userCanEditTea } from "@/lib/services/tea-edit-service";
 import { ActionResponse, TeaInfoActionResponse, TeaInfoFormData } from "@/lib/types";
 
 import { getFormBoolean, getFormFilesByPrefix, getFormNumber, getFormString } from "./commonActions";
@@ -208,49 +207,26 @@ export async function editTeaInfoAction(
     const data = validatedFields.data;
     if (!data.teaId) throw new Error("Tea id is missing.");
 
-    const day = data.dayNumber;
     const currentTea = await getTeaById(data.teaId);
     if (!currentTea) throw new Error(`Cannot find tea with id ${data.teaId}`);
-    const isPrivileged = role === Role.ADMIN || role === Role.EXECUTEAVE;
-    if (!isPrivileged) {
-      if (!currentTea.day) throw new ForbiddenError("Sólo puedes editar tu día asignado.");
-      const assignment = await getDayAssignmentByUserId(userId, currentTea.day.year);
-      if (!assignment) throw new ForbiddenError("No tienes un día asignado para este año.");
-      if (currentTea.dayId !== assignment.dayId) {
-        throw new ForbiddenError("Sólo puedes editar tu día asignado.");
-      }
+    if (!currentTea.day || !(await userCanEditTea({ id: userId, role }, currentTea))) {
+      throw new ForbiddenError("No puedes editar este té.");
     }
-
+    const year = currentTea.day.year;
     let storyId = currentTea.story?.id || null;
-    // A tea without a day (guest teas) belongs to the active edition: its images and any new day go there.
-    const year = currentTea.day?.year ?? (await getActiveEdition())?.year;
-    if (year === undefined) {
-      throw new Error("Cannot edit a tea without an active edition.");
-    }
-    // Only managers move a tea, and only when the form asks for another day.
-    let newDay: DayYear | undefined = undefined;
-    if (isPrivileged && day !== currentTea.day?.dayNumber) {
-      newDay = { dayNumber: day, year };
-    }
-    const editedTea = await editTea(
-      {
-        addMilk: data.addMilk,
-        canReinfuse: data.canReinfuse,
-        hasTheine: data.hasTheine,
-        infusionTime: data.infusionTime,
-        moreIndications: data.moreIndications,
-        name: data.teaName,
-        reinfuseNumber: data.reinfuseNumber,
-        storeName: data.storeName,
-        temperature: data.temperature,
-        url: data.urlStore,
-      },
-      data.teaId,
-      newDay,
-    );
-    if (!editedTea) {
-      throw new Error("Cannot edit tea");
-    }
+
+    await updateTeaContent(data.teaId, {
+      addMilk: data.addMilk,
+      canReinfuse: data.canReinfuse,
+      hasTheine: data.hasTheine,
+      infusionTime: data.infusionTime,
+      moreIndications: data.moreIndications,
+      name: data.teaName,
+      reinfuseNumber: data.reinfuseNumber,
+      storeName: data.storeName,
+      temperature: data.temperature,
+      url: data.urlStore,
+    });
 
     if (data.storyPart1 || data.storyPart2 || data.storyPart3 || data.youtubeURL || data.onlyMusic) {
       const formStoryTea = {

@@ -5,19 +5,13 @@ import AddTeaInfoForm from "@/components/AddTeaInfoForm";
 import NoActiveEdition from "@/components/ui/NoActiveEdition";
 import { Role } from "@/generated/prisma/client";
 import { auth } from "@/lib/auth";
-import {
-  getActiveEdition,
-  getAllDayAssignment,
-  getDayAssignmentByUserId,
-  getUpcomingEdition,
-  getUsersBasic,
-} from "@/lib/dal";
+import { getActiveEdition, getAllDayAssignment, getDayAssignmentByUserId, getUsersBasic } from "@/lib/dal";
 
 async function AddTeaInfo() {
   const session = await auth.api.getSession({ headers: await headers() });
   const edition = await getActiveEdition();
   if (!edition) {
-    return <NoActiveEdition nextYear={(await getUpcomingEdition())?.year} />;
+    return <NoActiveEdition />;
   }
   let assignment;
   const isUserPrivileged = session?.user.role === Role.ADMIN || session?.user.role === Role.EXECUTEAVE;

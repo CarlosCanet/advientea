@@ -1,4 +1,4 @@
-import { Prisma } from "@/generated/prisma/client";
+import { Prisma, Tea } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 
 import { DayYear, getDayByDayNumber } from "./dal-day";
@@ -108,84 +108,32 @@ export async function addTeaComplete(
   return tea;
 }
 
-type EditTeaInput = Prisma.TeaUncheckedUpdateInput & { ingredientIds?: Array<string> };
-export async function editTea(
-  dataWithIngredients: EditTeaInput,
-  id: string,
-  newDayYear?: DayYear,
-): Promise<null | TeaWithDayAndIngredients> {
-  const { ingredientIds, ...data } = dataWithIngredients;
-  const currentTea = await prisma.tea.findUnique({ select: { dayId: true }, where: { id } });
-  if (!currentTea) throw new Error(`No tea found for id ${id}`);
-  const result = await prisma.$transaction(async (tx) => {
-    if (newDayYear) {
-      const dayRecord = await tx.day.findFirst({
-        include: { assignment: true, tea: true },
-        where: { dayNumber: newDayYear.dayNumber, year: newDayYear.year },
-      });
-      if (!dayRecord) throw new Error(`Day ${newDayYear.dayNumber}/${newDayYear.year} not found`);
-      if (dayRecord.tea && dayRecord.tea.id !== id)
-        throw new Error(`Day ${newDayYear.dayNumber}/${newDayYear.year} already has a tea`);
-      if (dayRecord.assignment) throw new Error(`Day ${newDayYear.dayNumber} already has a user assigned`);
-      delete data.dayId;
-      data.dayId = dayRecord.id;
-
-      if (currentTea.dayId) {
-        const oldAssignment = await tx.dayAssignment.findUnique({ where: { dayId: currentTea.dayId } });
-        if (oldAssignment) {
-          await tx.dayAssignment.update({
-            data: { dayId: dayRecord.id },
-            where: { id: oldAssignment.id },
-          });
-        }
-      }
-    }
-    const teaUpdated = await tx.tea.update({
-      data: {
-        ...data,
-        ingredients: ingredientIds ? { set: ingredientIds.map((id) => ({ id })) } : undefined,
-      },
-      include: teaWithDayAndIngredientsInclude,
-      where: { id },
-    });
-    return teaUpdated;
-  });
-  return result;
-}
-
-export async function editTeaComplete(
-  id: string,
-  dataWithIngredients: EditTeaInput,
-  storyData: Prisma.StoryTeaCreateWithoutTeaInput,
-  storyImagesData: Array<Prisma.StoryImageCreateWithoutStoryInput>,
-): Promise<TeaWithDayAndIngredientsAndStoryImages> {
-  const { ingredientIds, ...teaData } = dataWithIngredients;
-  const tea = await prisma.tea.update({
+export type TeaContentInput = Partial<
+  Pick<
+    Tea,
+    | "addMilk"
+    | "canReinfuse"
+    | "hasTheine"
+    | "infusionTime"
+    | "moreIndications"
+    | "name"
+    | "reinfuseNumber"
+    | "storeName"
+    | "teaType"
+    | "temperature"
+    | "url"
+  >
+> & { ingredientIds?: Array<string> };
+export async function updateTeaContent(id: string, content: TeaContentInput): Promise<TeaWithDayAndIngredients> {
+  const { ingredientIds, ...fields } = content;
+  return prisma.tea.update({
     data: {
-      ...teaData,
-      ingredients: ingredientIds ? { set: ingredientIds.map((id) => ({ id })) } : undefined,
-      story: {
-        upsert: {
-          create: {
-            ...storyData,
-            images: {
-              create: storyImagesData,
-            },
-          },
-          update: {
-            ...storyData,
-            images: {
-              create: storyImagesData,
-              deleteMany: {},
-            },
-          },
-        },
-      },
+      ...fields,
+      ingredients: ingredientIds ? { set: ingredientIds.map((ingredientId) => ({ id: ingredientId })) } : undefined,
     },
-    include: teaWithDayAndIngredientsAndStoryImagesInclude,
+    include: teaWithDayAndIngredientsInclude,
     where: { id },
   });
-  return tea;
 }
 
 export async function deleteTea(id: string): Promise<TeaWithDayAndIngredients> {

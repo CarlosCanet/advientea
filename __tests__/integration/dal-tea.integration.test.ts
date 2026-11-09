@@ -1,7 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 
 import { TeaType } from "@/generated/prisma/enums";
-import { addTea, editTea } from "@/lib/dal";
+import { addTea, type TeaContentInput, updateTeaContent } from "@/lib/dal";
 import { prisma } from "@/lib/prisma";
 
 describe("dal Tea", () => {
@@ -75,66 +75,51 @@ describe("dal Tea", () => {
     });
   });
 
-  describe("editTea", () => {
-    it("should update basic fields correctly", async () => {
-      const result = await addTea(
-        {
-          addMilk: true,
-          canReinfuse: true,
-          hasTheine: true,
-          infusionTime: 1,
-          name: "Tea 21",
-          teaType: TeaType.BLACK,
-          temperature: 1,
-        },
-        [],
-        {
-          dayNumber: 21,
-          year: 2025,
-        },
-      );
-      await editTea({ teaType: TeaType.GREEN }, result!.id, { dayNumber: 21, year: 2025 });
-      const editedTea = await prisma.tea.findUnique({ where: { id: result!.id } });
-      expect(editedTea!.teaType).toBe(TeaType.GREEN);
+  describe("updateTeaContent", () => {
+    // The seed puts a tea with ingredients and a story on day 1 of 2025, assigned to the manager.
+    async function seededTea() {
+      return prisma.tea.findFirstOrThrow({
+        include: { day: { include: { assignment: true } }, ingredients: true },
+        where: { day: { dayNumber: 1, year: 2025 } },
+      });
+    }
+
+    it("updates the tea's content", async () => {
+      const tea = await seededTea();
+
+      await updateTeaContent(tea.id, { name: "Té editado", teaType: TeaType.GREEN, temperature: 70 });
+
+      const edited = await prisma.tea.findUniqueOrThrow({ where: { id: tea.id } });
+      expect(edited).toMatchObject({ name: "Té editado", teaType: TeaType.GREEN, temperature: 70 });
     });
 
-    it("should replace ingredients correctly", async () => {
-      const apple = await prisma.teaIngredient.findUniqueOrThrow({ where: { name: "Manzana" } });
-      const chocolate = await prisma.teaIngredient.findUniqueOrThrow({ where: { name: "Chocolate" } });
+    it("replaces the ingredients with the given list", async () => {
+      const tea = await seededTea();
       const lemon = await prisma.teaIngredient.findUniqueOrThrow({ where: { name: "Limón" } });
       const orange = await prisma.teaIngredient.findUniqueOrThrow({ where: { name: "Naranja" } });
-      const result = await addTea(
-        {
-          addMilk: true,
-          canReinfuse: true,
-          hasTheine: true,
-          infusionTime: 1,
-          name: "Tea 21",
-          teaType: TeaType.BLACK,
-          temperature: 1,
-        },
-        [apple.id, chocolate.id],
-        {
-          dayNumber: 21,
-          year: 2025,
-        },
-      );
-      await editTea({ ingredientIds: [apple.id, lemon.id, orange.id] }, result!.id);
-      const editedTea = await prisma.tea.findUnique({ include: { ingredients: true }, where: { id: result!.id } });
-      expect(editedTea!.ingredients).toHaveLength(3);
-      const ingredientsName = editedTea!.ingredients.map((ingredient) => ingredient.name);
-      expect(ingredientsName).toContain("Manzana");
-      expect(ingredientsName).toContain("Limón");
-      expect(ingredientsName).toContain("Naranja");
-      expect(ingredientsName).not.toContain("Chocolate");
+
+      await updateTeaContent(tea.id, { ingredientIds: [lemon.id, orange.id] });
+
+      const edited = await prisma.tea.findUniqueOrThrow({ include: { ingredients: true }, where: { id: tea.id } });
+      expect(edited.ingredients.map((ingredient) => ingredient.name).toSorted()).toEqual(["Limón", "Naranja"]);
     });
 
-    // it("should move tea from one day to another", async () => {
+    it("leaves the day and its assignment where they were", async () => {
+      const tea = await seededTea();
 
-    // });
+      await updateTeaContent(tea.id, { name: "Té editado" });
 
-    // it("should prevent moving tea to an occupied day", async () => {
+      const after = await prisma.tea.findUniqueOrThrow({
+        include: { day: { include: { assignment: true } } },
+        where: { id: tea.id },
+      });
+      expect(after.dayId).toBe(tea.dayId);
+      expect(after.day?.assignment?.id).toBe(tea.day?.assignment?.id);
+    });
 
-    // });
+    it("cannot be asked to move the tea: the content type has no day", () => {
+      expectTypeOf<TeaContentInput>().not.toHaveProperty("dayId");
+      expectTypeOf<TeaContentInput>().not.toHaveProperty("day");
+    });
   });
 });

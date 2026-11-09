@@ -1,7 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { EditionStatus, Role } from "@/generated/prisma/enums";
-import { type AdvienteaDayState, type EditionInfo, getAdvienteaDayState, getDaySchedule } from "@/lib/advientea-rules";
+import {
+  type AdvienteaDayState,
+  canEditTea,
+  type EditionInfo,
+  getAdvienteaDayState,
+  getDaySchedule,
+} from "@/lib/advientea-rules";
 import { getNow, toMadridDateTime } from "@/lib/advientea-time";
 import { calculateTimeScore } from "@/lib/tea-guess-scoring";
 
@@ -317,5 +323,36 @@ describe("calculateTimeScore", () => {
 
   it("uses the Madrid hour, not the machine's local hour", () => {
     expect(calculateTimeScore(new Date("2026-12-03T14:00:00Z"))).toBe(100);
+  });
+});
+
+describe("canEditTea", () => {
+  const ownPreparing = { editionStatus: EditionStatus.PREPARING, isOwn: true };
+  const ownActive = { editionStatus: EditionStatus.ACTIVE, isOwn: true };
+  const otherPreparing = { editionStatus: EditionStatus.PREPARING, isOwn: false };
+  const otherActive = { editionStatus: EditionStatus.ACTIVE, isOwn: false };
+  const ownArchived = { editionStatus: EditionStatus.ARCHIVED, isOwn: true };
+  const otherArchived = { editionStatus: EditionStatus.ARCHIVED, isOwn: false };
+
+  it("lets an admin edit any tea, archived editions included", () => {
+    expect(canEditTea(Role.ADMIN, otherActive)).toBe(true);
+    expect(canEditTea(Role.ADMIN, otherArchived)).toBe(true);
+  });
+
+  it("lets a calendar manager edit every tea of an edition that is not archived", () => {
+    expect(canEditTea(Role.EXECUTEAVE, otherPreparing)).toBe(true);
+    expect(canEditTea(Role.EXECUTEAVE, otherActive)).toBe(true);
+    expect(canEditTea(Role.EXECUTEAVE, otherArchived)).toBe(false);
+  });
+
+  it("lets a user edit only their own tea of an edition that is not archived", () => {
+    expect(canEditTea(Role.USER, ownPreparing)).toBe(true);
+    expect(canEditTea(Role.USER, ownActive)).toBe(true);
+    expect(canEditTea(Role.USER, otherActive)).toBe(false);
+    expect(canEditTea(Role.USER, ownArchived)).toBe(false);
+  });
+
+  it("never lets a visitor without an account edit", () => {
+    expect(canEditTea(undefined, ownActive)).toBe(false);
   });
 });
