@@ -182,3 +182,27 @@ export interface RankingEntry {
   userId: string;
   username: string;
 }
+
+export interface EditionFormData {
+  name: string;
+  year: number;
+}
+
+export interface EditionActionResponse {
+  errors?: {
+    errors: Array<string>;
+    properties?: {
+      [K in keyof EditionFormData]?: {
+        errors: Array<string>;
+      };
+    };
+  };
+  inputs?: EditionFormData;
+  message: string;
+  success: boolean;
+}
+
+export const initialEditionActionResponse: EditionActionResponse = {
+  message: "",
+  success: false,
+};

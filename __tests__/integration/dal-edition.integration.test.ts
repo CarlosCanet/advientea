@@ -1,10 +1,82 @@
 import { describe, expect, it } from "vitest";
 
 import { EditionStatus } from "@/generated/prisma/enums";
-import { getCurrentEdition, upsertEdition } from "@/lib/dal";
+import {
+  activateEdition,
+  archiveEdition,
+  createEdition,
+  getAllEditions,
+  getCurrentEdition,
+  upsertEdition,
+} from "@/lib/dal";
+import { ConflictError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 
 describe("dal Edition", () => {
+  // The seed makes 2025 the active edition before every test.
+  describe("createEdition", () => {
+    it("creates the edition in preparation, with its year and name", async () => {
+      const created = await createEdition("Advienté de los cerezos", 2026);
+
+      expect(created).toMatchObject({ name: "Advienté de los cerezos", status: EditionStatus.PREPARING, year: 2026 });
+    });
+
+    it("refuses a year that already has an edition", async () => {
+      await expect(createEdition("Otra 2025", 2025)).rejects.toBeInstanceOf(ConflictError);
+      expect(await prisma.edition.count({ where: { year: 2025 } })).toBe(1);
+    });
+  });
+
+  describe("activateEdition", () => {
+    it("activates an edition in preparation once no other is active", async () => {
+      await upsertEdition(2025, EditionStatus.ARCHIVED);
+      await createEdition("Advienté 2026", 2026);
+
+      const activated = await activateEdition(2026);
+
+      expect(activated.status).toBe(EditionStatus.ACTIVE);
+    });
+
+    it("refuses while another edition is active, naming it, and changes nothing", async () => {
+      await createEdition("Advienté 2026", 2026);
+
+      await expect(activateEdition(2026)).rejects.toThrow(/2025/);
+      await expect(activateEdition(2026)).rejects.toBeInstanceOf(ConflictError);
+      expect((await prisma.edition.findUniqueOrThrow({ where: { year: 2026 } })).status).toBe(EditionStatus.PREPARING);
+    });
+
+    it("refuses an edition that is not in preparation, or does not exist", async () => {
+      await upsertEdition(2025, EditionStatus.ARCHIVED);
+
+      await expect(activateEdition(2025)).rejects.toBeInstanceOf(ConflictError);
+      await expect(activateEdition(2031)).rejects.toBeInstanceOf(ConflictError);
+    });
+  });
+
+  describe("archiveEdition", () => {
+    it("archives the active edition", async () => {
+      const archived = await archiveEdition(2025);
+
+      expect(archived.status).toBe(EditionStatus.ARCHIVED);
+    });
+
+    it("refuses an edition that is not active", async () => {
+      await createEdition("Advienté 2026", 2026);
+
+      await expect(archiveEdition(2026)).rejects.toBeInstanceOf(ConflictError);
+      expect((await prisma.edition.findUniqueOrThrow({ where: { year: 2026 } })).status).toBe(EditionStatus.PREPARING);
+    });
+  });
+
+  describe("getAllEditions", () => {
+    it("lists every edition, the newest first", async () => {
+      await createEdition("Advienté 2027", 2027);
+      await createEdition("Advienté 2026", 2026);
+
+      expect((await getAllEditions()).map((edition) => edition.year)).toEqual([2027, 2026, 2025]);
+    });
+  });
+
   describe("getCurrentEdition", () => {
     it("is the active edition when there is one", async () => {
       // The seed makes 2025 the active edition.

@@ -1,11 +1,58 @@
 import { cache } from "react";
 
-import { Edition, EditionStatus } from "@/generated/prisma/client";
+import { Edition, EditionStatus, Prisma } from "@/generated/prisma/client";
 import { EditionInfo } from "@/lib/advientea-rules";
+import { ConflictError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
+
+export async function createEdition(name: string, year: number): Promise<Edition> {
+  try {
+    const data = await prisma.edition.create({ data: { name, status: EditionStatus.PREPARING, year } });
+    return data;
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      throw new ConflictError(`La edición ${year} ya existe.`);
+    }
+    throw error;
+  }
+}
+
+export async function activateEdition(year: number): Promise<Edition> {
+  return prisma.$transaction(async (tx) => {
+    const edition = await tx.edition.findUnique({ where: { year } });
+    if (!edition) {
+      throw new ConflictError(`La edición ${year} no existe.`);
+    }
+    if (edition.status !== EditionStatus.PREPARING) {
+      throw new ConflictError(`La edición ${year} no está en preparación.`);
+    }
+    const editionActive = await tx.edition.findFirst({ where: { status: EditionStatus.ACTIVE } });
+    if (editionActive) {
+      throw new ConflictError(`La edición ${editionActive.year} está activa. Debes archivarla antes de activar otra.`);
+    }
+    return tx.edition.update({ data: { status: EditionStatus.ACTIVE }, where: { year } });
+  });
+}
+
+export async function archiveEdition(year: number): Promise<Edition> {
+  return prisma.$transaction(async (tx) => {
+    const edition = await tx.edition.findUnique({ where: { year } });
+    if (!edition) {
+      throw new ConflictError(`La edición ${year} no existe.`);
+    }
+    if (edition.status !== EditionStatus.ACTIVE) {
+      throw new ConflictError(`La edición ${year} no está activa y no puede archivarse.`);
+    }
+    return tx.edition.update({ data: { status: EditionStatus.ARCHIVED }, where: { year } });
+  });
+}
 
 export async function getEdition(year: number): Promise<Edition | null> {
   return prisma.edition.findUnique({ where: { year } });
+}
+
+export async function getAllEditions(): Promise<Array<Edition>> {
+  return prisma.edition.findMany({ orderBy: { year: "desc" } });
 }
 
 export const getActiveEdition = cache(async function getActiveEdition(): Promise<Edition | null> {
