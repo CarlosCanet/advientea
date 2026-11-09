@@ -11,7 +11,7 @@ export async function setup() {
 
   console.log("🚀 [Global Setup] Running migrations...");
   try {
-    execSync("pnpm dotenv -e .env.test -- prisma migrate deploy", { stdio: "inherit" });
+    execSync("pnpm dotenv -e .env.test.local -e .env.test -- prisma migrate deploy", { stdio: "inherit" });
   } catch (e) {
     console.error("❌ Error running migrations.");
     throw e;
