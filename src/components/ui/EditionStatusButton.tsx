@@ -2,16 +2,27 @@
 
 import { useTransition } from "react";
 
-import { activateEditionAction, archiveEditionAction } from "@/app/actions/editionActions";
+import { activateEditionAction, archiveEditionAction, deleteEditionAction } from "@/app/actions/editionActions";
+import { ActionResponse } from "@/lib/types";
 
 import ActionToast, { useActionToast } from "./ActionToast";
 
+type EditionChange = "activate" | "archive" | "delete";
+
 interface EditionStatusButtonProps {
-  change: "activate" | "archive";
+  change: EditionChange;
   year: number;
 }
 
-const CHANGES = {
+const CHANGES: Record<
+  EditionChange,
+  {
+    action: (year: number) => Promise<ActionResponse>;
+    className?: string;
+    confirm: (year: number) => string;
+    label: string;
+  }
+> = {
   activate: {
     action: activateEditionAction,
     confirm: (year: number) => `¿Activar la edición ${year}? El calendario se abrirá el 1 de diciembre de ${year}.`,
@@ -23,12 +34,18 @@ const CHANGES = {
       `¿Archivar la edición ${year}? Quedará cerrada y todo su contenido se mostrará revelado.`,
     label: "Archivar",
   },
+  delete: {
+    action: deleteEditionAction,
+    className: "btn-error btn-outline",
+    confirm: (year: number) => `¿Borrar la edición ${year}? Solo se puede si todavía no tiene días ni inscritos.`,
+    label: "Borrar",
+  },
 };
 
 export default function EditionStatusButton({ change, year }: EditionStatusButtonProps) {
   const [isPending, startTransition] = useTransition();
   const { showToast, toast } = useActionToast();
-  const { action, confirm, label } = CHANGES[change];
+  const { action, className, confirm, label } = CHANGES[change];
 
   const onClick = () => {
     if (!window.confirm(confirm(year))) {
@@ -41,7 +58,7 @@ export default function EditionStatusButton({ change, year }: EditionStatusButto
 
   return (
     <>
-      <button className="btn btn-sm" disabled={isPending} onClick={onClick} type="button">
+      <button className={`btn btn-sm ${className ?? ""}`} disabled={isPending} onClick={onClick} type="button">
         {label}
       </button>
       <ActionToast toast={toast} />

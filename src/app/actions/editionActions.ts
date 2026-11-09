@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { Role } from "@/generated/prisma/enums";
-import { activateEdition, archiveEdition, createEdition, requireRole } from "@/lib/dal";
+import { activateEdition, archiveEdition, createEdition, deleteEdition, requireRole } from "@/lib/dal";
 import { ConflictError, ForbiddenError, UnauthenticatedError } from "@/lib/errors";
 import { editionFormSchema } from "@/lib/schemas/edition";
 import { ActionResponse, EditionActionResponse, EditionFormData } from "@/lib/types";
@@ -72,5 +72,16 @@ export async function archiveEditionAction(year: number): Promise<ActionResponse
     return { message: `Edición ${year} archivada.`, success: true };
   } catch (error: unknown) {
     return failure("archiveEditionAction", error, "No se pudo archivar la edición. Inténtalo de nuevo.");
+  }
+}
+
+export async function deleteEditionAction(year: number): Promise<ActionResponse> {
+  try {
+    await requireRole(Role.ADMIN);
+    await deleteEdition(year);
+    revalidatePath("/editions");
+    return { message: `Edición ${year} borrada.`, success: true };
+  } catch (error: unknown) {
+    return failure("deleteEditionAction", error, "No se pudo borrar la edición. Inténtalo de nuevo.");
   }
 }

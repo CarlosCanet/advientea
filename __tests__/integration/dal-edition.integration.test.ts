@@ -5,6 +5,7 @@ import {
   activateEdition,
   archiveEdition,
   createEdition,
+  deleteEdition,
   getAllEditions,
   getCurrentEdition,
   upsertEdition,
@@ -65,6 +66,47 @@ describe("dal Edition", () => {
 
       await expect(archiveEdition(2026)).rejects.toBeInstanceOf(ConflictError);
       expect((await prisma.edition.findUniqueOrThrow({ where: { year: 2026 } })).status).toBe(EditionStatus.PREPARING);
+    });
+  });
+
+  describe("deleteEdition", () => {
+    it("deletes an empty edition in preparation", async () => {
+      await createEdition("Advienté 2026", 2026);
+
+      const deleted = await deleteEdition(2026);
+
+      expect(deleted.year).toBe(2026);
+      expect(await prisma.edition.count({ where: { year: 2026 } })).toBe(0);
+    });
+
+    it("refuses an empty edition that is active or archived", async () => {
+      await upsertEdition(2025, EditionStatus.ARCHIVED);
+      await upsertEdition(2026, EditionStatus.ACTIVE);
+      await upsertEdition(2027, EditionStatus.ARCHIVED);
+
+      await expect(deleteEdition(2026)).rejects.toBeInstanceOf(ConflictError);
+      await expect(deleteEdition(2027)).rejects.toBeInstanceOf(ConflictError);
+      expect(await prisma.edition.count({ where: { year: { in: [2026, 2027] } } })).toBe(2);
+    });
+
+    it("refuses an edition in preparation that already has a day", async () => {
+      await createEdition("Advienté 2026", 2026);
+      await prisma.day.create({ data: { dayNumber: 1, year: 2026 } });
+
+      await expect(deleteEdition(2026)).rejects.toBeInstanceOf(ConflictError);
+      expect(await prisma.edition.count({ where: { year: 2026 } })).toBe(1);
+    });
+
+    it("refuses an edition in preparation that already has someone enrolled without a day", async () => {
+      await createEdition("Advienté 2026", 2026);
+      await prisma.dayAssignment.create({ data: { guestName: "Prima Lejana", year: 2026 } });
+
+      await expect(deleteEdition(2026)).rejects.toBeInstanceOf(ConflictError);
+      expect(await prisma.edition.count({ where: { year: 2026 } })).toBe(1);
+    });
+
+    it("refuses a year with no edition", async () => {
+      await expect(deleteEdition(2031)).rejects.toBeInstanceOf(ConflictError);
     });
   });
 

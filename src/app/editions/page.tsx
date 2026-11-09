@@ -61,7 +61,10 @@ export default async function EditionsPage() {
                     {isAdmin && (
                       <td className="text-right">
                         {edition.status === EditionStatus.PREPARING && (
-                          <EditionStatusButton change="activate" year={edition.year} />
+                          <div className="flex justify-end gap-2">
+                            <EditionStatusButton change="activate" year={edition.year} />
+                            <EditionStatusButton change="delete" year={edition.year} />
+                          </div>
                         )}
                         {edition.status === EditionStatus.ACTIVE && (
                           <EditionStatusButton change="archive" year={edition.year} />

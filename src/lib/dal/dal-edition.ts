@@ -47,6 +47,33 @@ export async function archiveEdition(year: number): Promise<Edition> {
   });
 }
 
+export async function deleteEdition(year: number): Promise<Edition> {
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const edition = await tx.edition.findUnique({
+        include: { _count: { select: { assignments: true, days: true } } },
+        where: { year },
+      });
+      if (!edition) {
+        throw new ConflictError(`La edición ${year} no existe.`);
+      }
+      if (edition.status !== EditionStatus.PREPARING) {
+        throw new ConflictError(`La edición ${year} no está en preparación y no puede borrarse.`);
+      }
+      if (edition._count.days > 0 || edition._count.assignments > 0) {
+        throw new ConflictError(`La edición ${year} ya tiene días o inscritos y no puede borrarse.`);
+      }
+      return tx.edition.delete({ where: { year } });
+    });
+  } catch (error) {
+    // A day or an enrolment created after the count still trips the Restrict foreign keys.
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003") {
+      throw new ConflictError(`La edición ${year} ya tiene días o inscritos y no puede borrarse.`);
+    }
+    throw error;
+  }
+}
+
 export async function getEdition(year: number): Promise<Edition | null> {
   return prisma.edition.findUnique({ where: { year } });
 }
