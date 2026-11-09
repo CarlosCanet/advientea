@@ -4,9 +4,9 @@ import { ChangeEvent, useRef, useState, useTransition } from "react";
 
 import { changeEditionStatusAction } from "@/app/actions/editionActions";
 import { EditionStatus } from "@/generated/prisma/enums";
+import { showActionToast } from "@/lib/action-toast";
 import { EDITION_STATUS_LABELS } from "@/lib/utils";
 
-import ActionToast, { useActionToast } from "./ActionToast";
 import ConfirmDialog from "./ConfirmDialog";
 
 interface EditionStatusSelectProps {
@@ -29,7 +29,6 @@ export default function EditionStatusSelect({ status, year }: EditionStatusSelec
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [target, setTarget] = useState<EditionStatus>(status);
   const [isPending, startTransition] = useTransition();
-  const { showToast, toast } = useActionToast();
 
   const onChange = (event: ChangeEvent<HTMLSelectElement>) => {
     setTarget(event.target.value as EditionStatus);
@@ -38,7 +37,7 @@ export default function EditionStatusSelect({ status, year }: EditionStatusSelec
 
   const onConfirm = () => {
     startTransition(async () => {
-      showToast(await changeEditionStatusAction(year, target));
+      showActionToast(await changeEditionStatusAction(year, target));
     });
   };
 
@@ -65,7 +64,6 @@ export default function EditionStatusSelect({ status, year }: EditionStatusSelec
         ref={dialogRef}
         title={`¿Pasar la edición ${year} a «${EDITION_STATUS_LABELS[target]}»?`}
       />
-      <ActionToast toast={toast} />
     </>
   );
 }

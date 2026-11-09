@@ -3,8 +3,7 @@
 import { useTransition } from "react";
 
 import { addDaysAction } from "@/app/actions/teaInfoActions";
-
-import ActionToast, { useActionToast } from "./ActionToast";
+import { showActionToast } from "@/lib/action-toast";
 
 interface ButtonAddDaysProps {
   daysNumber: number;
@@ -13,22 +12,19 @@ interface ButtonAddDaysProps {
 
 export default function ButtonAddDays({ daysNumber, year }: ButtonAddDaysProps) {
   const [isPending, startTransition] = useTransition();
-  const { showToast, toast } = useActionToast();
 
   const addDays = () => {
     startTransition(async () => {
-      showToast(await addDaysAction(year));
+      showActionToast(await addDaysAction(year));
     });
   };
 
+  if (daysNumber >= 25) {
+    return null;
+  }
   return (
-    <>
-      {daysNumber < 25 && (
-        <button className="btn btn-primary" disabled={isPending} onClick={addDays} type="button">
-          Crear 25 días
-        </button>
-      )}
-      <ActionToast toast={toast} />
-    </>
+    <button className="btn btn-primary" disabled={isPending} onClick={addDays} type="button">
+      Crear 25 días
+    </button>
   );
 }

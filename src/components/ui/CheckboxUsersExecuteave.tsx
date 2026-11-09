@@ -3,8 +3,7 @@ import { useState, useTransition } from "react";
 
 import { changeRoleAction } from "@/app/actions/authActions";
 import { Role } from "@/generated/prisma/enums";
-
-import ActionToast, { useActionToast } from "./ActionToast";
+import { showActionToast } from "@/lib/action-toast";
 
 interface CheckboxUsersExecuteaveProps {
   role: Role;
@@ -13,7 +12,6 @@ interface CheckboxUsersExecuteaveProps {
 export default function CheckboxUsersExecuteave({ role, userId }: CheckboxUsersExecuteaveProps) {
   const [isPending, startTransition] = useTransition();
   const [checked, setChecked] = useState(role === Role.EXECUTEAVE);
-  const { showToast, toast } = useActionToast();
 
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const nextChecked = event.target.checked;
@@ -23,13 +21,11 @@ export default function CheckboxUsersExecuteave({ role, userId }: CheckboxUsersE
       if (!result.success) {
         setChecked(!nextChecked);
       }
-      showToast(result);
+      showActionToast(result);
     });
   };
-  return (
-    <>
-      {role !== Role.ADMIN && <input checked={checked} disabled={isPending} onChange={handleChange} type="checkbox" />}
-      <ActionToast toast={toast} />
-    </>
-  );
+  if (role === Role.ADMIN) {
+    return null;
+  }
+  return <input checked={checked} disabled={isPending} onChange={handleChange} type="checkbox" />;
 }

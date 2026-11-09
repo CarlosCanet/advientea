@@ -3,18 +3,17 @@
 import { useRef, useTransition } from "react";
 
 import { deleteEditionAction } from "@/app/actions/editionActions";
+import { showActionToast } from "@/lib/action-toast";
 
-import ActionToast, { useActionToast } from "./ActionToast";
 import ConfirmDialog from "./ConfirmDialog";
 
 export default function DeleteEditionButton({ year }: { year: number }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [isPending, startTransition] = useTransition();
-  const { showToast, toast } = useActionToast();
 
   const onConfirm = () => {
     startTransition(async () => {
-      showToast(await deleteEditionAction(year));
+      showActionToast(await deleteEditionAction(year));
     });
   };
 
@@ -36,7 +35,6 @@ export default function DeleteEditionButton({ year }: { year: number }) {
         ref={dialogRef}
         title={`¿Borrar la edición ${year}?`}
       />
-      <ActionToast toast={toast} />
     </>
   );
 }

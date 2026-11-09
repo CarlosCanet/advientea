@@ -3,9 +3,8 @@
 import { useActionState, useEffect, useRef } from "react";
 
 import { createEditionAction } from "@/app/actions/editionActions";
+import { showActionToast } from "@/lib/action-toast";
 import { initialEditionActionResponse } from "@/lib/types";
-
-import ActionToast, { useActionToast } from "./ui/ActionToast";
 
 interface CreateEditionDialogProps {
   suggestedYear: number;
@@ -14,17 +13,14 @@ interface CreateEditionDialogProps {
 export default function CreateEditionDialog({ suggestedYear }: CreateEditionDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [state, action, isPending] = useActionState(createEditionAction, initialEditionActionResponse);
-  const { showToast, toast } = useActionToast();
 
   useEffect(() => {
     // A failure is shown inside the dialog: a toast would sit behind the modal backdrop.
     if (!state.success) {
       return;
     }
-    showToast(state);
+    showActionToast(state);
     dialogRef.current?.close();
-    // showToast is recreated on every render; only a new action result should trigger this.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
 
   return (
@@ -84,7 +80,6 @@ export default function CreateEditionDialog({ suggestedYear }: CreateEditionDial
           <button>Cerrar</button>
         </form>
       </dialog>
-      <ActionToast toast={toast} />
     </>
   );
 }
