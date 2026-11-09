@@ -4,6 +4,7 @@ import { useActionState, useEffect, useRef } from "react";
 
 import { createEditionAction } from "@/app/actions/editionActions";
 import { showActionToast } from "@/lib/action-toast";
+import { EDITION_YEAR_MAX, EDITION_YEAR_MIN } from "@/lib/schemas/edition";
 import { initialEditionActionResponse } from "@/lib/types";
 
 interface CreateEditionDialogProps {
@@ -37,7 +38,8 @@ export default function CreateEditionDialog({ suggestedYear }: CreateEditionDial
               <input
                 className="input w-full"
                 defaultValue={state.inputs?.year ?? suggestedYear}
-                min={2024}
+                max={EDITION_YEAR_MAX}
+                min={EDITION_YEAR_MIN}
                 name="year"
                 required
                 type="number"

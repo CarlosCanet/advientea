@@ -26,7 +26,7 @@ export default async function EditionsPage() {
   }
   const isAdmin = session.user.role === Role.ADMIN;
   const editions = await getAllEditions();
-  // The dialog suggests the first year that is neither past nor taken.
+  // The dialog suggests the year after the newest edition, never a past one.
   const thisYear = toMadridDateTime(getNow()).year;
   const suggestedYear = Math.max(thisYear, ...editions.map((edition) => edition.year + 1));
 
