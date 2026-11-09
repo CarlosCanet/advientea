@@ -1,6 +1,6 @@
 import { Role } from "@/generated/prisma/enums";
 import { canEditTea } from "@/lib/advientea-rules";
-import { getCurrentEdition, getDayAssignmentByUserId, TeaWithDayAndIngredients } from "@/lib/dal";
+import { getDayAssignmentByUserId, getEdition, TeaWithDayAndIngredients } from "@/lib/dal";
 
 /** Whether this user may change this tea, under canEditTea. */
 export async function userCanEditTea(
@@ -10,11 +10,12 @@ export async function userCanEditTea(
   if (!tea.day) {
     return false;
   }
-  const assignment = await getDayAssignmentByUserId(user.id, tea.day.year);
-  const currentEdition = await getCurrentEdition();
-  return canEditTea(
-    user.role,
-    { editionYear: tea.day.year, isOwn: assignment?.dayId === tea.day.id },
-    currentEdition?.year,
-  );
+  const [assignment, edition] = await Promise.all([
+    getDayAssignmentByUserId(user.id, tea.day.year),
+    getEdition(tea.day.year),
+  ]);
+  if (!edition) {
+    return false;
+  }
+  return canEditTea(user.role, { editionStatus: edition.status, isOwn: assignment?.dayId === tea.day.id });
 }

@@ -90,21 +90,17 @@ export function getAdvienteaDayState(
   return base;
 }
 
-/** Who may change a tea: admins always, managers within the current edition, users only their own tea there. */
-export function canEditTea(
-  role: Role | undefined,
-  tea: { editionYear: number; isOwn: boolean },
-  currentEditionYear: number | undefined,
-): boolean {
+/** Who may change a tea: admins always, managers any tea of an edition not archived, users only their own there. */
+export function canEditTea(role: Role | undefined, tea: { editionStatus: EditionStatus; isOwn: boolean }): boolean {
   if (role === Role.ADMIN) {
     return true;
   }
-  const isCurrent = tea.editionYear === currentEditionYear;
+  const isOpen = tea.editionStatus !== EditionStatus.ARCHIVED;
   if (role === Role.EXECUTEAVE) {
-    return isCurrent;
+    return isOpen;
   }
   if (role === Role.USER) {
-    return isCurrent && tea.isOwn;
+    return isOpen && tea.isOwn;
   }
   return false;
 }

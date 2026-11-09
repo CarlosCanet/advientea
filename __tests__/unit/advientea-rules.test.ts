@@ -327,30 +327,32 @@ describe("calculateTimeScore", () => {
 });
 
 describe("canEditTea", () => {
-  const current = 2026;
-  const ownCurrent = { editionYear: 2026, isOwn: true };
-  const otherCurrent = { editionYear: 2026, isOwn: false };
-  const ownArchived = { editionYear: 2025, isOwn: true };
+  const ownPreparing = { editionStatus: EditionStatus.PREPARING, isOwn: true };
+  const ownActive = { editionStatus: EditionStatus.ACTIVE, isOwn: true };
+  const otherPreparing = { editionStatus: EditionStatus.PREPARING, isOwn: false };
+  const otherActive = { editionStatus: EditionStatus.ACTIVE, isOwn: false };
+  const ownArchived = { editionStatus: EditionStatus.ARCHIVED, isOwn: true };
+  const otherArchived = { editionStatus: EditionStatus.ARCHIVED, isOwn: false };
 
   it("lets an admin edit any tea, archived editions included", () => {
-    expect(canEditTea(Role.ADMIN, otherCurrent, current)).toBe(true);
-    expect(canEditTea(Role.ADMIN, ownArchived, current)).toBe(true);
-    expect(canEditTea(Role.ADMIN, ownArchived, undefined)).toBe(true);
+    expect(canEditTea(Role.ADMIN, otherActive)).toBe(true);
+    expect(canEditTea(Role.ADMIN, otherArchived)).toBe(true);
   });
 
-  it("lets a calendar manager edit every tea of the current edition and nothing else", () => {
-    expect(canEditTea(Role.EXECUTEAVE, otherCurrent, current)).toBe(true);
-    expect(canEditTea(Role.EXECUTEAVE, ownArchived, current)).toBe(false);
-    expect(canEditTea(Role.EXECUTEAVE, otherCurrent, undefined)).toBe(false);
+  it("lets a calendar manager edit every tea of an edition that is not archived", () => {
+    expect(canEditTea(Role.EXECUTEAVE, otherPreparing)).toBe(true);
+    expect(canEditTea(Role.EXECUTEAVE, otherActive)).toBe(true);
+    expect(canEditTea(Role.EXECUTEAVE, otherArchived)).toBe(false);
   });
 
-  it("lets a user edit only their own tea of the current edition", () => {
-    expect(canEditTea(Role.USER, ownCurrent, current)).toBe(true);
-    expect(canEditTea(Role.USER, otherCurrent, current)).toBe(false);
-    expect(canEditTea(Role.USER, ownArchived, current)).toBe(false);
+  it("lets a user edit only their own tea of an edition that is not archived", () => {
+    expect(canEditTea(Role.USER, ownPreparing)).toBe(true);
+    expect(canEditTea(Role.USER, ownActive)).toBe(true);
+    expect(canEditTea(Role.USER, otherActive)).toBe(false);
+    expect(canEditTea(Role.USER, ownArchived)).toBe(false);
   });
 
   it("never lets a visitor without an account edit", () => {
-    expect(canEditTea(undefined, ownCurrent, current)).toBe(false);
+    expect(canEditTea(undefined, ownActive)).toBe(false);
   });
 });

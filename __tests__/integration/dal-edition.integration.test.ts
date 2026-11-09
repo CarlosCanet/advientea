@@ -7,7 +7,6 @@ import {
   createEdition,
   deleteEdition,
   getAllEditions,
-  getCurrentEdition,
   upsertEdition,
 } from "@/lib/dal";
 import { ConflictError } from "@/lib/errors";
@@ -116,28 +115,6 @@ describe("dal Edition", () => {
       await createEdition("Advienté 2026", 2026);
 
       expect((await getAllEditions()).map((edition) => edition.year)).toEqual([2027, 2026, 2025]);
-    });
-  });
-
-  describe("getCurrentEdition", () => {
-    it("is the active edition when there is one", async () => {
-      // The seed makes 2025 the active edition.
-      await upsertEdition(2026, EditionStatus.PREPARING);
-
-      expect((await getCurrentEdition())?.year).toBe(2025);
-    });
-
-    it("is the edition being prepared while none is active", async () => {
-      await upsertEdition(2025, EditionStatus.ARCHIVED);
-      await upsertEdition(2026, EditionStatus.PREPARING);
-
-      expect((await getCurrentEdition())?.year).toBe(2026);
-    });
-
-    it("is null when every edition is archived", async () => {
-      await upsertEdition(2025, EditionStatus.ARCHIVED);
-
-      expect(await getCurrentEdition()).toBeNull();
     });
   });
 
