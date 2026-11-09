@@ -102,11 +102,6 @@ export const getEditionInfo = cache(async function getEditionInfo(year: number):
   return { lastDayNumber, status: edition.status, year: edition.year };
 });
 
-/** The edition being prepared, if any: what the empty state announces while nothing is active. */
-export const getUpcomingEdition = cache(async function getUpcomingEdition(): Promise<Edition | null> {
-  return prisma.edition.findFirst({ orderBy: { year: "asc" }, where: { status: EditionStatus.PREPARING } });
-});
-
 export async function upsertEdition(year: number, status: EditionStatus): Promise<Edition> {
   return prisma.edition.upsert({
     create: { name: `Advienté ${year}`, status, year },
