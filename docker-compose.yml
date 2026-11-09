@@ -1,4 +1,5 @@
 # Only the dev database keeps its data: the tests reset theirs on every run.
+# Host ports default to 5432 and 5433; DB_PORT and DB_TEST_PORT move them (see README).
 name: advientea
 
 x-postgres: &postgres
@@ -16,7 +17,7 @@ services:
     <<: *postgres
     container_name: advientea-db
     ports:
-      - "127.0.0.1:5432:5432"
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -28,7 +29,7 @@ services:
     <<: *postgres
     container_name: advientea-db-test
     ports:
-      - "127.0.0.1:5433:5432"
+      - "127.0.0.1:${DB_TEST_PORT:-5433}:5432"
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
