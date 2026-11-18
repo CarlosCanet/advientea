@@ -5,3 +5,5 @@
 f043cd024fa585713a81b806d7e3a8a1226eb762
 # style: sort imports, objects and types
 9efa28ce84cf091d58002746520a0ac7212e8449
+# refactor: DayAssignment renamed to Participation, table unchanged
+a93808b8b70c686ae51eee24e259f6b78cbfbb5f
