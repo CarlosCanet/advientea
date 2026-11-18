@@ -1,5 +1,6 @@
 import { Prisma, Tea } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
+import { toParticipantName } from "@/lib/utils";
 
 import { DayYear, getDayByDayNumber } from "./dal-day";
 import { storyTeaWithImagesInclude } from "./includes";
@@ -50,8 +51,10 @@ export async function getUsernameAssignedToTea(id: string): Promise<null | strin
     where: { id },
   });
   const participation = tea?.day?.participation;
-  if (!participation) return null;
-  return participation.guestName ?? participation.user?.username ?? null;
+  if (!participation) {
+    return null;
+  }
+  return toParticipantName(participation);
 }
 
 export async function addTea(

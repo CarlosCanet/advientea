@@ -8,6 +8,7 @@ import { getNow } from "../advientea-time";
 import { getDayForGuessing, getEditionInfo } from "../dal";
 import { calculateDailyScore } from "../tea-guess-scoring";
 import { TeaGuessFormData } from "../types";
+import { toParticipantName } from "../utils";
 
 const TeaGuessFormSchema = z
   .object({
@@ -74,7 +75,7 @@ export async function calculatePointsFromGuess(dayId: string, guessData: TeaGues
 
   const teaData: TeaGuessFormData = {
     ingredients: dayGuessedRecord?.tea?.ingredients.map((ing) => ing.name),
-    personName: dayGuessedRecord?.participation?.user?.username ?? dayGuessedRecord?.participation?.guestName ?? "",
+    personName: (dayGuessedRecord.participation && toParticipantName(dayGuessedRecord.participation)) ?? "",
     teaName: dayGuessedRecord?.tea?.name,
     teaType: dayGuessedRecord?.tea?.teaType,
   };

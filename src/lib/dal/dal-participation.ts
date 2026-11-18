@@ -3,6 +3,7 @@ import { getDaySchedule } from "@/lib/advientea-rules";
 import { getNow } from "@/lib/advientea-time";
 import { ConflictError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
+import { toParticipantName } from "@/lib/utils";
 
 import { getEditionInfo } from "./dal-edition";
 
@@ -93,7 +94,7 @@ export async function assignDay(
       }
       await assertDayNotReleased(dayRecord.dayNumber, dayRecord.year, now);
       // Never replace in silence: the manager frees the day first (S3.3 offers swap or unassign).
-      const holder = current.user?.username ?? current.guestName ?? "otra persona";
+      const holder = toParticipantName(current) ?? "otra persona";
       throw new ConflictError(`Ese día ya tiene asignada a ${holder}. Libéralo antes de asignar a otra persona.`);
     }
     await assertDayNotReleased(dayRecord.dayNumber, dayRecord.year, now);
