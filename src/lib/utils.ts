@@ -39,3 +39,10 @@ export const EDITION_STATUS_LABELS: Record<EditionStatus, string> = {
   [EditionStatus.ARCHIVED]: "Archivada",
   [EditionStatus.PREPARING]: "En preparación",
 };
+
+export type ParticipantNameSource = { guestName: null | string; user: null | { username: string } };
+
+/** The name a participation goes by: the account's username, else the guest's name. Null when the account was deleted. */
+export function toParticipantName(participation: ParticipantNameSource): null | string {
+  return participation.user?.username ?? participation.guestName;
+}
