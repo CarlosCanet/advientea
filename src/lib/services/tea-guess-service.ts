@@ -53,7 +53,7 @@ export function validateTeaGuess(formData: FormData) {
 export async function canUserGuessTea(dayId: string, currentUserId: string): Promise<boolean> {
   const dayRecord = await getDayForGuessing(dayId);
   if (!dayRecord || !dayRecord.tea) return false;
-  if (dayRecord.assignment?.user?.id === currentUserId) return false;
+  if (dayRecord.participation?.user?.id === currentUserId) return false;
   const dayState = getAdvienteaDayState(dayRecord.dayNumber, await getEditionInfo(dayRecord.year), Role.USER);
   if (!dayState.isReleased) return false;
   return !dayState.isTeaReleased;
@@ -62,7 +62,7 @@ export async function canUserGuessTea(dayId: string, currentUserId: string): Pro
 export async function canUserGuessPerson(dayId: string, currentUserId: string): Promise<boolean> {
   const dayRecord = await getDayForGuessing(dayId);
   if (!dayRecord || !dayRecord.tea) return false;
-  if (dayRecord.assignment?.user?.id === currentUserId) return false;
+  if (dayRecord.participation?.user?.id === currentUserId) return false;
   const dayState = getAdvienteaDayState(dayRecord.dayNumber, await getEditionInfo(dayRecord.year), Role.USER);
   if (!dayState.isReleased) return false;
   return !dayState.isPersonNameReleased;
@@ -74,7 +74,7 @@ export async function calculatePointsFromGuess(dayId: string, guessData: TeaGues
 
   const teaData: TeaGuessFormData = {
     ingredients: dayGuessedRecord?.tea?.ingredients.map((ing) => ing.name),
-    personName: dayGuessedRecord?.assignment?.user?.username ?? dayGuessedRecord?.assignment?.guestName ?? "",
+    personName: dayGuessedRecord?.participation?.user?.username ?? dayGuessedRecord?.participation?.guestName ?? "",
     teaName: dayGuessedRecord?.tea?.name,
     teaType: dayGuessedRecord?.tea?.teaType,
   };

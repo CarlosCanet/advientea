@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { Day, Role, TeaIngredient, TeaType } from "@/generated/prisma/client";
 import { prismaMock } from "@/lib/__mocks__/prisma";
-import { DayWithAssignmentUserAndTeaStoryImages, DayWithTeaStoryImages } from "@/lib/dal";
+import { DayWithParticipationUserAndTeaStoryImages, DayWithTeaStoryImages } from "@/lib/dal";
 import * as dalDay from "@/lib/dal/dal-day";
 import { getTeaById } from "@/lib/dal/dal-tea";
 import {
@@ -272,13 +272,16 @@ describe("DAL Tea", () => {
 
   describe("getUsernameAssignedToTea", () => {
     it("should return username when user is assigned to day", async () => {
-      const mockDay: DayWithAssignmentUserAndTeaStoryImages = {
-        assignment: {
+      const mockDay: DayWithParticipationUserAndTeaStoryImages = {
+        createdAt: new Date(),
+        dayNumber: 1,
+        id: "day-cuid",
+        participation: {
           createdAt: new Date(),
           dayId: "day-cuid",
           guestName: null,
           guestToken: null,
-          id: "assignment-cuid",
+          id: "participation-cuid",
           updatedAt: new Date(),
           user: {
             createdAt: new Date(),
@@ -294,9 +297,6 @@ describe("DAL Tea", () => {
           userId: "user-cuid",
           year: 2025,
         },
-        createdAt: new Date(),
-        dayNumber: 1,
-        id: "day-cuid",
         tea: null,
         updatedAt: new Date(),
         year: 2025,
@@ -329,21 +329,21 @@ describe("DAL Tea", () => {
     });
 
     it("should return guestName when guest is assigned", async () => {
-      const mockDay: DayWithAssignmentUserAndTeaStoryImages = {
-        assignment: {
+      const mockDay: DayWithParticipationUserAndTeaStoryImages = {
+        createdAt: new Date(),
+        dayNumber: 1,
+        id: "day-cuid",
+        participation: {
           createdAt: new Date(),
           dayId: "day-cuid",
           guestName: "Guest User",
           guestToken: null,
-          id: "assignment-cuid",
+          id: "participation-cuid",
           updatedAt: new Date(),
           user: null,
           userId: null,
           year: 2025,
         },
-        createdAt: new Date(),
-        dayNumber: 1,
-        id: "day-cuid",
         tea: null,
         updatedAt: new Date(),
         year: 2025,
@@ -376,7 +376,7 @@ describe("DAL Tea", () => {
       expect(result).toBe("Guest User");
     });
 
-    it("should return null when no assignment exists", async () => {
+    it("should return null when no participation exists", async () => {
       prismaMock.tea.findUnique.mockResolvedValue(null);
 
       const result = await getUsernameAssignedToTea("tea-cuid");

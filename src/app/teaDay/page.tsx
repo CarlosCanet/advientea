@@ -34,7 +34,7 @@ export default async function DaysList() {
           .toSorted((day1, day2) => day2.dayNumber - day1.dayNumber)
           .map((day) => {
             const advienteaDayState = getAdvienteaDayState(day.dayNumber, editionInfo, session?.user.role, false);
-            const assigneeName = day.assignment?.guestName ?? day.assignment?.user?.username;
+            const assigneeName = day.participation?.guestName ?? day.participation?.user?.username;
             const advienteaDayTitle =
               advienteaDayState.isPersonNameReleased && assigneeName
                 ? `${day.tea?.name} - ${assigneeName}`

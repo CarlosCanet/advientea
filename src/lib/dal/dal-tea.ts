@@ -44,12 +44,14 @@ export async function getAllTeas(year: number): Promise<TeaWithDayAndIngredients
 
 export async function getUsernameAssignedToTea(id: string): Promise<null | string> {
   const tea = await prisma.tea.findUnique({
-    select: { day: { select: { assignment: { select: { guestName: true, user: { select: { username: true } } } } } } },
+    select: {
+      day: { select: { participation: { select: { guestName: true, user: { select: { username: true } } } } } },
+    },
     where: { id },
   });
-  const assignment = tea?.day?.assignment;
-  if (!assignment) return null;
-  return assignment.guestName ?? assignment.user?.username ?? null;
+  const participation = tea?.day?.participation;
+  if (!participation) return null;
+  return participation.guestName ?? participation.user?.username ?? null;
 }
 
 export async function addTea(

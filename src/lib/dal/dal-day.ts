@@ -7,17 +7,17 @@ const dayWithTeaStoryImagesInclude = {
   tea: { include: { story: { include: storyTeaWithImagesInclude } } },
 } satisfies Prisma.DayInclude;
 export type DayWithTeaStoryImages = Prisma.DayGetPayload<{ include: typeof dayWithTeaStoryImagesInclude }>;
-const dayWithAssignmentUserAndTeaStoryImagesInclude = {
-  assignment: { include: { user: true } },
+const dayWithParticipationUserAndTeaStoryImagesInclude = {
+  participation: { include: { user: true } },
   ...dayWithTeaStoryImagesInclude,
 } satisfies Prisma.DayInclude;
-export type DayWithAssignmentUserAndTeaStoryImages = Prisma.DayGetPayload<{
-  include: typeof dayWithAssignmentUserAndTeaStoryImagesInclude;
+export type DayWithParticipationUserAndTeaStoryImages = Prisma.DayGetPayload<{
+  include: typeof dayWithParticipationUserAndTeaStoryImagesInclude;
 }>;
 export type DayForGuessing = Prisma.DayGetPayload<{
   select: {
-    assignment: { select: { guestName: true; user: { select: { id: true; username: true } } } };
     dayNumber: true;
+    participation: { select: { guestName: true; user: { select: { id: true; username: true } } } };
     tea: { select: { ingredients: true; name: true; teaType: true } };
     year: true;
   };
@@ -49,7 +49,8 @@ export async function getDayByDayNumber(dayYear: DayYear): Promise<DayWithTeaSto
 export async function getDayForGuessing(id: string): Promise<DayForGuessing | null> {
   const dayResponse = await prisma.day.findUnique({
     select: {
-      assignment: {
+      dayNumber: true,
+      participation: {
         select: {
           guestName: true,
           user: {
@@ -60,7 +61,6 @@ export async function getDayForGuessing(id: string): Promise<DayForGuessing | nu
           },
         },
       },
-      dayNumber: true,
       tea: {
         select: {
           ingredients: true,
@@ -75,9 +75,9 @@ export async function getDayForGuessing(id: string): Promise<DayForGuessing | nu
   return dayResponse;
 }
 
-export async function getAllDays(year: number): Promise<Array<DayWithAssignmentUserAndTeaStoryImages>> {
+export async function getAllDays(year: number): Promise<Array<DayWithParticipationUserAndTeaStoryImages>> {
   const allDays = await prisma.day.findMany({
-    include: dayWithAssignmentUserAndTeaStoryImagesInclude,
+    include: dayWithParticipationUserAndTeaStoryImagesInclude,
     orderBy: { dayNumber: "asc" },
     where: { year },
   });
@@ -140,10 +140,10 @@ export async function editDay(data: Prisma.DayUncheckedUpdateInput, id: string):
 }
 
 export async function deleteDay(id: string): Promise<DayWithTeaStoryImages> {
-  // The assignment goes with the day on purpose: since the editions migration its day is SetNull, and
+  // The participation goes with the day on purpose: since the editions migration its day is SetNull, and
   // an orphan row would still hold the (userId, year) unique and block assigning that person again.
   return prisma.$transaction(async (tx) => {
-    await tx.dayAssignment.deleteMany({ where: { dayId: id } });
+    await tx.participation.deleteMany({ where: { dayId: id } });
     return tx.day.delete({
       include: dayWithTeaStoryImagesInclude,
       where: { id },

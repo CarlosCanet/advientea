@@ -3,7 +3,14 @@ import { prisma } from "@/lib/prisma";
 
 export type UserBasic = Prisma.UserGetPayload<{ select: { id: true; username: true } }>;
 export type UserForManagement = Prisma.UserGetPayload<{
-  select: { daysAssigned: { include: { day: true } }; email: true; id: true; image: true; role: true; username: true };
+  select: {
+    email: true;
+    id: true;
+    image: true;
+    participations: { include: { day: true } };
+    role: true;
+    username: true;
+  };
 }>;
 
 export async function getUserById(id: string): Promise<User> {
@@ -31,10 +38,10 @@ export async function getAllUsers(): Promise<Array<UserForManagement>> {
   const data = await prisma.user.findMany({
     orderBy: { username: "asc" },
     select: {
-      daysAssigned: { include: { day: true } },
       email: true,
       id: true,
       image: true,
+      participations: { include: { day: true } },
       role: true,
       username: true,
     },

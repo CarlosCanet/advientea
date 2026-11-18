@@ -27,7 +27,7 @@ describe("Database seed verification", () => {
   it("should have relationships correctly linked", async () => {
     const day1 = await prisma.day.findUnique({
       include: {
-        assignment: { include: { user: true } },
+        participation: { include: { user: true } },
         tea: {
           include: {
             story: {
@@ -40,8 +40,8 @@ describe("Database seed verification", () => {
     });
     expect(day1?.tea).toBeDefined();
     expect(day1?.tea?.name).toBe("Ruta del desierto");
-    expect(day1?.assignment).toBeDefined();
-    expect(day1?.assignment?.user?.username).toBe("Deinos");
+    expect(day1?.participation).toBeDefined();
+    expect(day1?.participation?.user?.username).toBe("Deinos");
     expect(day1?.tea);
     expect(day1?.tea?.story?.storyPart1).toBe("Todo pasó hace tiempo");
     expect(day1?.tea?.story?.youtubeURL).toBe("https://www.youtube.com/watch?v=jfKfPfyJRdk");

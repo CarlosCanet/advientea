@@ -52,10 +52,10 @@ describe("DAL User", () => {
   describe("getAllUsers", () => {
     const mockUsersList: Array<UserForManagement> = [
       {
-        daysAssigned: [],
         email: "a@a.com",
         id: "1",
         image: null,
+        participations: [],
         role: Role.USER,
         username: "A",
       },

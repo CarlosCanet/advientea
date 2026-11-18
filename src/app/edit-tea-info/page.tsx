@@ -11,7 +11,7 @@ import NoActiveEdition from "@/components/ui/NoActiveEdition";
 import WaitForDayAssignment from "@/components/ui/WaitForDayAssignment";
 import { Role } from "@/generated/prisma/client";
 import { auth } from "@/lib/auth";
-import { getActiveEdition, getAllDays, getDayAssignmentByUserId, getUsersBasic } from "@/lib/dal";
+import { getActiveEdition, getAllDays, getParticipationByUserId, getUsersBasic } from "@/lib/dal";
 
 async function EditTeaInfo() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -24,7 +24,7 @@ async function EditTeaInfo() {
     return <NoActiveEdition />;
   }
   if (!isUserPrivileged) {
-    const assignment = await getDayAssignmentByUserId(session.user.id, edition.year);
+    const assignment = await getParticipationByUserId(session.user.id, edition.year);
     if (assignment && assignment.day?.tea) {
       redirect(`/edit-tea-info/${assignment.day?.tea.id}`);
     } else {
@@ -63,9 +63,9 @@ async function EditTeaInfo() {
                       {
                         <AssignmentSelect
                           dayId={day.id}
-                          guestName={day.assignment?.guestName ?? undefined}
-                          key={`${day.id}-${day.assignment?.user?.id ?? day.assignment?.guestName}`}
-                          userId={day.assignment?.user?.id ?? ""}
+                          guestName={day.participation?.guestName ?? undefined}
+                          key={`${day.id}-${day.participation?.user?.id ?? day.participation?.guestName}`}
+                          userId={day.participation?.user?.id ?? ""}
                           users={users}
                         />
                       }

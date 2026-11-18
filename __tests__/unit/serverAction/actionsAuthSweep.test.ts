@@ -52,7 +52,7 @@ const { DAL_FUNCTIONS, GUARDS, prismaTouched } = vi.hoisted(() => ({
     "editStoryTea",
     "editUser",
     "getActiveEdition",
-    "getDayAssignmentByUserId",
+    "getParticipationByUserId",
     "getTeaById",
     "replaceStoryImages",
     "unassignDay",

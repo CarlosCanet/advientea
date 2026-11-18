@@ -5,18 +5,18 @@ import { prisma } from "@/lib/prisma";
 
 describe("dal Day", () => {
   describe("deleteDay", () => {
-    it("deletes the assignment with the day, so the person can be assigned again that year", async () => {
+    it("deletes the participation with the day, so the person can be assigned again that year", async () => {
       // The seed assigns day 1 of 2025 to the manager.
       const day = await prisma.day.findUniqueOrThrow({
-        include: { assignment: true },
+        include: { participation: true },
         where: { dayNumber_year: { dayNumber: 1, year: 2025 } },
       });
-      const userId = day.assignment?.userId;
+      const userId = day.participation?.userId;
       expect(userId).toBeTruthy();
 
       await deleteDay(day.id);
 
-      const orphan = await prisma.dayAssignment.findFirst({ where: { userId: userId!, year: 2025 } });
+      const orphan = await prisma.participation.findFirst({ where: { userId: userId!, year: 2025 } });
       expect(orphan).toBeNull();
 
       const six = await getDayByDayNumber({ dayNumber: 6, year: 2025 });

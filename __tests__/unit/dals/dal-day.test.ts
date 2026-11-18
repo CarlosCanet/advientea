@@ -6,7 +6,7 @@ import {
   add25Days,
   addDay,
   addNextDay,
-  DayWithAssignmentUserAndTeaStoryImages,
+  DayWithParticipationUserAndTeaStoryImages,
   DayWithTeaStoryImages,
   deleteDay,
   editDay,
@@ -93,21 +93,21 @@ describe("DAL Day", () => {
 
   describe("getAllDays", () => {
     it("should return array of days ordered by number", async () => {
-      const mockDays: DayWithAssignmentUserAndTeaStoryImages[] = [
+      const mockDays: DayWithParticipationUserAndTeaStoryImages[] = [
         {
-          assignment: null,
           createdAt: new Date(),
           dayNumber: 1,
           id: "day-1",
+          participation: null,
           tea: null,
           updatedAt: new Date(),
           year: 2025,
         },
         {
-          assignment: null,
           createdAt: new Date(),
           dayNumber: 2,
           id: "day-2",
+          participation: null,
           tea: null,
           updatedAt: new Date(),
           year: 2025,
@@ -292,7 +292,7 @@ describe("DAL Day", () => {
 
       await deleteDay("day-1");
 
-      expect(prismaMock.dayAssignment.deleteMany).toHaveBeenCalledWith({ where: { dayId: "day-1" } });
+      expect(prismaMock.participation.deleteMany).toHaveBeenCalledWith({ where: { dayId: "day-1" } });
       expect(prismaMock.day.delete).toHaveBeenCalledWith(
         expect.objectContaining({
           include: expect.anything(),

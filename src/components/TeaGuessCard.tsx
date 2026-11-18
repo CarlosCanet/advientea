@@ -55,7 +55,7 @@ export default async function TeaGuessCard({ dayId }: TeaGuessCardProps) {
     session.user.role,
     false,
   );
-  const isAssignee = dayForGuessing?.assignment?.user?.id === session.user.id;
+  const isAssignee = dayForGuessing?.participation?.user?.id === session.user.id;
 
   return (
     <div className="card w-full max-w-xl bg-base-200 card-xl shadow-md border border-primary/20 mb-5">

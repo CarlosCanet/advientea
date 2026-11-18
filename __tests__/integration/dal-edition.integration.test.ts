@@ -86,7 +86,7 @@ describe("dal Edition", () => {
 
     it("refuses an edition in preparation that already has someone enrolled without a day", async () => {
       await createEdition("Advienté 2026", 2026);
-      await prisma.dayAssignment.create({ data: { guestName: "Prima Lejana", year: 2026 } });
+      await prisma.participation.create({ data: { guestName: "Prima Lejana", year: 2026 } });
 
       await expect(deleteEdition(2026)).rejects.toBeInstanceOf(ConflictError);
       expect(await prisma.edition.count({ where: { year: 2026 } })).toBe(1);

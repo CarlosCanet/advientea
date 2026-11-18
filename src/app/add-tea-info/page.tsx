@@ -5,7 +5,7 @@ import AddTeaInfoForm from "@/components/AddTeaInfoForm";
 import NoActiveEdition from "@/components/ui/NoActiveEdition";
 import { Role } from "@/generated/prisma/client";
 import { auth } from "@/lib/auth";
-import { getActiveEdition, getAllDayAssignment, getDayAssignmentByUserId, getUsersBasic } from "@/lib/dal";
+import { getActiveEdition, getAllParticipations, getParticipationByUserId, getUsersBasic } from "@/lib/dal";
 
 async function AddTeaInfo() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -17,9 +17,9 @@ async function AddTeaInfo() {
   const isUserPrivileged = session?.user.role === Role.ADMIN || session?.user.role === Role.EXECUTEAVE;
   let users: Array<string> = [];
   if (session && session.user) {
-    assignment = await getDayAssignmentByUserId(session.user.id, edition.year);
+    assignment = await getParticipationByUserId(session.user.id, edition.year);
     if (isUserPrivileged) {
-      const allAssignments = await getAllDayAssignment(edition.year);
+      const allAssignments = await getAllParticipations(edition.year);
       const allUsers = await getUsersBasic();
       const usersWithAssignments = allAssignments.map((assignment) => assignment.user?.username);
       users = allUsers.map((user) => user.username).filter((user) => !usersWithAssignments.includes(user));

@@ -19,15 +19,15 @@ async function day(dayNumber: number) {
 }
 
 async function userWithoutDay() {
-  return prisma.user.findFirstOrThrow({ where: { daysAssigned: { none: {} } } });
+  return prisma.user.findFirstOrThrow({ where: { participations: { none: {} } } });
 }
 
-describe("dal DayAssignment", () => {
+describe("dal Participation", () => {
   describe("getAssignees", () => {
     it("returns the people of the given edition only, users and guests alike", async () => {
       await upsertEdition(2030, EditionStatus.PREPARING);
       const otherDay = await prisma.day.create({ data: { dayNumber: 1, year: 2030 } });
-      await prisma.dayAssignment.create({ data: { dayId: otherDay.id, guestName: "Fantasma", year: 2030 } });
+      await prisma.participation.create({ data: { dayId: otherDay.id, guestName: "Fantasma", year: 2030 } });
 
       const assignees = await getAssignees(2025);
 
@@ -51,33 +51,33 @@ describe("dal DayAssignment", () => {
 
     it("is idempotent for the person already on the day", async () => {
       const three = await day(3);
-      const current = await prisma.dayAssignment.findUniqueOrThrow({ where: { dayId: three.id } });
+      const current = await prisma.participation.findUniqueOrThrow({ where: { dayId: three.id } });
 
       const result = await assignDay(three.id, { userId: current.userId! }, beforeTheEdition);
 
       expect(result.id).toBe(current.id);
-      expect(await prisma.dayAssignment.count({ where: { year: 2025 } })).toBe(5);
+      expect(await prisma.participation.count({ where: { year: 2025 } })).toBe(5);
     });
 
     it("refuses a day held by someone else and names them", async () => {
       const four = await day(4);
-      const ana = await prisma.dayAssignment.findUniqueOrThrow({ where: { dayId: (await day(3)).id } });
+      const ana = await prisma.participation.findUniqueOrThrow({ where: { dayId: (await day(3)).id } });
 
       await expect(assignDay(four.id, { userId: ana.userId! }, beforeTheEdition)).rejects.toThrow(ConflictError);
       await expect(assignDay(four.id, { userId: ana.userId! }, beforeTheEdition)).rejects.toThrow(/Sony/);
     });
 
     it("refuses to move in silence a user who already has another day this year", async () => {
-      const ana = await prisma.dayAssignment.findUniqueOrThrow({ where: { dayId: (await day(3)).id } });
+      const ana = await prisma.participation.findUniqueOrThrow({ where: { dayId: (await day(3)).id } });
       const free = await day(7);
 
       await expect(assignDay(free.id, { userId: ana.userId! }, beforeTheEdition)).rejects.toThrow(/el día 3/);
-      expect((await prisma.dayAssignment.findUniqueOrThrow({ where: { id: ana.id } })).dayId).toBe(ana.dayId);
+      expect((await prisma.participation.findUniqueOrThrow({ where: { id: ana.id } })).dayId).toBe(ana.dayId);
     });
 
     it("gives the day to a user enrolled without one, reusing their participation", async () => {
       const user = await userWithoutDay();
-      const enrolled = await prisma.dayAssignment.create({
+      const enrolled = await prisma.participation.create({
         data: { edition: { connect: { year: 2025 } }, user: { connect: { id: user.id } } },
       });
       const free = await day(8);
@@ -98,7 +98,7 @@ describe("dal DayAssignment", () => {
 
     it("still accepts the person already on a day that has opened, since nothing changes", async () => {
       const three = await day(3);
-      const current = await prisma.dayAssignment.findUniqueOrThrow({ where: { dayId: three.id } });
+      const current = await prisma.participation.findUniqueOrThrow({ where: { dayId: three.id } });
 
       const result = await assignDay(three.id, { userId: current.userId! }, duringTheEdition);
 
@@ -122,11 +122,11 @@ describe("dal DayAssignment", () => {
   describe("unassignDay", () => {
     it("frees the day and keeps the person enrolled without one", async () => {
       const three = await day(3);
-      const before = await prisma.dayAssignment.findUniqueOrThrow({ where: { dayId: three.id } });
+      const before = await prisma.participation.findUniqueOrThrow({ where: { dayId: three.id } });
 
       await unassignDay(three.id, beforeTheEdition);
 
-      const after = await prisma.dayAssignment.findUniqueOrThrow({ where: { id: before.id } });
+      const after = await prisma.participation.findUniqueOrThrow({ where: { id: before.id } });
       expect(after.dayId).toBeNull();
       expect(after.userId).toBe(before.userId);
     });

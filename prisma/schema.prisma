@@ -12,9 +12,9 @@ model Day {
   dayNumber Int
   year      Int
 
-  tea        Tea?
-  assignment DayAssignment?
-  edition    Edition        @relation(fields: [year], references: [year], onDelete: Restrict)
+  tea           Tea?
+  participation Participation?
+  edition       Edition        @relation(fields: [year], references: [year], onDelete: Restrict)
 
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
@@ -71,7 +71,7 @@ model TeaIngredient {
   guesses TeaGuess[] @relation("GuessedIngredients")
 }
 
-model DayAssignment {
+model Participation {
   id        String   @id @default(cuid())
   userId    String?
   guestName String?
@@ -87,6 +87,7 @@ model DayAssignment {
 
   @@unique([userId, year])
   @@index([year])
+  @@map("DayAssignment")
 }
 
 model StoryImage {
@@ -135,13 +136,13 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  daysAssigned  DayAssignment[]
-  guesses       TeaGuess[]
+  participations Participation[]
+  guesses        TeaGuess[]
   // badges       UserBadge[]
-  name          String?
-  emailVerified Boolean         @default(false)
-  sessions      Session[]
-  accounts      Account[]
+  name           String?
+  emailVerified  Boolean         @default(false)
+  sessions       Session[]
+  accounts       Account[]
 
   @@map("user")
 }
@@ -250,6 +251,6 @@ model Edition {
   createdAt DateTime      @default(now())
   updatedAt DateTime      @default(now()) @updatedAt
 
-  days        Day[]
-  assignments DayAssignment[]
+  days           Day[]
+  participations Participation[]
 }

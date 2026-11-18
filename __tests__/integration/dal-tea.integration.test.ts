@@ -79,7 +79,7 @@ describe("dal Tea", () => {
     // The seed puts a tea with ingredients and a story on day 1 of 2025, assigned to the manager.
     async function seededTea() {
       return prisma.tea.findFirstOrThrow({
-        include: { day: { include: { assignment: true } }, ingredients: true },
+        include: { day: { include: { participation: true } }, ingredients: true },
         where: { day: { dayNumber: 1, year: 2025 } },
       });
     }
@@ -104,17 +104,17 @@ describe("dal Tea", () => {
       expect(edited.ingredients.map((ingredient) => ingredient.name).toSorted()).toEqual(["Limón", "Naranja"]);
     });
 
-    it("leaves the day and its assignment where they were", async () => {
+    it("leaves the day and its participation where they were", async () => {
       const tea = await seededTea();
 
       await updateTeaContent(tea.id, { name: "Té editado" });
 
       const after = await prisma.tea.findUniqueOrThrow({
-        include: { day: { include: { assignment: true } } },
+        include: { day: { include: { participation: true } } },
         where: { id: tea.id },
       });
       expect(after.dayId).toBe(tea.dayId);
-      expect(after.day?.assignment?.id).toBe(tea.day?.assignment?.id);
+      expect(after.day?.participation?.id).toBe(tea.day?.participation?.id);
     });
 
     it("cannot be asked to move the tea: the content type has no day", () => {
