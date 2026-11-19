@@ -79,6 +79,7 @@ These rules exist because the app has production users and a shared Cloudinary a
 - Vercel, Neon and GitHub operations are read-only unless the task says otherwise.
 - Do not commit, push or open pull requests. Leave the changes staged and, if useful, suggest a subject line; the maintainer commits.
 - When a check cannot be run, say so instead of assuming it passed.
+- Tests and code are written blind to each other. Whoever orchestrates the work writes the specification (signature, behaviour, error cases) and hands it to two separate subagents: one writes the tests without opening the implementation, the other writes the implementation without opening `__tests__/`. The orchestrator runs the suite and reports failures to the code writer as behaviour, never as test code. An ambiguity is fixed in the specification and both are briefed again; neither side looks at the other.
 
 ## References
 
