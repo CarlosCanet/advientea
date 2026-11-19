@@ -13,19 +13,24 @@ import { EDITION_STATUS_LABELS, toParticipantName } from "@/lib/utils";
 
 const DELETED_ACCOUNT = "Cuenta borrada";
 
-const ISSUE_ORDER: Array<EditionIssue["kind"]> = ["enrolledWithoutDay", "gap", "emptyDay", "participantWithoutTea"];
+const ISSUE_ORDER: Array<EditionIssue["kind"]> = [
+  "dayOutsideCalendar",
+  "enrolledWithoutDay",
+  "freeDay",
+  "participantWithoutTea",
+];
 
 const ISSUE_LABELS: Record<EditionIssue["kind"], string> = {
-  emptyDay: "Días sin participante",
+  dayOutsideCalendar: "Días fuera del calendario",
   enrolledWithoutDay: "Inscritos sin día",
-  gap: "Días que faltan",
+  freeDay: "Días libres",
   participantWithoutTea: "Participantes sin té",
 };
 
 function toIssueItem(issue: EditionIssue): string {
   switch (issue.kind) {
-    case "emptyDay":
-    case "gap":
+    case "dayOutsideCalendar":
+    case "freeDay":
       return String(issue.dayNumber);
     case "enrolledWithoutDay":
       return issue.name ?? DELETED_ACCOUNT;
@@ -123,7 +128,7 @@ export default async function EditionPage({ params }: { params: Promise<{ year: 
             Avisos
           </h2>
           {issueLines.length === 0 ? (
-            <p>{days.length === 0 ? "La edición todavía no tiene días." : "No falta nada."}</p>
+            <p>{participations.length === 0 ? "La edición todavía no tiene participantes." : "No falta nada."}</p>
           ) : (
             <ul className="list-disc pl-5">
               {issueLines.map((line) => (

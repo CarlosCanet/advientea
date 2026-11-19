@@ -87,7 +87,7 @@ export async function getParticipationsForEdition(year: number): Promise<Array<P
 }
 
 // Only a day that has not opened yet can change hands: no guess can exist on it.
-async function assertDayNotReleased(dayNumber: number, year: number, now: Date): Promise<void> {
+async function assertDayCanChange(dayNumber: number, year: number, now: Date): Promise<void> {
   const edition = await getEditionInfo(year);
   if (getDaySchedule(dayNumber, edition, now).isReleased) {
     throw new ConflictError("Ese día ya ha pasado o es hoy y no se puede cambiar.");
@@ -118,12 +118,12 @@ export async function assignDay(
       if (samePerson) {
         return tx.participation.findUniqueOrThrow({ include: { day: true, user: true }, where: { id: current.id } });
       }
-      await assertDayNotReleased(dayRecord.dayNumber, dayRecord.year, now);
+      await assertDayCanChange(dayRecord.dayNumber, dayRecord.year, now);
       // Never replace in silence: the manager frees the day first (S3.3 offers swap or unassign).
       const holder = toParticipantName(current) ?? "otra persona";
       throw new ConflictError(`Ese día ya tiene asignada a ${holder}. Libéralo antes de asignar a otra persona.`);
     }
-    await assertDayNotReleased(dayRecord.dayNumber, dayRecord.year, now);
+    await assertDayCanChange(dayRecord.dayNumber, dayRecord.year, now);
 
     if ("guestName" in assignee) {
       return tx.participation.create({
@@ -170,9 +170,93 @@ export async function unassignDay(dayId: string, now: Date = getNow()): Promise<
     if (!dayRecord.participation) {
       return;
     }
-    await assertDayNotReleased(dayRecord.dayNumber, dayRecord.year, now);
+    await assertDayCanChange(dayRecord.dayNumber, dayRecord.year, now);
     await tx.participation.update({ data: { day: { disconnect: true } }, where: { id: dayRecord.participation.id } });
   });
+}
+
+/**
+ * Gives a participation a day of its own edition, by number. An edition has as many days as participants,
+ * so the number must be within 1..N, and the Day row is created the first time someone is placed on it.
+ * Whoever held another day leaves that row behind, held by nobody. The tea follows its participation.
+ */
+export async function placeParticipant(
+  participationId: string,
+  dayNumber: number,
+  now: Date = getNow(),
+): Promise<ParticipationWithDayAndUser> {
+  if (!Number.isInteger(dayNumber) || dayNumber < 1) {
+    throw new Error(`The day number ${dayNumber} is not a positive integer.`);
+  }
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const participation = await tx.participation.findUnique({
+        include: { day: true, user: true },
+        where: { id: participationId },
+      });
+      if (!participation) {
+        throw new Error(`The participation with id ${participationId} does not exist.`);
+      }
+      const { year } = participation;
+      // Asking for the day already held changes nothing, so it is fine even once that day has opened.
+      if (participation.day?.dayNumber === dayNumber) {
+        return participation;
+      }
+      if (participation.day) {
+        await assertDayCanChange(participation.day.dayNumber, year, now);
+      }
+
+      const participantCount = await tx.participation.count({ where: { year } });
+      if (dayNumber > participantCount) {
+        throw new ConflictError(
+          `La edición ${year} tiene ${participantCount} participantes: elige un día entre 1 y ${participantCount}.`,
+        );
+      }
+      await assertDayCanChange(dayNumber, year, now);
+
+      const dayRecord = await tx.day.findUnique({
+        include: { participation: { include: { user: true } } },
+        where: { dayNumber_year: { dayNumber, year } },
+      });
+      if (dayRecord?.participation) {
+        // Never replace in silence: the manager frees the day first.
+        const holder = toParticipantName(dayRecord.participation) ?? "otra persona";
+        throw new ConflictError(
+          `El día ${dayNumber} ya tiene asignada a ${holder}. Libéralo antes de asignar a otra persona.`,
+        );
+      }
+      const targetDay = dayRecord ?? (await tx.day.create({ data: { dayNumber, year } }));
+      // dayId is written as a scalar, not through `connect`, so that when two requests race for the day
+      // nothing but the unique index on dayId decides who keeps it.
+      return tx.participation.update({
+        data: { dayId: targetDay.id },
+        include: { day: true, user: true },
+        where: { id: participation.id },
+      });
+    });
+  } catch (error) {
+    if (!(error instanceof Prisma.PrismaClientKnownRequestError)) {
+      throw error;
+    }
+    // Two requests placing someone on the same free day at once: both create its row and the day number
+    // collides, or both take the existing row and dayId collides. Either way the other one won.
+    if (error.code === "P2002") {
+      const participation = await prisma.participation.findUnique({
+        include: { day: true, user: true },
+        where: { id: participationId },
+      });
+      // The same placement sent twice: the other request did what this one asked for.
+      if (participation?.day?.dayNumber === dayNumber) {
+        return participation;
+      }
+      throw new ConflictError(`El día ${dayNumber} acaba de asignarse a otra persona.`);
+    }
+    // The participation or the day can be deleted between the checks and the write.
+    if (error.code === "P2003" || error.code === "P2025") {
+      throw new ConflictError("Esa inscripción o ese día ya no existen.");
+    }
+    throw error;
+  }
 }
 
 async function assertEditionAcceptsEnrolments(tx: Prisma.TransactionClient, year: number): Promise<void> {

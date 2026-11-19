@@ -5,18 +5,22 @@ export type EditionParticipation = ParticipantNameSource & { dayNumber: null | n
 
 export type EditionIssue =
   | { dayNumber: null | number; kind: "participantWithoutTea"; name: null | string; participationId: string }
-  | { dayNumber: number; kind: "emptyDay" }
-  | { dayNumber: number; kind: "gap" }
+  | { dayNumber: number; kind: "dayOutsideCalendar" }
+  | { dayNumber: number; kind: "freeDay" }
   | { kind: "enrolledWithoutDay"; name: null | string; participationId: string };
 
 /**
  * What an edition still lacks before it can open. Nothing here blocks: the manager decides.
+ * An edition has as many days as participants: with N enrolled, its calendar is days 1..N, one each.
+ * A day above N is outside the calendar, whoever holds it; a number in 1..N that nobody holds is free,
+ * whether or not its Day row exists yet.
  * The result is ordered by kind, most serious first, and by day number within a kind.
  */
 export function findEditionIssues(
   days: ReadonlyArray<EditionDay>,
   participations: ReadonlyArray<EditionParticipation>,
 ): Array<EditionIssue> {
+  const participantCount = participations.length;
   const heldDayNumbers = new Set<number>();
   const enrolledWithoutDay: Array<EditionIssue> = [];
   for (const participation of participations) {
@@ -31,17 +35,18 @@ export function findEditionIssues(
     }
   }
 
-  const sortedDayNumbers = days.map((day) => day.dayNumber).sort((first, second) => first - second);
-  const emptyDays: Array<EditionIssue> = sortedDayNumbers
-    .filter((dayNumber) => !heldDayNumbers.has(dayNumber))
-    .map((dayNumber) => ({ dayNumber, kind: "emptyDay" }));
+  // A held number counts even when `days` does not list its row.
+  const dayNumbersOutsideCalendar = new Set(
+    [...days.map((day) => day.dayNumber), ...heldDayNumbers].filter((dayNumber) => dayNumber > participantCount),
+  );
+  const daysOutsideCalendar: Array<EditionIssue> = [...dayNumbersOutsideCalendar]
+    .sort((first, second) => first - second)
+    .map((dayNumber) => ({ dayNumber, kind: "dayOutsideCalendar" }));
 
-  const gaps: Array<EditionIssue> = [];
-  const existingDayNumbers = new Set(sortedDayNumbers);
-  const lastDayNumber = sortedDayNumbers.at(-1) ?? 0;
-  for (let dayNumber = 1; dayNumber < lastDayNumber; dayNumber++) {
-    if (!existingDayNumbers.has(dayNumber)) {
-      gaps.push({ dayNumber, kind: "gap" });
+  const freeDays: Array<EditionIssue> = [];
+  for (let dayNumber = 1; dayNumber <= participantCount; dayNumber++) {
+    if (!heldDayNumbers.has(dayNumber)) {
+      freeDays.push({ dayNumber, kind: "freeDay" });
     }
   }
 
@@ -58,5 +63,5 @@ export function findEditionIssues(
       participationId: participation.id,
     }));
 
-  return [...enrolledWithoutDay, ...gaps, ...emptyDays, ...participantsWithoutTea];
+  return [...daysOutsideCalendar, ...enrolledWithoutDay, ...freeDays, ...participantsWithoutTea];
 }
