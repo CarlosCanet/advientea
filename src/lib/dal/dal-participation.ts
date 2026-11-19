@@ -1,4 +1,6 @@
-import { Prisma } from "@/generated/prisma/client";
+import { randomBytes } from "node:crypto";
+
+import { EditionStatus, Participation, Prisma } from "@/generated/prisma/client";
 import { getDaySchedule } from "@/lib/advientea-rules";
 import { getNow } from "@/lib/advientea-time";
 import { ConflictError } from "@/lib/errors";
@@ -150,4 +152,64 @@ export async function unassignDay(dayId: string, now: Date = getNow()): Promise<
     }
     await tx.participation.update({ data: { day: { disconnect: true } }, where: { id: dayRecord.participation.id } });
   });
+}
+
+async function assertEditionAcceptsEnrolments(tx: Prisma.TransactionClient, year: number): Promise<void> {
+  const edition = await tx.edition.findUnique({ where: { year } });
+  if (!edition) {
+    throw new ConflictError(`La edición ${year} no existe.`);
+  }
+  if (edition.status === EditionStatus.ARCHIVED) {
+    throw new ConflictError(`La edición ${year} está archivada.`);
+  }
+}
+
+export async function enrolUser(year: number, userId: string): Promise<Participation> {
+  try {
+    return await prisma.$transaction(async (tx) => {
+      await assertEditionAcceptsEnrolments(tx, year);
+      const user = await tx.user.findUnique({ where: { id: userId } });
+      if (!user) {
+        throw new ConflictError("El usuario no existe.");
+      }
+
+      return tx.participation.upsert({
+        create: { edition: { connect: { year } }, user: { connect: { id: user.id } } },
+        update: {},
+        where: { userId_year: { userId: user.id, year } },
+      });
+    });
+  } catch (error) {
+    // The account or the edition can be deleted between the checks and the write.
+    if (error instanceof Prisma.PrismaClientKnownRequestError && (error.code === "P2003" || error.code === "P2025")) {
+      throw new ConflictError(`Esa persona o la edición ${year} ya no existen.`);
+    }
+    throw error;
+  }
+}
+
+export async function enrolGuest(year: number, name: string): Promise<Participation> {
+  const guestName = name.trim();
+  if (guestName.length === 0) {
+    throw new Error("The guest name is empty.");
+  }
+  try {
+    return await prisma.$transaction(async (tx) => {
+      await assertEditionAcceptsEnrolments(tx, year);
+      const existingGuest = await tx.participation.findFirst({
+        where: { guestName: { equals: guestName, mode: "insensitive" }, year },
+      });
+      if (existingGuest) {
+        throw new ConflictError(`${existingGuest.guestName} ya está en la edición ${year} como invitado.`);
+      }
+
+      return tx.participation.create({ data: { guestName, guestToken: randomBytes(32).toString("base64url"), year } });
+    });
+  } catch (error) {
+    // The edition can be deleted between the check and the write.
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003") {
+      throw new ConflictError(`La edición ${year} ya no existe.`);
+    }
+    throw error;
+  }
 }

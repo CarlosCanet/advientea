@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
 
 import { EditionStatus } from "@/generated/prisma/enums";
-import { assignDay, getAssignees, getDayByDayNumber, unassignDay, upsertEdition } from "@/lib/dal";
+import {
+  assignDay,
+  enrolGuest,
+  enrolUser,
+  getAssignees,
+  getDayByDayNumber,
+  unassignDay,
+  upsertEdition,
+} from "@/lib/dal";
 import { ConflictError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 
@@ -147,6 +155,124 @@ describe("dal Participation", () => {
       const free = await day(10);
 
       await expect(unassignDay(free.id, beforeTheEdition)).resolves.toBeUndefined();
+    });
+  });
+
+  describe("enrolUser", () => {
+    it("enrols a user in the edition without a day", async () => {
+      const user = await userWithoutDay();
+
+      const result = await enrolUser(2025, user.id);
+
+      expect(result).toMatchObject({ dayId: null, guestName: null, guestToken: null, userId: user.id, year: 2025 });
+    });
+
+    it("is idempotent: enrolling twice keeps a single participation", async () => {
+      const user = await userWithoutDay();
+
+      const first = await enrolUser(2025, user.id);
+      const second = await enrolUser(2025, user.id);
+
+      expect(second.id).toBe(first.id);
+      expect(await prisma.participation.count({ where: { userId: user.id, year: 2025 } })).toBe(1);
+    });
+
+    it("leaves the day of someone who already has one", async () => {
+      const ana = await prisma.participation.findUniqueOrThrow({ where: { dayId: (await day(3)).id } });
+
+      const result = await enrolUser(2025, ana.userId!);
+
+      expect(result.id).toBe(ana.id);
+      expect(result.dayId).toBe(ana.dayId);
+    });
+
+    it("enrols the same user in another edition as a separate participation", async () => {
+      await upsertEdition(2030, EditionStatus.PREPARING);
+      const ana = await prisma.participation.findUniqueOrThrow({ where: { dayId: (await day(3)).id } });
+
+      const result = await enrolUser(2030, ana.userId!);
+
+      expect(result.id).not.toBe(ana.id);
+      expect(result).toMatchObject({ dayId: null, userId: ana.userId, year: 2030 });
+    });
+
+    it("refuses an edition that does not exist", async () => {
+      const user = await userWithoutDay();
+
+      await expect(enrolUser(2099, user.id)).rejects.toThrow(ConflictError);
+      await expect(enrolUser(2099, user.id)).rejects.toThrow(/no existe/);
+    });
+
+    it("refuses an archived edition", async () => {
+      await upsertEdition(2030, EditionStatus.ARCHIVED);
+      const user = await userWithoutDay();
+
+      await expect(enrolUser(2030, user.id)).rejects.toThrow(ConflictError);
+      await expect(enrolUser(2030, user.id)).rejects.toThrow(/archivada/);
+      expect(await prisma.participation.count({ where: { year: 2030 } })).toBe(0);
+    });
+
+    it("refuses a user that does not exist, as a conflict", async () => {
+      await expect(enrolUser(2025, "no-such-user")).rejects.toThrow(ConflictError);
+    });
+  });
+
+  describe("enrolGuest", () => {
+    it("enrols a guest without a day and with a secret token", async () => {
+      const result = await enrolGuest(2025, "Prima Lejana");
+
+      expect(result).toMatchObject({ dayId: null, guestName: "Prima Lejana", userId: null, year: 2025 });
+      // 32 random bytes in base64url.
+      expect(result.guestToken).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    });
+
+    it("gives every guest a different token", async () => {
+      const first = await enrolGuest(2025, "Prima Lejana");
+      const second = await enrolGuest(2025, "Tío Segundo");
+
+      expect(second.guestToken).not.toBe(first.guestToken);
+    });
+
+    it("stores the name without the spaces around it", async () => {
+      const result = await enrolGuest(2025, "  Prima Lejana  ");
+
+      expect(result.guestName).toBe("Prima Lejana");
+    });
+
+    it.each(["Anónimo", "anónimo", " ANÓNIMO "])(
+      "refuses %j because the edition already has that guest, and names the existing one",
+      async (name) => {
+        await expect(enrolGuest(2025, name)).rejects.toThrow(ConflictError);
+        await expect(enrolGuest(2025, name)).rejects.toThrow(/Anónimo/);
+        expect(await prisma.participation.count({ where: { guestName: { not: null }, year: 2025 } })).toBe(1);
+      },
+    );
+
+    it.each(["", "   "])("rejects the empty name %j as invalid input, not as a conflict", async (name) => {
+      await expect(enrolGuest(2025, name)).rejects.toThrow(/guest name is empty/);
+      await expect(enrolGuest(2025, name)).rejects.not.toThrow(ConflictError);
+      expect(await prisma.participation.count({ where: { guestName: { not: null }, year: 2025 } })).toBe(1);
+    });
+
+    it("accepts in another edition a name that an earlier one already has", async () => {
+      await upsertEdition(2030, EditionStatus.PREPARING);
+
+      const result = await enrolGuest(2030, "Anónimo");
+
+      expect(result).toMatchObject({ guestName: "Anónimo", year: 2030 });
+    });
+
+    it("refuses an edition that does not exist", async () => {
+      await expect(enrolGuest(2099, "Prima Lejana")).rejects.toThrow(ConflictError);
+      await expect(enrolGuest(2099, "Prima Lejana")).rejects.toThrow(/no existe/);
+    });
+
+    it("refuses an archived edition", async () => {
+      await upsertEdition(2030, EditionStatus.ARCHIVED);
+
+      await expect(enrolGuest(2030, "Prima Lejana")).rejects.toThrow(ConflictError);
+      await expect(enrolGuest(2030, "Prima Lejana")).rejects.toThrow(/archivada/);
+      expect(await prisma.participation.count({ where: { year: 2030 } })).toBe(0);
     });
   });
 });
