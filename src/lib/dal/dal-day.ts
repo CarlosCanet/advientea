@@ -3,44 +3,51 @@ import { prisma } from "@/lib/prisma";
 
 import { storyTeaWithImagesInclude } from "./includes";
 
-const dayWithTeaStoryImagesInclude = {
-  tea: { include: { story: { include: storyTeaWithImagesInclude } } },
+// Only the tea of whoever holds the day: the page of a day must not load who that is.
+const dayWithParticipationTeaStoryImagesInclude = {
+  participation: { select: { tea: { include: { story: { include: storyTeaWithImagesInclude } } } } },
 } satisfies Prisma.DayInclude;
-export type DayWithTeaStoryImages = Prisma.DayGetPayload<{ include: typeof dayWithTeaStoryImagesInclude }>;
-const dayWithParticipationUserAndTeaStoryImagesInclude = {
-  participation: { include: { user: true } },
-  ...dayWithTeaStoryImagesInclude,
+export type DayWithParticipationTeaStoryImages = Prisma.DayGetPayload<{
+  include: typeof dayWithParticipationTeaStoryImagesInclude;
+}>;
+const dayWithParticipationTeaStoryImagesAndUserInclude = {
+  participation: { include: { tea: { include: { story: { include: storyTeaWithImagesInclude } } }, user: true } },
 } satisfies Prisma.DayInclude;
-export type DayWithParticipationUserAndTeaStoryImages = Prisma.DayGetPayload<{
-  include: typeof dayWithParticipationUserAndTeaStoryImagesInclude;
+export type DayWithParticipationTeaStoryImagesAndUser = Prisma.DayGetPayload<{
+  include: typeof dayWithParticipationTeaStoryImagesAndUserInclude;
 }>;
 export type DayForGuessing = Prisma.DayGetPayload<{
   select: {
     dayNumber: true;
-    participation: { select: { guestName: true; user: { select: { id: true; username: true } } } };
-    tea: { select: { ingredients: true; name: true; teaType: true } };
+    participation: {
+      select: {
+        guestName: true;
+        tea: { select: { ingredients: true; name: true; teaType: true } };
+        user: { select: { id: true; username: true } };
+      };
+    };
     year: true;
   };
 }>;
-export type DayForEdition = Prisma.DayGetPayload<{ select: { dayNumber: true; tea: { select: { id: true } } } }>;
+export type DayForEdition = Prisma.DayGetPayload<{ select: { dayNumber: true } }>;
 
 export type DayYear = {
   dayNumber: number;
   year: number;
 };
 
-export async function getDayById(id: string): Promise<DayWithTeaStoryImages | null> {
+export async function getDayById(id: string): Promise<DayWithParticipationTeaStoryImages | null> {
   const dayResponse = await prisma.day.findUnique({
-    include: dayWithTeaStoryImagesInclude,
+    include: dayWithParticipationTeaStoryImagesInclude,
     where: { id },
   });
   if (!dayResponse) return null;
   return dayResponse;
 }
 
-export async function getDayByDayNumber(dayYear: DayYear): Promise<DayWithTeaStoryImages | null> {
+export async function getDayByDayNumber(dayYear: DayYear): Promise<DayWithParticipationTeaStoryImages | null> {
   const dayResponse = await prisma.day.findUnique({
-    include: dayWithTeaStoryImagesInclude,
+    include: dayWithParticipationTeaStoryImagesInclude,
     where: { dayNumber_year: { dayNumber: dayYear.dayNumber, year: dayYear.year } },
   });
   if (!dayResponse) return null;
@@ -54,19 +61,8 @@ export async function getDayForGuessing(id: string): Promise<DayForGuessing | nu
       participation: {
         select: {
           guestName: true,
-          user: {
-            select: {
-              id: true,
-              username: true,
-            },
-          },
-        },
-      },
-      tea: {
-        select: {
-          ingredients: true,
-          name: true,
-          teaType: true,
+          tea: { select: { ingredients: true, name: true, teaType: true } },
+          user: { select: { id: true, username: true } },
         },
       },
       year: true,
@@ -76,9 +72,9 @@ export async function getDayForGuessing(id: string): Promise<DayForGuessing | nu
   return dayResponse;
 }
 
-export async function getAllDays(year: number): Promise<Array<DayWithParticipationUserAndTeaStoryImages>> {
+export async function getAllDays(year: number): Promise<Array<DayWithParticipationTeaStoryImagesAndUser>> {
   const allDays = await prisma.day.findMany({
-    include: dayWithParticipationUserAndTeaStoryImagesInclude,
+    include: dayWithParticipationTeaStoryImagesAndUserInclude,
     orderBy: { dayNumber: "asc" },
     where: { year },
   });
@@ -88,7 +84,7 @@ export async function getAllDays(year: number): Promise<Array<DayWithParticipati
 export async function getDaysForEdition(year: number): Promise<Array<DayForEdition>> {
   return prisma.day.findMany({
     orderBy: { dayNumber: "asc" },
-    select: { dayNumber: true, tea: { select: { id: true } } },
+    select: { dayNumber: true },
     where: { year },
   });
 }
@@ -148,14 +144,7 @@ export async function editDay(data: Prisma.DayUncheckedUpdateInput, id: string):
   return dayUpdated;
 }
 
-export async function deleteDay(id: string): Promise<DayWithTeaStoryImages> {
-  // The participation goes with the day on purpose: since the editions migration its day is SetNull, and
-  // an orphan row would still hold the (userId, year) unique and block assigning that person again.
-  return prisma.$transaction(async (tx) => {
-    await tx.participation.deleteMany({ where: { dayId: id } });
-    return tx.day.delete({
-      include: dayWithTeaStoryImagesInclude,
-      where: { id },
-    });
-  });
+export async function deleteDay(id: string): Promise<Day> {
+  // Whoever held the day stays in the edition without one, tea included: the tea hangs from the participation.
+  return prisma.day.delete({ where: { id } });
 }

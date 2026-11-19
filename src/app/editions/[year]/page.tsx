@@ -13,32 +13,26 @@ import { EDITION_STATUS_LABELS, toParticipantName } from "@/lib/utils";
 
 const DELETED_ACCOUNT = "Cuenta borrada";
 
-const ISSUE_ORDER: Array<EditionIssue["kind"]> = [
-  "teaWithoutOwner",
-  "enrolledWithoutDay",
-  "gap",
-  "emptyDay",
-  "participantWithoutTea",
-];
+const ISSUE_ORDER: Array<EditionIssue["kind"]> = ["enrolledWithoutDay", "gap", "emptyDay", "participantWithoutTea"];
 
 const ISSUE_LABELS: Record<EditionIssue["kind"], string> = {
-  emptyDay: "Días sin participante ni té",
+  emptyDay: "Días sin participante",
   enrolledWithoutDay: "Inscritos sin día",
   gap: "Días que faltan",
   participantWithoutTea: "Participantes sin té",
-  teaWithoutOwner: "Días con té y sin participante",
 };
 
 function toIssueItem(issue: EditionIssue): string {
   switch (issue.kind) {
     case "emptyDay":
     case "gap":
-    case "teaWithoutOwner":
       return String(issue.dayNumber);
     case "enrolledWithoutDay":
       return issue.name ?? DELETED_ACCOUNT;
-    case "participantWithoutTea":
-      return `${issue.name ?? DELETED_ACCOUNT} (día ${issue.dayNumber})`;
+    case "participantWithoutTea": {
+      const name = issue.name ?? DELETED_ACCOUNT;
+      return issue.dayNumber === null ? name : `${name} (día ${issue.dayNumber})`;
+    }
   }
 }
 
@@ -75,13 +69,13 @@ export default async function EditionPage({ params }: { params: Promise<{ year: 
     getUsersBasic(),
   ]);
 
-  const dayNumbersWithTea = new Set(days.filter((day) => day.tea !== null).map((day) => day.dayNumber));
   const issueLines = toIssueLines(
     findEditionIssues(
-      days.map((day) => ({ dayNumber: day.dayNumber, hasTea: day.tea !== null })),
+      days,
       participations.map((participation) => ({
         dayNumber: participation.day?.dayNumber ?? null,
         guestName: participation.guestName,
+        hasTea: participation.tea !== null,
         id: participation.id,
         user: participation.user,
       })),
@@ -92,6 +86,7 @@ export default async function EditionPage({ params }: { params: Promise<{ year: 
   const rows = participations
     .map((participation) => ({
       dayNumber: participation.day?.dayNumber ?? null,
+      hasTea: participation.tea !== null,
       id: participation.id,
       isGuest: participation.userId === null && participation.guestName !== null,
       name: toParticipantName(participation) ?? DELETED_ACCOUNT,
@@ -164,9 +159,7 @@ export default async function EditionPage({ params }: { params: Promise<{ year: 
                         {row.name}
                         {row.isGuest && <span className="badge badge-ghost badge-sm ml-2">Invitado</span>}
                       </td>
-                      <td>
-                        {row.dayNumber === null ? "—" : dayNumbersWithTea.has(row.dayNumber) ? "Subido" : "Falta"}
-                      </td>
+                      <td>{row.hasTea ? "Subido" : "Falta"}</td>
                     </tr>
                   ))}
                 </tbody>

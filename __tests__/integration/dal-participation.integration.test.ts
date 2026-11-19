@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { Prisma } from "@/generated/prisma/client";
 import { EditionStatus } from "@/generated/prisma/enums";
 import {
+  addTea,
   assignDay,
   enrolGuest,
   enrolUser,
@@ -69,6 +70,20 @@ describe("dal Participation", () => {
       expect(participations.find((participation) => participation.id === enrolled.id)?.day).toBeNull();
     });
 
+    it("says who has a tea, with or without a day", async () => {
+      const enrolled = await enrolGuest(2025, "Prima Lejana");
+      await addTea(
+        { addMilk: false, canReinfuse: false, hasTheine: true, infusionTime: 3, name: "Sin día", temperature: 80 },
+        [],
+        enrolled.id,
+      );
+
+      const participations = await getParticipationsForEdition(2025);
+
+      const withTea = participations.filter((participation) => participation.tea !== null);
+      expect(withTea.map((participation) => participation.day?.dayNumber ?? null).toSorted()).toEqual([1, 2, null]);
+    });
+
     it("never loads the guest token or anything of the account but the username", async () => {
       await enrolGuest(2025, "Prima Lejana");
 
@@ -93,11 +108,10 @@ describe("dal Participation", () => {
   });
 
   describe("getDaysForEdition", () => {
-    it("returns the days of the edition in order, each saying whether it has a tea", async () => {
+    it("returns the days of the edition in order", async () => {
       const days = await getDaysForEdition(2025);
 
       expect(days.map((item) => item.dayNumber)).toEqual(Array.from({ length: 25 }, (_, index) => index + 1));
-      expect(days.filter((item) => item.tea !== null).map((item) => item.dayNumber)).toEqual([1, 2]);
     });
 
     it("returns nothing for an edition without days", async () => {
@@ -201,10 +215,18 @@ describe("dal Participation", () => {
       expect(after.userId).toBe(before.userId);
     });
 
-    it("refuses to free a day that holds a tea", async () => {
+    it("frees a day whose holder has a tea: the tea stays with the person", async () => {
       const one = await day(1);
+      const before = await prisma.participation.findUniqueOrThrow({
+        include: { tea: true },
+        where: { dayId: one.id },
+      });
 
-      await expect(unassignDay(one.id, beforeTheEdition)).rejects.toThrow(/tiene un té/);
+      await unassignDay(one.id, beforeTheEdition);
+
+      const after = await prisma.participation.findUniqueOrThrow({ include: { tea: true }, where: { id: before.id } });
+      expect(after.dayId).toBeNull();
+      expect(after.tea?.id).toBe(before.tea!.id);
     });
 
     it("refuses to free a day that has already opened", async () => {

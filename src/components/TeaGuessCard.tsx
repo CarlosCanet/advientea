@@ -42,8 +42,7 @@ export default async function TeaGuessCard({ dayId }: TeaGuessCardProps) {
 
   const ingredientList: Array<SelectOption> =
     ingredients?.map((ingredient) => ({ id: ingredient.id, name: ingredient.name })) ?? [];
-  const teaHasIngredients: boolean =
-    Array.isArray(dayForGuessing?.tea?.ingredients) && dayForGuessing.tea.ingredients.length > 0;
+  const teaHasIngredients: boolean = (dayForGuessing?.participation?.tea?.ingredients.length ?? 0) > 0;
   const userList: Array<SelectOption> = users
     .map((user) => ({ id: user.userId ?? "", name: toParticipantName(user) ?? "" }))
     .toSorted((user1, user2) => user1.name.localeCompare(user2.name));

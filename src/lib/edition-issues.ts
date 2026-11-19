@@ -1,13 +1,12 @@
 import { type ParticipantNameSource, toParticipantName } from "./utils";
 
-export type EditionDay = { dayNumber: number; hasTea: boolean };
-export type EditionParticipation = ParticipantNameSource & { dayNumber: null | number; id: string };
+export type EditionDay = { dayNumber: number };
+export type EditionParticipation = ParticipantNameSource & { dayNumber: null | number; hasTea: boolean; id: string };
 
 export type EditionIssue =
+  | { dayNumber: null | number; kind: "participantWithoutTea"; name: null | string; participationId: string }
   | { dayNumber: number; kind: "emptyDay" }
   | { dayNumber: number; kind: "gap" }
-  | { dayNumber: number; kind: "participantWithoutTea"; name: null | string; participationId: string }
-  | { dayNumber: number; kind: "teaWithoutOwner" }
   | { kind: "enrolledWithoutDay"; name: null | string; participationId: string };
 
 /**
@@ -18,7 +17,7 @@ export function findEditionIssues(
   days: ReadonlyArray<EditionDay>,
   participations: ReadonlyArray<EditionParticipation>,
 ): Array<EditionIssue> {
-  const participationByDayNumber = new Map<number, EditionParticipation>();
+  const heldDayNumbers = new Set<number>();
   const enrolledWithoutDay: Array<EditionIssue> = [];
   for (const participation of participations) {
     if (participation.dayNumber === null) {
@@ -28,41 +27,36 @@ export function findEditionIssues(
         participationId: participation.id,
       });
     } else {
-      participationByDayNumber.set(participation.dayNumber, participation);
+      heldDayNumbers.add(participation.dayNumber);
     }
   }
 
-  const teasWithoutOwner: Array<EditionIssue> = [];
-  const emptyDays: Array<EditionIssue> = [];
-  const participantsWithoutTea: Array<EditionIssue> = [];
-  const sortedDays = [...days].sort((first, second) => first.dayNumber - second.dayNumber);
-  for (const { dayNumber, hasTea } of sortedDays) {
-    const participation = participationByDayNumber.get(dayNumber);
-    if (!participation) {
-      // A tea nobody owns is the serious case, so that day is not also reported as empty.
-      if (hasTea) {
-        teasWithoutOwner.push({ dayNumber, kind: "teaWithoutOwner" });
-      } else {
-        emptyDays.push({ dayNumber, kind: "emptyDay" });
-      }
-    } else if (!hasTea) {
-      participantsWithoutTea.push({
-        dayNumber,
-        kind: "participantWithoutTea",
-        name: toParticipantName(participation),
-        participationId: participation.id,
-      });
-    }
-  }
+  const sortedDayNumbers = days.map((day) => day.dayNumber).sort((first, second) => first - second);
+  const emptyDays: Array<EditionIssue> = sortedDayNumbers
+    .filter((dayNumber) => !heldDayNumbers.has(dayNumber))
+    .map((dayNumber) => ({ dayNumber, kind: "emptyDay" }));
 
   const gaps: Array<EditionIssue> = [];
-  const existingDayNumbers = new Set(sortedDays.map((day) => day.dayNumber));
-  const lastDayNumber = sortedDays.at(-1)?.dayNumber ?? 0;
+  const existingDayNumbers = new Set(sortedDayNumbers);
+  const lastDayNumber = sortedDayNumbers.at(-1) ?? 0;
   for (let dayNumber = 1; dayNumber < lastDayNumber; dayNumber++) {
     if (!existingDayNumbers.has(dayNumber)) {
       gaps.push({ dayNumber, kind: "gap" });
     }
   }
 
-  return [...teasWithoutOwner, ...enrolledWithoutDay, ...gaps, ...emptyDays, ...participantsWithoutTea];
+  // Those with a day first, in calendar order; then those still without one.
+  const participantsWithoutTea: Array<EditionIssue> = participations
+    .filter((participation) => !participation.hasTea)
+    .toSorted(
+      (first, second) => (first.dayNumber ?? Number.MAX_SAFE_INTEGER) - (second.dayNumber ?? Number.MAX_SAFE_INTEGER),
+    )
+    .map((participation) => ({
+      dayNumber: participation.dayNumber,
+      kind: "participantWithoutTea",
+      name: toParticipantName(participation),
+      participationId: participation.id,
+    }));
+
+  return [...enrolledWithoutDay, ...gaps, ...emptyDays, ...participantsWithoutTea];
 }

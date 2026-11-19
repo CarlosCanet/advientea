@@ -6,7 +6,7 @@ import {
   getAllParticipations,
   getParticipationById,
   getParticipationByUserId,
-  ParticipationWithDayTeaAndUser,
+  ParticipationWithDayAndTeaAndUser,
 } from "@/lib/dal";
 
 describe("DAL Participation", () => {
@@ -30,13 +30,12 @@ describe("DAL Participation", () => {
       username: "TestUser",
     };
 
-    const mockParticipation: ParticipationWithDayTeaAndUser = {
+    const mockParticipation: ParticipationWithDayAndTeaAndUser = {
       createdAt: new Date(),
       day: {
         createdAt: new Date(),
         dayNumber: 1,
         id: "day-1",
-        tea: null,
         updatedAt: new Date(),
         year: 2025,
       },
@@ -44,6 +43,7 @@ describe("DAL Participation", () => {
       guestName: null,
       guestToken: null,
       id: "participation-1",
+      tea: null,
       updatedAt: new Date(),
       user: mockUser,
       userId: "user-1",
@@ -89,7 +89,7 @@ describe("DAL Participation", () => {
 
   describe("getAllParticipations", () => {
     it("should return all participations for a year", async () => {
-      const mockList: ParticipationWithDayTeaAndUser[] = [];
+      const mockList: ParticipationWithDayAndTeaAndUser[] = [];
       prismaMock.participation.findMany.mockResolvedValue(mockList);
 
       const result = await getAllParticipations(2025);

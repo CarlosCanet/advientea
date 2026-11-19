@@ -19,12 +19,12 @@ describe("Dal tea guess", async () => {
 
   beforeEach(async () => {
     const participationRecord1 = await prisma.participation.findFirstOrThrow({
-      include: { day: { include: { tea: { include: { ingredients: true } } } }, user: true },
-      where: { day: { tea: { isNot: null } }, user: { isNot: null } },
+      include: { day: true, tea: { include: { ingredients: true } }, user: true },
+      where: { tea: { isNot: null }, user: { isNot: null } },
     });
     const participationRecord2 = await prisma.participation.findFirstOrThrow({
-      include: { day: { include: { tea: { include: { ingredients: true } } } }, user: true },
-      where: { day: { tea: { isNot: null } }, id: { not: participationRecord1.id }, user: null },
+      include: { day: true, tea: { include: { ingredients: true } }, user: true },
+      where: { id: { not: participationRecord1.id }, tea: { isNot: null }, user: null },
     });
     const ownerDay1 = participationRecord1.user;
     testUser = await prisma.user.findFirstOrThrow({ where: { id: { not: ownerDay1!.id } } });
@@ -32,10 +32,10 @@ describe("Dal tea guess", async () => {
       throw new Error("DB test seed has participations without a day");
     testDay1 = participationRecord1.day;
     testDay2 = participationRecord2.day;
-    if (!participationRecord1.day.tea) throw new Error("DB test seed has no valid teas");
-    if (!participationRecord2.day.tea) throw new Error("DB test seed has no valid teas");
-    const tea1 = participationRecord1.day.tea;
-    const tea2 = participationRecord2.day.tea;
+    if (!participationRecord1.tea) throw new Error("DB test seed has no valid teas");
+    if (!participationRecord2.tea) throw new Error("DB test seed has no valid teas");
+    const tea1 = participationRecord1.tea;
+    const tea2 = participationRecord2.tea;
     guessComplete1 = {
       ingredients: tea1.ingredients.map((ingredient) => ingredient.id),
       personName: ownerDay1?.username ?? "",

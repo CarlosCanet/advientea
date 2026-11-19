@@ -53,8 +53,8 @@ export function validateTeaGuess(formData: FormData) {
 
 export async function canUserGuessTea(dayId: string, currentUserId: string): Promise<boolean> {
   const dayRecord = await getDayForGuessing(dayId);
-  if (!dayRecord || !dayRecord.tea) return false;
-  if (dayRecord.participation?.user?.id === currentUserId) return false;
+  if (!dayRecord?.participation?.tea) return false;
+  if (dayRecord.participation.user?.id === currentUserId) return false;
   const dayState = getAdvienteaDayState(dayRecord.dayNumber, await getEditionInfo(dayRecord.year), Role.USER);
   if (!dayState.isReleased) return false;
   return !dayState.isTeaReleased;
@@ -62,8 +62,8 @@ export async function canUserGuessTea(dayId: string, currentUserId: string): Pro
 
 export async function canUserGuessPerson(dayId: string, currentUserId: string): Promise<boolean> {
   const dayRecord = await getDayForGuessing(dayId);
-  if (!dayRecord || !dayRecord.tea) return false;
-  if (dayRecord.participation?.user?.id === currentUserId) return false;
+  if (!dayRecord?.participation?.tea) return false;
+  if (dayRecord.participation.user?.id === currentUserId) return false;
   const dayState = getAdvienteaDayState(dayRecord.dayNumber, await getEditionInfo(dayRecord.year), Role.USER);
   if (!dayState.isReleased) return false;
   return !dayState.isPersonNameReleased;
@@ -71,13 +71,14 @@ export async function canUserGuessPerson(dayId: string, currentUserId: string): 
 
 export async function calculatePointsFromGuess(dayId: string, guessData: TeaGuessFormData): Promise<null | number> {
   const dayGuessedRecord = await getDayForGuessing(dayId);
-  if (!dayGuessedRecord || !dayGuessedRecord.tea) return null;
+  const participation = dayGuessedRecord?.participation;
+  if (!participation?.tea) return null;
 
   const teaData: TeaGuessFormData = {
-    ingredients: dayGuessedRecord?.tea?.ingredients.map((ing) => ing.name),
-    personName: (dayGuessedRecord.participation && toParticipantName(dayGuessedRecord.participation)) ?? "",
-    teaName: dayGuessedRecord?.tea?.name,
-    teaType: dayGuessedRecord?.tea?.teaType,
+    ingredients: participation.tea.ingredients.map((ing) => ing.name),
+    personName: toParticipantName(participation) ?? "",
+    teaName: participation.tea.name,
+    teaType: participation.tea.teaType,
   };
   const timestamp = getNow();
 

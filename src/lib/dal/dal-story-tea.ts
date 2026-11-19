@@ -1,7 +1,6 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 
-import { DayYear, getDayByDayNumber } from "./dal-day";
 import { storyTeaWithImagesInclude } from "./includes";
 
 export type StoryTeaWithImages = Prisma.StoryTeaGetPayload<{ include: typeof storyTeaWithImagesInclude }>;
@@ -16,13 +15,6 @@ export async function getStoryTeaById(id: string): Promise<null | StoryTeaWithIm
   });
   if (!story) return null;
   return story;
-}
-
-export async function getStoryTeaByDayNumber(dayYear: DayYear): Promise<null | StoryTeaWithImagesAndTea> {
-  const dayResponse = await getDayByDayNumber(dayYear);
-  if (!dayResponse || !dayResponse.tea?.story) return null;
-  const result: StoryTeaWithImagesAndTea = { ...dayResponse.tea.story, tea: dayResponse.tea };
-  return result;
 }
 
 export async function getAllStoriesTea(): Promise<StoryTeaWithImagesAndTea[]> {

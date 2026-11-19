@@ -15,6 +15,7 @@ import {
   deleteDay,
   editStoryTea,
   getActiveEdition,
+  getDayByDayNumber,
   getTeaById,
   replaceStoryImages,
   requireRole,
@@ -77,11 +78,17 @@ export async function addTeaInfo(
     }
 
     const data = validatedFields.data;
-    let day = data.dayNumber;
+    let dayNumber = data.dayNumber;
     if (data.dayNumber === 0) {
-      day = Math.floor(Math.random() * 50000) + 25;
-      await addDay({ dayNumber: day, year: edition.year });
+      dayNumber = Math.floor(Math.random() * 50000) + 25;
+      await addDay({ dayNumber, year: edition.year });
     }
+    const dayRecord = await getDayByDayNumber({ dayNumber, year: edition.year });
+    if (!dayRecord) {
+      throw new Error(`Day ${dayNumber}/${edition.year} does not exist`);
+    }
+    // The participation comes first: the tea hangs from it.
+    const participation = await assignDay(dayRecord.id, isAuth ? { userId } : { guestName: data.personName });
     const teaCreated = await addTea(
       {
         addMilk: data.addMilk,
@@ -96,14 +103,8 @@ export async function addTeaInfo(
         url: data.urlStore,
       },
       [],
-      {
-        dayNumber: day,
-        year: edition.year,
-      },
+      participation.id,
     );
-    if (!teaCreated) {
-      throw new Error("Cannot create tea");
-    }
     if (
       data.storyPart1 ||
       data.storyPart2 ||
@@ -137,11 +138,6 @@ export async function addTeaInfo(
       }
     }
 
-    if (isAuth) {
-      await assignDay(teaCreated.dayId!, { userId });
-    } else {
-      await assignDay(teaCreated.dayId!, { guestName: data.personName });
-    }
     return {
       message: "Té guardado",
       success: true,
@@ -209,10 +205,10 @@ export async function editTeaInfoAction(
 
     const currentTea = await getTeaById(data.teaId);
     if (!currentTea) throw new Error(`Cannot find tea with id ${data.teaId}`);
-    if (!currentTea.day || !(await userCanEditTea({ id: userId, role }, currentTea))) {
+    if (!(await userCanEditTea({ id: userId, role }, currentTea))) {
       throw new ForbiddenError("No puedes editar este té.");
     }
-    const year = currentTea.day.year;
+    const year = currentTea.participation.year;
     let storyId = currentTea.story?.id || null;
 
     await updateTeaContent(data.teaId, {

@@ -36,10 +36,9 @@ export default async function DaysList() {
           .map((day) => {
             const advienteaDayState = getAdvienteaDayState(day.dayNumber, editionInfo, session?.user.role, false);
             const assigneeName = day.participation ? toParticipantName(day.participation) : null;
+            const tea = day.participation?.tea ?? null;
             const advienteaDayTitle =
-              advienteaDayState.isPersonNameReleased && assigneeName
-                ? `${day.tea?.name} - ${assigneeName}`
-                : day.tea?.name;
+              advienteaDayState.isPersonNameReleased && assigneeName ? `${tea?.name} - ${assigneeName}` : tea?.name;
             return (
               <li className="rounded-none border-b border-b-secondary/70" key={day.id}>
                 <Link className="list-row items-center justify-center text-center gap-1 " href={`/teaDay/${day.id}`}>
@@ -60,8 +59,8 @@ export default async function DaysList() {
                     ) : (
                       <div className="skeleton skeleton-text font-[Griffy] text-lg">Té desconocido</div>
                     )}
-                    {day.tea && advienteaDayState.isPart1Released && (
-                      <TeaInfusionInfo hasMoreIndication={false} tea={day.tea} xs={true} />
+                    {tea && advienteaDayState.isPart1Released && (
+                      <TeaInfusionInfo hasMoreIndication={false} tea={tea} xs={true} />
                     )}
                   </div>
                   <div className="text-2xl">{day.dayNumber % 2 === 0 ? <BsCupHot /> : <BsCupHotFill />}</div>

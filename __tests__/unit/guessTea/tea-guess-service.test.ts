@@ -81,6 +81,13 @@ describe("Tea service", () => {
         dayNumber,
         participation: {
           guestName: userId ? "" : "Anónimo",
+          tea: teaExists
+            ? {
+                ingredients: [],
+                name: "",
+                teaType: TeaType.BLACK,
+              }
+            : null,
           user: userId
             ? {
                 id: userId,
@@ -88,13 +95,6 @@ describe("Tea service", () => {
               }
             : null,
         },
-        tea: teaExists
-          ? {
-              ingredients: [],
-              name: "",
-              teaType: TeaType.BLACK,
-            }
-          : null,
         year,
       });
     };
@@ -289,12 +289,12 @@ describe("Tea service", () => {
         dayNumber: 1,
         participation: {
           guestName: null,
+          tea: {
+            ingredients: [mockIngredient1],
+            name: "Earl Grey",
+            teaType: TeaType.BLACK,
+          },
           user: { id: "user-id", username: "userName" },
-        },
-        tea: {
-          ingredients: [mockIngredient1],
-          name: "Earl Grey",
-          teaType: TeaType.BLACK,
         },
         year: 2025,
       };
@@ -310,7 +310,7 @@ describe("Tea service", () => {
       it("should return null if the day or tea does not exist", async () => {
         vi.mocked(getDayForGuessing).mockResolvedValue(null);
         const result1 = await calculatePointsFromGuess("day999-id", mockUserGuess);
-        vi.mocked(getDayForGuessing).mockResolvedValue({ dayNumber: 2, participation: null, tea: null, year: 2025 });
+        vi.mocked(getDayForGuessing).mockResolvedValue({ dayNumber: 2, participation: null, year: 2025 });
         const result2 = await calculatePointsFromGuess("day2-id", mockUserGuess);
         expect(result1).toBeNull();
         expect(result2).toBeNull();

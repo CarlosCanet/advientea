@@ -9,8 +9,8 @@ import { cleanGuessName, toParticipantName } from "@/lib/utils";
 
 import { getEditionInfo } from "./dal-edition";
 
-export type ParticipationWithDayTeaAndUser = Prisma.ParticipationGetPayload<{
-  include: { day: { include: { tea: true } }; user: true };
+export type ParticipationWithDayAndTeaAndUser = Prisma.ParticipationGetPayload<{
+  include: { day: true; tea: true; user: true };
 }>;
 export type ParticipationWithDayAndUser = Prisma.ParticipationGetPayload<{ include: { day: true; user: true } }>;
 export type Assignee = Prisma.ParticipationGetPayload<{
@@ -21,14 +21,15 @@ export type ParticipationForEdition = Prisma.ParticipationGetPayload<{
     day: { select: { dayNumber: true } };
     guestName: true;
     id: true;
+    tea: { select: { id: true } };
     user: { select: { username: true } };
     userId: true;
   };
 }>;
 
-export async function getParticipationById(id: string): Promise<null | ParticipationWithDayTeaAndUser> {
+export async function getParticipationById(id: string): Promise<null | ParticipationWithDayAndTeaAndUser> {
   const participation = await prisma.participation.findUnique({
-    include: { day: { include: { tea: true } }, user: true },
+    include: { day: true, tea: true, user: true },
     where: { id },
   });
   return participation;
@@ -37,10 +38,10 @@ export async function getParticipationById(id: string): Promise<null | Participa
 export async function getParticipationByUserId(
   userId: string,
   year: number,
-): Promise<null | ParticipationWithDayTeaAndUser> {
+): Promise<null | ParticipationWithDayAndTeaAndUser> {
   try {
     const participation = await prisma.participation.findUnique({
-      include: { day: { include: { tea: true } }, user: true },
+      include: { day: true, tea: true, user: true },
       where: { userId_year: { userId: userId, year } },
     });
     return participation;
@@ -50,10 +51,10 @@ export async function getParticipationByUserId(
   }
 }
 
-export async function getAllParticipations(year: number): Promise<Array<ParticipationWithDayTeaAndUser>> {
+export async function getAllParticipations(year: number): Promise<Array<ParticipationWithDayAndTeaAndUser>> {
   try {
     const participations = await prisma.participation.findMany({
-      include: { day: { include: { tea: true } }, user: true },
+      include: { day: true, tea: true, user: true },
       where: { year },
     });
     return participations;
@@ -77,6 +78,7 @@ export async function getParticipationsForEdition(year: number): Promise<Array<P
       day: { select: { dayNumber: true } },
       guestName: true,
       id: true,
+      tea: { select: { id: true } },
       user: { select: { username: true } },
       userId: true,
     },
@@ -161,7 +163,7 @@ export async function assignDay(
 
 export async function unassignDay(dayId: string, now: Date = getNow()): Promise<void> {
   await prisma.$transaction(async (tx) => {
-    const dayRecord = await tx.day.findUnique({ include: { participation: true, tea: true }, where: { id: dayId } });
+    const dayRecord = await tx.day.findUnique({ include: { participation: true }, where: { id: dayId } });
     if (!dayRecord) {
       throw new Error(`The day with id ${dayId} does not exist.`);
     }
@@ -169,9 +171,6 @@ export async function unassignDay(dayId: string, now: Date = getNow()): Promise<
       return;
     }
     await assertDayNotReleased(dayRecord.dayNumber, dayRecord.year, now);
-    if (dayRecord.tea) {
-      throw new ConflictError("Ese día tiene un té. Muévelo antes de liberar el día.");
-    }
     await tx.participation.update({ data: { day: { disconnect: true } }, where: { id: dayRecord.participation.id } });
   });
 }

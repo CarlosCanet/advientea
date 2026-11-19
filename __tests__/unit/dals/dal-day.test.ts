@@ -6,8 +6,8 @@ import {
   add25Days,
   addDay,
   addNextDay,
-  DayWithParticipationUserAndTeaStoryImages,
-  DayWithTeaStoryImages,
+  DayWithParticipationTeaStoryImages,
+  DayWithParticipationTeaStoryImagesAndUser,
   deleteDay,
   editDay,
   getAllDays,
@@ -21,38 +21,40 @@ describe("DAL Day", () => {
   });
 
   describe("getDay", () => {
-    const mockDayComplete: DayWithTeaStoryImages = {
+    const mockDayComplete: DayWithParticipationTeaStoryImages = {
       createdAt: new Date(),
       dayNumber: 1,
       id: "day-1",
-      tea: {
-        addMilk: false,
-        canReinfuse: false,
-        createdAt: new Date(),
-        dayId: "day-1",
-        hasTheine: true,
-        id: "tea-1",
-        infusionTime: 3,
-        moreIndications: null,
-        name: "Test Tea",
-        reinfuseNumber: null,
-        storeName: null,
-        story: {
+      participation: {
+        tea: {
+          addMilk: false,
+          canReinfuse: false,
           createdAt: new Date(),
-          id: "story-1",
-          images: [],
-          onlyMusic: false,
-          storyPart1: "Text",
-          storyPart2: null,
-          storyPart3: null,
-          teaId: "tea-1",
+          hasTheine: true,
+          id: "tea-1",
+          infusionTime: 3,
+          moreIndications: null,
+          name: "Test Tea",
+          participationId: "participation-1",
+          reinfuseNumber: null,
+          storeName: null,
+          story: {
+            createdAt: new Date(),
+            id: "story-1",
+            images: [],
+            onlyMusic: false,
+            storyPart1: "Text",
+            storyPart2: null,
+            storyPart3: null,
+            teaId: "tea-1",
+            updatedAt: new Date(),
+            youtubeURL: null,
+          },
+          teaType: TeaType.GREEN,
+          temperature: 80,
           updatedAt: new Date(),
-          youtubeURL: null,
+          url: null,
         },
-        teaType: TeaType.GREEN,
-        temperature: 80,
-        updatedAt: new Date(),
-        url: null,
       },
       updatedAt: new Date(),
       year: 2025,
@@ -93,13 +95,12 @@ describe("DAL Day", () => {
 
   describe("getAllDays", () => {
     it("should return array of days ordered by number", async () => {
-      const mockDays: DayWithParticipationUserAndTeaStoryImages[] = [
+      const mockDays: DayWithParticipationTeaStoryImagesAndUser[] = [
         {
           createdAt: new Date(),
           dayNumber: 1,
           id: "day-1",
           participation: null,
-          tea: null,
           updatedAt: new Date(),
           year: 2025,
         },
@@ -108,7 +109,6 @@ describe("DAL Day", () => {
           dayNumber: 2,
           id: "day-2",
           participation: null,
-          tea: null,
           updatedAt: new Date(),
           year: 2025,
         },
@@ -278,7 +278,7 @@ describe("DAL Day", () => {
   });
 
   describe("deleteDay", () => {
-    it("should delete day and return relations", async () => {
+    it("deletes the day alone: whoever held it stays in the edition", async () => {
       const mockDeleted: Day = {
         createdAt: new Date(),
         dayNumber: 1,
@@ -286,19 +286,12 @@ describe("DAL Day", () => {
         updatedAt: new Date(),
         year: 2025,
       };
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      prismaMock.$transaction.mockImplementation((cb: any) => cb(prismaMock));
       prismaMock.day.delete.mockResolvedValue(mockDeleted);
 
       await deleteDay("day-1");
 
-      expect(prismaMock.participation.deleteMany).toHaveBeenCalledWith({ where: { dayId: "day-1" } });
-      expect(prismaMock.day.delete).toHaveBeenCalledWith(
-        expect.objectContaining({
-          include: expect.anything(),
-          where: { id: "day-1" },
-        }),
-      );
+      expect(prismaMock.participation.deleteMany).not.toHaveBeenCalled();
+      expect(prismaMock.day.delete).toHaveBeenCalledWith({ where: { id: "day-1" } });
     });
   });
 });

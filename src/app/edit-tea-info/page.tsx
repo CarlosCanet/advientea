@@ -25,8 +25,8 @@ async function EditTeaInfo() {
   }
   if (!isUserPrivileged) {
     const assignment = await getParticipationByUserId(session.user.id, edition.year);
-    if (assignment && assignment.day?.tea) {
-      redirect(`/edit-tea-info/${assignment.day?.tea.id}`);
+    if (assignment?.tea) {
+      redirect(`/edit-tea-info/${assignment.tea.id}`);
     } else {
       return <WaitForDayAssignment />;
     }
@@ -56,6 +56,7 @@ async function EditTeaInfo() {
             </thead>
             <tbody>
               {days.map((day) => {
+                const tea = day.participation?.tea;
                 return (
                   <tr key={day.id}>
                     <th>{day.dayNumber}</th>
@@ -71,13 +72,13 @@ async function EditTeaInfo() {
                       }
                     </td>
                     <td>
-                      <Link href={`/edit-tea-info/${day.tea?.id}`}>{day.tea?.name}</Link>
+                      <Link href={`/edit-tea-info/${tea?.id}`}>{tea?.name}</Link>
                     </td>
                     <td className="flex gap-3 items-center justify-center flex-nowrap">
                       <Link href={`/teaDay/${day.id}?simulated=true`}>
                         <FaEye />
                       </Link>
-                      <Link href={`/edit-tea-info/${day.tea?.id}`}>
+                      <Link href={`/edit-tea-info/${tea?.id}`}>
                         <FaPencil />
                       </Link>
                       <ButtonDeleteDay dayId={day.id} />

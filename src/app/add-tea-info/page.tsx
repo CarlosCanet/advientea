@@ -24,7 +24,7 @@ async function AddTeaInfo() {
       const usersWithAssignments = allAssignments.map((assignment) => assignment.user?.username);
       users = allUsers.map((user) => user.username).filter((user) => !usersWithAssignments.includes(user));
     }
-    if (assignment && assignment.day?.tea) {
+    if (assignment?.tea) {
       redirect("/edit-tea-info");
     }
   }

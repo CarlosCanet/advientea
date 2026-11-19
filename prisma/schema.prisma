@@ -12,7 +12,6 @@ model Day {
   dayNumber Int
   year      Int
 
-  tea           Tea?
   participation Participation?
   edition       Edition        @relation(fields: [year], references: [year], onDelete: Restrict)
 
@@ -39,7 +38,7 @@ enum TeaType {
 
 model Tea {
   id              String    @id @default(cuid())
-  dayId           String?   @unique
+  participationId String    @unique
   name            String
   teaType         TeaType   @default(BLEND)
   infusionTime    Int
@@ -56,8 +55,8 @@ model Tea {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  day         Day?            @relation(fields: [dayId], references: [id], onDelete: Cascade)
-  ingredients TeaIngredient[] @relation("TeaIngredients")
+  participation Participation   @relation(fields: [participationId], references: [id], onDelete: Restrict)
+  ingredients   TeaIngredient[] @relation("TeaIngredients")
 }
 
 model TeaIngredient {
@@ -84,6 +83,7 @@ model Participation {
   day        Day?    @relation(fields: [dayId], references: [id], onDelete: SetNull)
   edition    Edition @relation(fields: [year], references: [year], onDelete: Restrict)
   guestToken String? @unique
+  tea        Tea?
 
   @@unique([userId, year])
   @@index([year])

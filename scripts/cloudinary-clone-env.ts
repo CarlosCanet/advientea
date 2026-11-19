@@ -48,20 +48,18 @@ function basenameOf(publicId: string): string {
 async function planMoves(): Promise<{ moves: Array<Move>; skipped: Array<string> }> {
   const moves: Array<Move> = [];
   const skipped: Array<string> = [];
-  const activeEdition = await prisma.edition.findFirst({ orderBy: { year: "desc" }, where: { status: "ACTIVE" } });
-
   const images = await prisma.storyImage.findMany({
-    select: { id: true, publicId: true, story: { select: { tea: { select: { day: { select: { year: true } } } } } } },
+    select: {
+      id: true,
+      publicId: true,
+      story: { select: { tea: { select: { participation: { select: { year: true } } } } } },
+    },
   });
   for (const image of images) {
     if (image.publicId.startsWith(root)) {
       continue;
     }
-    const year = image.story.tea.day?.year ?? activeEdition?.year;
-    if (year === undefined) {
-      skipped.push(`${image.publicId} (tea without a day and no active edition)`);
-      continue;
-    }
+    const year = image.story.tea.participation.year;
     const to = `${assetFolder({ kind: "teaDay", year })}/${basenameOf(image.publicId)}`;
     moves.push({ from: image.publicId, id: image.id, kind: "storyImage", to });
   }
