@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { Prisma } from "@/generated/prisma/client";
 import { EditionStatus } from "@/generated/prisma/enums";
@@ -278,6 +278,11 @@ describe("dal Participation", () => {
       ]);
       return { days, participations };
     }
+
+    // A simulated failure that the call never reaches would otherwise break the reset of the next test.
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
 
     it("places someone enrolled without a day on the day with that number", async () => {
       const user = await userWithoutDay();
@@ -700,6 +705,79 @@ describe("dal Participation", () => {
       expect(await placements()).toEqual(before);
     });
 
+    it("returns the placement when the database reports a clash and the person is already on that day", async () => {
+      const [guest] = await enrolGuests(1);
+      const six = await day(6);
+      await placeParticipant(guest.id, 6, beforeTheEdition);
+      const before = await placements();
+      const transaction = failNextTransaction("P2002");
+
+      const result = await placeParticipant(guest.id, 6, beforeTheEdition);
+
+      // Without this the call could have answered before ever writing, and the clash would not be exercised.
+      expect(transaction).toHaveBeenCalled();
+      expect(result).toMatchObject({ dayId: six.id, guestName: "Invitada 1", id: guest.id, year: 2025 });
+      expect(result.day?.dayNumber).toBe(6);
+      expect(await placements()).toEqual(before);
+    });
+
+    it("reports that the day has just gone to someone else when the database reports a clash", async () => {
+      const [guest] = await enrolGuests(1);
+      const before = await placements();
+      failNextTransaction("P2002");
+
+      const error: unknown = await placeParticipant(guest.id, 6, beforeTheEdition).catch((reason: unknown) => reason);
+
+      expect(error).toBeInstanceOf(ConflictError);
+      expect((error as ConflictError).message).toBe("El día 6 acaba de asignarse a otra persona.");
+      expect(await placements()).toEqual(before);
+      expect((await prisma.participation.findUniqueOrThrow({ where: { id: guest.id } })).dayId).toBeNull();
+    });
+
+    it("reports the same clash to someone who holds another day, who keeps it", async () => {
+      await enrolGuests(1);
+      const ana = await participationOn(3);
+      const before = await placements();
+      failNextTransaction("P2002");
+
+      const error: unknown = await placeParticipant(ana.id, 6, beforeTheEdition).catch((reason: unknown) => reason);
+
+      expect(error).toBeInstanceOf(ConflictError);
+      expect((error as ConflictError).message).toBe("El día 6 acaba de asignarse a otra persona.");
+      expect(await placements()).toEqual(before);
+      expect((await participationOn(3)).id).toBe(ana.id);
+    });
+
+    it.each(["P2003", "P2025"])(
+      "reports a conflict when the participation or the day disappears mid-way (%s)",
+      async (code) => {
+        const [guest] = await enrolGuests(1);
+        const before = await placements();
+        failNextTransaction(code);
+
+        const error: unknown = await placeParticipant(guest.id, 6, beforeTheEdition).catch((reason: unknown) => reason);
+
+        expect(error).toBeInstanceOf(ConflictError);
+        expect((error as ConflictError).message).toBe("Esa inscripción o ese día ya no existen.");
+        expect(await placements()).toEqual(before);
+      },
+    );
+
+    it("lets any other database error through untouched", async () => {
+      const [guest] = await enrolGuests(1);
+      const before = await placements();
+      const transaction = failNextTransaction("P2024");
+
+      const error: unknown = await placeParticipant(guest.id, 6, beforeTheEdition).catch((reason: unknown) => reason);
+
+      expect(error).toBeInstanceOf(Prisma.PrismaClientKnownRequestError);
+      expect(error).not.toBeInstanceOf(ConflictError);
+      expect(error).toMatchObject({ code: "P2024", message: "simulated race" });
+      // The very object the database layer threw, not a copy or a wrapper.
+      expect(error).toBe(transaction.mock.settledResults[0].value);
+      expect(await placements()).toEqual(before);
+    });
+
     it.each([
       { rowExists: true, target: "the same free day" },
       { rowExists: false, target: "the same free day whose row does not exist yet" },
@@ -709,27 +787,42 @@ describe("dal Participation", () => {
       if (!rowExists) {
         await removeDayRows(6);
       }
+      const before = await placements();
 
       const results = await Promise.allSettled([
         placeParticipant(first.id, 6, beforeTheEdition),
         placeParticipant(second.id, 6, beforeTheEdition),
       ]);
 
-      const placed = results.filter((result) => result.status === "fulfilled");
-      const refused = results.filter((result) => result.status === "rejected");
-      expect(placed).toHaveLength(1);
-      expect(refused).toHaveLength(1);
-      expect(refused[0].reason).toBeInstanceOf(ConflictError);
+      // Which of the two wins depends on timing, and so does the message the other one gets.
+      expect(results.map((result) => result.status).toSorted()).toEqual(["fulfilled", "rejected"]);
+      const firstWon = results[0].status === "fulfilled";
+      const [winner, loser] = firstWon ? [first, second] : [second, first];
+      const [placed, refused] = firstWon ? results : results.toReversed();
+      if (placed.status !== "fulfilled" || refused.status !== "rejected") {
+        throw new Error("one call was expected to succeed and the other to fail");
+      }
+      expect(refused.reason).toBeInstanceOf(ConflictError);
+      expect(placed.value.id).toBe(winner.id);
+      expect(placed.value.day).toMatchObject({ dayNumber: 6, year: 2025 });
 
-      const target = await prisma.day.findMany({
-        include: { participation: true },
-        where: { dayNumber: 6, year: 2025 },
-      });
+      const target = await prisma.day.findMany({ where: { dayNumber: 6, year: 2025 } });
       expect(target).toHaveLength(1);
-      expect(target[0].participation?.id).toBe(placed[0].value.id);
-      const pair = await prisma.participation.findMany({ where: { id: { in: [first.id, second.id] } } });
-      expect(pair.filter((participation) => participation.dayId === target[0].id)).toHaveLength(1);
-      expect(pair.filter((participation) => participation.dayId === null)).toHaveLength(1);
+      expect(placed.value.dayId).toBe(target[0].id);
+      const holders = await prisma.participation.findMany({ where: { dayId: target[0].id } });
+      expect(holders.map((participation) => participation.id)).toEqual([winner.id]);
+      expect((await prisma.participation.findUniqueOrThrow({ where: { id: loser.id } })).dayId).toBeNull();
+
+      // Nobody else moved, nobody was enrolled twice and no other day row appeared.
+      const after = await placements();
+      expect(after.participations).toEqual(
+        before.participations.map((participation) =>
+          participation.id === winner.id ? { ...participation, dayId: target[0].id } : participation,
+        ),
+      );
+      expect(after.days.map((item) => item.dayNumber)).toEqual(
+        [...new Set([...before.days.map((item) => item.dayNumber), 6])].toSorted((a, b) => a - b),
+      );
     });
   });
 
