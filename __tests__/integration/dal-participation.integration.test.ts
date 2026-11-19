@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
+import { Prisma } from "@/generated/prisma/client";
 import { EditionStatus } from "@/generated/prisma/enums";
 import {
   assignDay,
@@ -7,6 +8,8 @@ import {
   enrolUser,
   getAssignees,
   getDayByDayNumber,
+  getDaysForEdition,
+  getParticipationsForEdition,
   unassignDay,
   upsertEdition,
 } from "@/lib/dal";
@@ -26,6 +29,12 @@ async function day(dayNumber: number) {
   return found;
 }
 
+/** Makes the next transaction fail the way Prisma does when a concurrent request changes the rows under it. */
+function failNextTransaction(code: string) {
+  const error = new Prisma.PrismaClientKnownRequestError("simulated race", { clientVersion: "test", code });
+  return vi.spyOn(prisma, "$transaction").mockRejectedValueOnce(error);
+}
+
 async function userWithoutDay() {
   return prisma.user.findFirstOrThrow({ where: { participations: { none: {} } } });
 }
@@ -42,6 +51,59 @@ describe("dal Participation", () => {
       expect(assignees).toHaveLength(5);
       expect(assignees.map((assignee) => assignee.guestName ?? assignee.user?.username)).toContain("Anónimo");
       expect(assignees.map((assignee) => assignee.guestName)).not.toContain("Fantasma");
+    });
+  });
+
+  describe("getParticipationsForEdition", () => {
+    it("returns everyone in the edition with their day number, enrolled without a day included", async () => {
+      const enrolled = await enrolGuest(2025, "Prima Lejana");
+
+      const participations = await getParticipationsForEdition(2025);
+
+      expect(participations).toHaveLength(6);
+      expect(participations.find((participation) => participation.guestName === "Anónimo")).toMatchObject({
+        day: { dayNumber: 2 },
+        user: null,
+        userId: null,
+      });
+      expect(participations.find((participation) => participation.id === enrolled.id)?.day).toBeNull();
+    });
+
+    it("never loads the guest token or anything of the account but the username", async () => {
+      await enrolGuest(2025, "Prima Lejana");
+
+      const participations = await getParticipationsForEdition(2025);
+
+      for (const participation of participations) {
+        expect(participation).not.toHaveProperty("guestToken");
+        if (participation.user) {
+          expect(Object.keys(participation.user)).toEqual(["username"]);
+        }
+      }
+    });
+
+    it("leaves out the other editions", async () => {
+      await upsertEdition(2030, EditionStatus.PREPARING);
+      await enrolGuest(2030, "Fantasma");
+
+      const participations = await getParticipationsForEdition(2025);
+
+      expect(participations.map((participation) => participation.guestName)).not.toContain("Fantasma");
+    });
+  });
+
+  describe("getDaysForEdition", () => {
+    it("returns the days of the edition in order, each saying whether it has a tea", async () => {
+      const days = await getDaysForEdition(2025);
+
+      expect(days.map((item) => item.dayNumber)).toEqual(Array.from({ length: 25 }, (_, index) => index + 1));
+      expect(days.filter((item) => item.tea !== null).map((item) => item.dayNumber)).toEqual([1, 2]);
+    });
+
+    it("returns nothing for an edition without days", async () => {
+      await upsertEdition(2030, EditionStatus.PREPARING);
+
+      expect(await getDaysForEdition(2030)).toEqual([]);
     });
   });
 
@@ -215,6 +277,35 @@ describe("dal Participation", () => {
     it("refuses a user that does not exist, as a conflict", async () => {
       await expect(enrolUser(2025, "no-such-user")).rejects.toThrow(ConflictError);
     });
+
+    it("returns the participation another request created at the same moment", async () => {
+      const user = await userWithoutDay();
+      const existing = await enrolUser(2025, user.id);
+      failNextTransaction("P2002");
+
+      const result = await enrolUser(2025, user.id);
+
+      expect(result.id).toBe(existing.id);
+    });
+
+    it.each(["P2003", "P2025"])(
+      "reports a conflict when the account or the edition disappears mid-way (%s)",
+      async (code) => {
+        const user = await userWithoutDay();
+        failNextTransaction(code);
+
+        await expect(enrolUser(2025, user.id)).rejects.toThrow(
+          new ConflictError("Esa persona o la edición 2025 ya no existen."),
+        );
+      },
+    );
+
+    it("lets any other database error through untouched", async () => {
+      const user = await userWithoutDay();
+      failNextTransaction("P2024");
+
+      await expect(enrolUser(2025, user.id)).rejects.toThrow(Prisma.PrismaClientKnownRequestError);
+    });
   });
 
   describe("enrolGuest", () => {
@@ -247,6 +338,53 @@ describe("dal Participation", () => {
         expect(await prisma.participation.count({ where: { guestName: { not: null }, year: 2025 } })).toBe(1);
       },
     );
+
+    it.each(["Anonimo", "ANÓNIMO", "  anónimo "])(
+      "refuses %j: accents and capitals do not make another name",
+      async (name) => {
+        await expect(enrolGuest(2025, name)).rejects.toThrow(
+          new ConflictError("Anónimo ya está en la edición 2025 como invitado."),
+        );
+      },
+    );
+
+    it("refuses a name that differs from a guest's only in the spaces inside", async () => {
+      await enrolGuest(2025, "Prima Lejana");
+
+      await expect(enrolGuest(2025, "Prima   Lejana")).rejects.toThrow(ConflictError);
+    });
+
+    it.each(["Sony", "sony", "Nita"])(
+      "refuses %j because an account in the edition goes by that name",
+      async (name) => {
+        await expect(enrolGuest(2025, name)).rejects.toThrow(ConflictError);
+        await expect(enrolGuest(2025, name)).rejects.toThrow(
+          /Ya hay una cuenta llamada (Sony|Ñita) en la edición 2025/,
+        );
+      },
+    );
+
+    it("accepts the name of an account that is not in the edition", async () => {
+      const user = await userWithoutDay();
+
+      const result = await enrolGuest(2025, user.username);
+
+      expect(result.guestName).toBe(user.username);
+    });
+
+    it("reports a conflict when the edition disappears mid-way", async () => {
+      failNextTransaction("P2003");
+
+      await expect(enrolGuest(2025, "Prima Lejana")).rejects.toThrow(
+        new ConflictError("La edición 2025 ya no existe."),
+      );
+    });
+
+    it.each(["An_nimo", "%", "An%"])("accepts %j: a wildcard character is just a character", async (name) => {
+      const result = await enrolGuest(2025, name);
+
+      expect(result.guestName).toBe(name);
+    });
 
     it.each(["", "   "])("rejects the empty name %j as invalid input, not as a conflict", async (name) => {
       await expect(enrolGuest(2025, name)).rejects.toThrow(/guest name is empty/);

@@ -31,6 +31,8 @@ const PRIVILEGED_ACTIONS: Record<string, string> = {
   createEditionAction: "ADMIN",
   deleteDayAction: "ADMIN",
   deleteEditionAction: "ADMIN",
+  enrolGuestAction: "ADMIN or EXECUTEAVE",
+  enrolUserAction: "ADMIN or EXECUTEAVE",
 };
 
 const { DAL_FUNCTIONS, GUARDS, prismaTouched } = vi.hoisted(() => ({
@@ -51,6 +53,8 @@ const { DAL_FUNCTIONS, GUARDS, prismaTouched } = vi.hoisted(() => ({
     "deleteEdition",
     "editStoryTea",
     "editUser",
+    "enrolGuest",
+    "enrolUser",
     "getActiveEdition",
     "getParticipationByUserId",
     "getTeaById",

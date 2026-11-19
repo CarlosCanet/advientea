@@ -22,6 +22,7 @@ export type DayForGuessing = Prisma.DayGetPayload<{
     year: true;
   };
 }>;
+export type DayForEdition = Prisma.DayGetPayload<{ select: { dayNumber: true; tea: { select: { id: true } } } }>;
 
 export type DayYear = {
   dayNumber: number;
@@ -82,6 +83,14 @@ export async function getAllDays(year: number): Promise<Array<DayWithParticipati
     where: { year },
   });
   return allDays;
+}
+
+export async function getDaysForEdition(year: number): Promise<Array<DayForEdition>> {
+  return prisma.day.findMany({
+    orderBy: { dayNumber: "asc" },
+    select: { dayNumber: true, tea: { select: { id: true } } },
+    where: { year },
+  });
 }
 
 export async function addDay(dayYear: DayYear): Promise<Day | null> {

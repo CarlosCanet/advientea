@@ -5,7 +5,7 @@ import { getDaySchedule } from "@/lib/advientea-rules";
 import { getNow } from "@/lib/advientea-time";
 import { ConflictError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
-import { toParticipantName } from "@/lib/utils";
+import { cleanGuessName, toParticipantName } from "@/lib/utils";
 
 import { getEditionInfo } from "./dal-edition";
 
@@ -15,6 +15,15 @@ export type ParticipationWithDayTeaAndUser = Prisma.ParticipationGetPayload<{
 export type ParticipationWithDayAndUser = Prisma.ParticipationGetPayload<{ include: { day: true; user: true } }>;
 export type Assignee = Prisma.ParticipationGetPayload<{
   select: { guestName: true; user: { select: { username: true } }; userId: true };
+}>;
+export type ParticipationForEdition = Prisma.ParticipationGetPayload<{
+  select: {
+    day: { select: { dayNumber: true } };
+    guestName: true;
+    id: true;
+    user: { select: { username: true } };
+    userId: true;
+  };
 }>;
 
 export async function getParticipationById(id: string): Promise<null | ParticipationWithDayTeaAndUser> {
@@ -60,6 +69,19 @@ export async function getAssignees(year: number): Promise<Array<Assignee>> {
     where: { year },
   });
   return result;
+}
+
+export async function getParticipationsForEdition(year: number): Promise<Array<ParticipationForEdition>> {
+  return prisma.participation.findMany({
+    select: {
+      day: { select: { dayNumber: true } },
+      guestName: true,
+      id: true,
+      user: { select: { username: true } },
+      userId: true,
+    },
+    where: { year },
+  });
 }
 
 // Only a day that has not opened yet can change hands: no guess can exist on it.
@@ -180,8 +202,15 @@ export async function enrolUser(year: number, userId: string): Promise<Participa
       });
     });
   } catch (error) {
+    if (!(error instanceof Prisma.PrismaClientKnownRequestError)) {
+      throw error;
+    }
+    // Two requests enrolling the same person at once: the other one won, and that is the enrolment asked for.
+    if (error.code === "P2002") {
+      return prisma.participation.findUniqueOrThrow({ where: { userId_year: { userId, year } } });
+    }
     // The account or the edition can be deleted between the checks and the write.
-    if (error instanceof Prisma.PrismaClientKnownRequestError && (error.code === "P2003" || error.code === "P2025")) {
+    if (error.code === "P2003" || error.code === "P2025") {
       throw new ConflictError(`Esa persona o la edición ${year} ya no existen.`);
     }
     throw error;
@@ -196,11 +225,23 @@ export async function enrolGuest(year: number, name: string): Promise<Participat
   try {
     return await prisma.$transaction(async (tx) => {
       await assertEditionAcceptsEnrolments(tx, year);
-      const existingGuest = await tx.participation.findFirst({
-        where: { guestName: { equals: guestName, mode: "insensitive" }, year },
+      // The author guess is scored by name, compared with cleanGuessName: two participants whose names
+      // are equal that way could not be told apart, whether the other one is a guest or an account.
+      const participants = await tx.participation.findMany({
+        select: { guestName: true, user: { select: { username: true } } },
+        where: { year },
       });
-      if (existingGuest) {
-        throw new ConflictError(`${existingGuest.guestName} ya está en la edición ${year} como invitado.`);
+      const cleanName = cleanGuessName(guestName);
+      const sameName = participants.find((participant) => {
+        const participantName = toParticipantName(participant);
+        return participantName !== null && cleanGuessName(participantName) === cleanName;
+      });
+      if (sameName) {
+        throw new ConflictError(
+          sameName.user
+            ? `Ya hay una cuenta llamada ${sameName.user.username} en la edición ${year}.`
+            : `${sameName.guestName} ya está en la edición ${year} como invitado.`,
+        );
       }
 
       return tx.participation.create({ data: { guestName, guestToken: randomBytes(32).toString("base64url"), year } });
