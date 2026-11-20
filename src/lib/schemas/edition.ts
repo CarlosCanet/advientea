@@ -39,3 +39,16 @@ export const enrolGuestSchema = z.object({
   name: z.string().trim().min(1, "El nombre es obligatorio").max(60, "Máximo 60 caracteres"),
   year: editionYearSchema,
 });
+
+export const placeParticipantSchema = z.object({
+  // null takes the participant off their day.
+  dayNumber: z.number().int().min(1).nullable(),
+  participationId: z.string().min(1),
+});
+
+export const swapParticipantsSchema = z
+  .object({
+    firstParticipationId: z.string().min(1),
+    secondParticipationId: z.string().min(1),
+  })
+  .refine((ids) => ids.firstParticipationId !== ids.secondParticipationId);

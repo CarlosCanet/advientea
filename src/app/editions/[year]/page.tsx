@@ -4,9 +4,12 @@ import { notFound, redirect } from "next/navigation";
 
 import EnrolGuestForm from "@/components/ui/EnrolGuestForm";
 import EnrolUserForm from "@/components/ui/EnrolUserForm";
+import ParticipantDaySelect, { CalendarDayOption } from "@/components/ui/ParticipantDaySelect";
 import { EditionStatus, Role } from "@/generated/prisma/enums";
+import { getDaySchedule } from "@/lib/advientea-rules";
+import { getNow } from "@/lib/advientea-time";
 import { auth } from "@/lib/auth";
-import { getDaysForEdition, getEdition, getParticipationsForEdition, getUsersBasic } from "@/lib/dal";
+import { getDaysForEdition, getEdition, getEditionInfo, getParticipationsForEdition, getUsersBasic } from "@/lib/dal";
 import { EditionIssue, findEditionIssues } from "@/lib/edition-issues";
 import { toEditionYear } from "@/lib/schemas/edition";
 import { EDITION_STATUS_LABELS, toParticipantName } from "@/lib/utils";
@@ -68,11 +71,13 @@ export default async function EditionPage({ params }: { params: Promise<{ year: 
   if (!edition) {
     notFound();
   }
-  const [days, participations, users] = await Promise.all([
+  const [days, editionInfo, participations, users] = await Promise.all([
     getDaysForEdition(year),
+    getEditionInfo(year),
     getParticipationsForEdition(year),
     getUsersBasic(),
   ]);
+  const now = getNow();
 
   const issueLines = toIssueLines(
     findEditionIssues(
@@ -89,13 +94,17 @@ export default async function EditionPage({ params }: { params: Promise<{ year: 
 
   // Those with a day first, in calendar order; then those still without one, by name.
   const rows = participations
-    .map((participation) => ({
-      dayNumber: participation.day?.dayNumber ?? null,
-      hasTea: participation.tea !== null,
-      id: participation.id,
-      isGuest: participation.userId === null && participation.guestName !== null,
-      name: toParticipantName(participation) ?? DELETED_ACCOUNT,
-    }))
+    .map((participation) => {
+      const dayNumber = participation.day?.dayNumber ?? null;
+      return {
+        dayNumber,
+        hasTea: participation.tea !== null,
+        id: participation.id,
+        isGuest: participation.userId === null && participation.guestName !== null,
+        isOwnDayReleased: dayNumber !== null && getDaySchedule(dayNumber, editionInfo, now).isReleased,
+        name: toParticipantName(participation) ?? DELETED_ACCOUNT,
+      };
+    })
     .sort((first, second) => {
       if (first.dayNumber !== null && second.dayNumber !== null) {
         return first.dayNumber - second.dayNumber;
@@ -105,6 +114,19 @@ export default async function EditionPage({ params }: { params: Promise<{ year: 
       }
       return first.dayNumber === null ? 1 : -1;
     });
+
+  // The calendar every day select offers: days 1..N, N being the number of participants, with who holds each.
+  const holders = new Map<number, CalendarDayOption["holder"]>();
+  for (const row of rows) {
+    if (row.dayNumber !== null) {
+      holders.set(row.dayNumber, { name: row.name, participationId: row.id });
+    }
+  }
+  const calendarDays: Array<CalendarDayOption> = Array.from({ length: participations.length }, (_, index) => ({
+    dayNumber: index + 1,
+    holder: holders.get(index + 1) ?? null,
+    isReleased: getDaySchedule(index + 1, editionInfo, now).isReleased,
+  }));
 
   const enrolledUserIds = new Set(participations.map((participation) => participation.userId));
   const usersNotEnrolled = users.filter((user) => !enrolledUserIds.has(user.id));
@@ -151,7 +173,7 @@ export default async function EditionPage({ params }: { params: Promise<{ year: 
               <table className="table">
                 <thead>
                   <tr>
-                    <th className="w-1">Día</th>
+                    <th className="w-1 px-1">Día</th>
                     <th>Participante</th>
                     <th>Té</th>
                   </tr>
@@ -159,7 +181,15 @@ export default async function EditionPage({ params }: { params: Promise<{ year: 
                 <tbody>
                   {rows.map((row) => (
                     <tr key={row.id}>
-                      <td className="tabular-nums text-center">{row.dayNumber ?? "—"}</td>
+                      <td className="px-1">
+                        <ParticipantDaySelect
+                          dayNumber={row.dayNumber}
+                          days={calendarDays}
+                          isOwnDayReleased={row.isOwnDayReleased}
+                          name={row.name}
+                          participationId={row.id}
+                        />
+                      </td>
                       <td>
                         {row.name}
                         {row.isGuest && <span className="badge badge-ghost badge-sm ml-2">Invitado</span>}

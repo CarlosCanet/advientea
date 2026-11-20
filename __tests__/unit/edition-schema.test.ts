@@ -6,6 +6,8 @@ import {
   editionFormSchema,
   enrolGuestSchema,
   enrolUserSchema,
+  placeParticipantSchema,
+  swapParticipantsSchema,
   toEditionYear,
 } from "@/lib/schemas/edition";
 
@@ -81,5 +83,60 @@ describe("enrolGuestSchema", () => {
   it("refuses a year outside the range of the editions", () => {
     expect(enrolGuestSchema.safeParse({ name: "Prima Lejana", year: EDITION_YEAR_MIN - 1 }).success).toBe(false);
     expect(enrolGuestSchema.safeParse({ name: "Prima Lejana", year: EDITION_YEAR_MAX + 1 }).success).toBe(false);
+  });
+});
+
+describe("placeParticipantSchema", () => {
+  const valid = (input: unknown) => placeParticipantSchema.safeParse(input).success;
+
+  it.each([1, 2, 25, 26, 400])("accepts day %i: the only bound is at the bottom", (dayNumber) => {
+    expect(placeParticipantSchema.parse({ dayNumber, participationId: "participation-id" })).toEqual({
+      dayNumber,
+      participationId: "participation-id",
+    });
+  });
+
+  it("accepts null as the day, which means no day, and keeps it null", () => {
+    expect(placeParticipantSchema.parse({ dayNumber: null, participationId: "participation-id" })).toEqual({
+      dayNumber: null,
+      participationId: "participation-id",
+    });
+  });
+
+  it.each([0, -1, 2.5, Number.NaN, "3", "", undefined])("refuses %j as the day", (dayNumber) => {
+    expect(valid({ dayNumber, participationId: "participation-id" })).toBe(false);
+  });
+
+  it("refuses an object without a day: no day has to be said with null", () => {
+    expect(valid({ participationId: "participation-id" })).toBe(false);
+  });
+
+  it.each(["", 7, null, undefined])("refuses %j as the participation", (participationId) => {
+    expect(valid({ dayNumber: 3, participationId })).toBe(false);
+    expect(valid({ dayNumber: null, participationId })).toBe(false);
+  });
+});
+
+describe("swapParticipantsSchema", () => {
+  const valid = (input: unknown) => swapParticipantsSchema.safeParse(input).success;
+
+  it("accepts two different participations", () => {
+    expect(
+      swapParticipantsSchema.parse({ firstParticipationId: "first-id", secondParticipationId: "second-id" }),
+    ).toEqual({ firstParticipationId: "first-id", secondParticipationId: "second-id" });
+  });
+
+  it("refuses the same participation twice", () => {
+    expect(valid({ firstParticipationId: "same-id", secondParticipationId: "same-id" })).toBe(false);
+  });
+
+  it.each(["", 7, null, undefined])("refuses %j as either participation", (participationId) => {
+    expect(valid({ firstParticipationId: participationId, secondParticipationId: "second-id" })).toBe(false);
+    expect(valid({ firstParticipationId: "first-id", secondParticipationId: participationId })).toBe(false);
+  });
+
+  it("refuses an object with one participation only", () => {
+    expect(valid({ firstParticipationId: "first-id" })).toBe(false);
+    expect(valid({ secondParticipationId: "second-id" })).toBe(false);
   });
 });

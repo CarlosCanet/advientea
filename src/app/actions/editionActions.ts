@@ -3,11 +3,28 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { EditionStatus, Role } from "@/generated/prisma/enums";
-import { changeEditionStatus, createEdition, deleteEdition, enrolGuest, enrolUser, requireRole } from "@/lib/dal";
+import {
+  changeEditionStatus,
+  createEdition,
+  deleteEdition,
+  enrolGuest,
+  enrolUser,
+  placeParticipant,
+  requireRole,
+  swapParticipants,
+  unplaceParticipant,
+} from "@/lib/dal";
 import { ConflictError, ForbiddenError, UnauthenticatedError } from "@/lib/errors";
-import { editionFormSchema, editionStatusChangeSchema, enrolGuestSchema, enrolUserSchema } from "@/lib/schemas/edition";
+import {
+  editionFormSchema,
+  editionStatusChangeSchema,
+  enrolGuestSchema,
+  enrolUserSchema,
+  placeParticipantSchema,
+  swapParticipantsSchema,
+} from "@/lib/schemas/edition";
 import { ActionResponse, EditionActionResponse, EditionFormData } from "@/lib/types";
-import { EDITION_STATUS_LABELS } from "@/lib/utils";
+import { EDITION_STATUS_LABELS, toParticipantName } from "@/lib/utils";
 
 import { getFormNumber, getFormString } from "./commonActions";
 
@@ -119,5 +136,59 @@ export async function enrolGuestAction(year: number, name: string): Promise<Acti
     };
   } catch (error: unknown) {
     return failure("enrolGuestAction", error, "No se pudo inscribir al invitado. Inténtalo de nuevo.");
+  }
+}
+
+const UNNAMED_PARTICIPANT = "Esa persona";
+
+export async function placeParticipantAction(
+  participationId: string,
+  dayNumber: null | number,
+): Promise<ActionResponse> {
+  try {
+    await requireRole(Role.ADMIN, Role.EXECUTEAVE);
+    const validatedFields = placeParticipantSchema.safeParse({ dayNumber, participationId });
+    if (!validatedFields.success) {
+      return { message: "La inscripción o el día no son válidos.", success: false };
+    }
+    const { dayNumber: targetDayNumber, participationId: placedParticipationId } = validatedFields.data;
+    if (targetDayNumber === null) {
+      const participation = await unplaceParticipant(placedParticipationId);
+      revalidatePath(`/editions/${participation.year}`);
+      return { message: `${toParticipantName(participation) ?? UNNAMED_PARTICIPANT} se queda sin día.`, success: true };
+    }
+    const participation = await placeParticipant(placedParticipationId, targetDayNumber);
+    revalidatePath(`/editions/${participation.year}`);
+    return {
+      message: `${toParticipantName(participation) ?? UNNAMED_PARTICIPANT} tiene ahora el día ${targetDayNumber}.`,
+      success: true,
+    };
+  } catch (error: unknown) {
+    return failure("placeParticipantAction", error, "No se pudo cambiar el día. Inténtalo de nuevo.");
+  }
+}
+
+export async function swapParticipantsAction(
+  firstParticipationId: string,
+  secondParticipationId: string,
+): Promise<ActionResponse> {
+  try {
+    await requireRole(Role.ADMIN, Role.EXECUTEAVE);
+    const validatedFields = swapParticipantsSchema.safeParse({ firstParticipationId, secondParticipationId });
+    if (!validatedFields.success) {
+      return { message: "Las inscripciones no son válidas.", success: false };
+    }
+    const swapped = await swapParticipants(
+      validatedFields.data.firstParticipationId,
+      validatedFields.data.secondParticipationId,
+    );
+    const clauses = swapped.map((participation) => {
+      const name = toParticipantName(participation) ?? UNNAMED_PARTICIPANT;
+      return participation.day ? `${name} pasa al día ${participation.day.dayNumber}` : `${name} se queda sin día`;
+    });
+    revalidatePath(`/editions/${swapped[0].year}`);
+    return { message: `${clauses.join(" y ")}.`, success: true };
+  } catch (error: unknown) {
+    return failure("swapParticipantsAction", error, "No se pudo intercambiar. Inténtalo de nuevo.");
   }
 }

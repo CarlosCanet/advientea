@@ -259,6 +259,118 @@ export async function placeParticipant(
   }
 }
 
+/** Takes a participant off their day. The Day row stays, held by nobody, and the tea stays with its participation. */
+export async function unplaceParticipant(
+  participationId: string,
+  now: Date = getNow(),
+): Promise<ParticipationWithDayAndUser> {
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const participation = await tx.participation.findUnique({
+        include: { day: true, user: true },
+        where: { id: participationId },
+      });
+      if (!participation) {
+        throw new Error(`The participation with id ${participationId} does not exist.`);
+      }
+      if (!participation.day) {
+        return participation;
+      }
+      await assertDayCanChange(participation.day.dayNumber, participation.year, now);
+      return tx.participation.update({
+        data: { dayId: null },
+        include: { day: true, user: true },
+        where: { id: participation.id },
+      });
+    });
+  } catch (error) {
+    // The participation can be deleted between the checks and the write.
+    if (error instanceof Prisma.PrismaClientKnownRequestError && (error.code === "P2003" || error.code === "P2025")) {
+      throw new ConflictError("Esa inscripción o ese día ya no existen.");
+    }
+    throw error;
+  }
+}
+
+/**
+ * Exchanges the days of two participations of one edition. When only one of them holds a day, it passes to
+ * the other. No Day row is created or deleted and the 1..N range is not checked, so someone sitting on a
+ * leftover day can be swapped out of it. The teas follow their participations.
+ */
+export async function swapParticipants(
+  firstParticipationId: string,
+  secondParticipationId: string,
+  now: Date = getNow(),
+): Promise<[ParticipationWithDayAndUser, ParticipationWithDayAndUser]> {
+  if (firstParticipationId === secondParticipationId) {
+    throw new Error("A participation cannot be swapped with itself.");
+  }
+  try {
+    return await prisma.$transaction(async (tx) => {
+      // Both rows are locked before they are read, always in id order: an overlapping swap (A<->B and B<->C)
+      // waits here and then reads the days as the first one left them, instead of writing over them from a
+      // stale read. The unique index on dayId would catch two people on one day, but not a day lost that way.
+      await tx.$queryRaw`
+        SELECT "id" FROM "DayAssignment"
+        WHERE "id" IN (${firstParticipationId}, ${secondParticipationId})
+        ORDER BY "id"
+        FOR UPDATE
+      `;
+
+      const participations = await tx.participation.findMany({
+        include: { day: true, user: true },
+        where: { id: { in: [firstParticipationId, secondParticipationId] } },
+      });
+      const first = participations.find((participation) => participation.id === firstParticipationId);
+      const second = participations.find((participation) => participation.id === secondParticipationId);
+      if (!first) {
+        throw new Error(`The participation with id ${firstParticipationId} does not exist.`);
+      }
+      if (!second) {
+        throw new Error(`The participation with id ${secondParticipationId} does not exist.`);
+      }
+      if (first.year !== second.year) {
+        throw new Error("The participations belong to different editions.");
+      }
+      if (!first.day && !second.day) {
+        return [first, second];
+      }
+      for (const day of [first.day, second.day]) {
+        if (day) {
+          await assertDayCanChange(day.dayNumber, first.year, now);
+        }
+      }
+
+      // dayId is unique, so both leave their day before either takes the other's.
+      await tx.participation.updateMany({ data: { dayId: null }, where: { id: { in: [first.id, second.id] } } });
+      const swappedFirst = await tx.participation.update({
+        data: { dayId: second.dayId },
+        include: { day: true, user: true },
+        where: { id: first.id },
+      });
+      const swappedSecond = await tx.participation.update({
+        data: { dayId: first.dayId },
+        include: { day: true, user: true },
+        where: { id: second.id },
+      });
+      return [swappedFirst, swappedSecond];
+    });
+  } catch (error) {
+    if (!(error instanceof Prisma.PrismaClientKnownRequestError)) {
+      throw error;
+    }
+    // The locks should leave no room for this; the unique index on dayId answers for any writer that gets past them.
+    if (error.code === "P2002") {
+      throw new ConflictError("Los días acaban de cambiar. Recarga la página y vuelve a intentarlo.");
+    }
+    // A participation or a day can be deleted between the checks and the write.
+    if (error.code === "P2003" || error.code === "P2025") {
+      throw new ConflictError("Esa inscripción o ese día ya no existen.");
+    }
+    throw error;
+  }
+}
+
 async function assertEditionAcceptsEnrolments(tx: Prisma.TransactionClient, year: number): Promise<void> {
   const edition = await tx.edition.findUnique({ where: { year } });
   if (!edition) {

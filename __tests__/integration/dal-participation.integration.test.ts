@@ -12,7 +12,9 @@ import {
   getDaysForEdition,
   getParticipationsForEdition,
   placeParticipant,
+  swapParticipants,
   unassignDay,
+  unplaceParticipant,
   upsertEdition,
 } from "@/lib/dal";
 import { ConflictError } from "@/lib/errors";
@@ -40,6 +42,77 @@ function failNextTransaction(code: string) {
 async function userWithoutDay() {
   return prisma.user.findFirstOrThrow({ where: { participations: { none: {} } } });
 }
+
+// An edition has one day per participant. The seed's five hold days 1 to 5, so a free number
+// within the calendar only exists once more people are enrolled.
+async function enrolGuests(count: number, year = 2025) {
+  const guests: Awaited<ReturnType<typeof enrolGuest>>[] = [];
+  for (let index = 1; index <= count; index++) {
+    guests.push(await enrolGuest(year, `Invitada ${index}`));
+  }
+  return guests;
+}
+
+async function participationOn(dayNumber: number) {
+  return prisma.participation.findUniqueOrThrow({ where: { dayId: (await day(dayNumber)).id } });
+}
+
+async function removeDayRows(...dayNumbers: number[]) {
+  await prisma.day.deleteMany({ where: { dayNumber: { in: dayNumbers }, year: 2025 } });
+}
+
+/** Which day rows the 2025 edition has and who is on each: what a refusal must leave as it was. */
+async function placements() {
+  const [days, participations] = await Promise.all([
+    prisma.day.findMany({
+      orderBy: { dayNumber: "asc" },
+      select: { dayNumber: true, id: true },
+      where: { year: 2025 },
+    }),
+    prisma.participation.findMany({
+      orderBy: { id: "asc" },
+      select: { dayId: true, id: true },
+      where: { year: 2025 },
+    }),
+  ]);
+  return { days, participations };
+}
+
+type Placements = Awaited<ReturnType<typeof placements>>;
+
+/** The participations of `before` with the given ones moved to their new day, or to none. */
+function withDays(before: Placements, moved: Record<string, null | string>) {
+  return before.participations.map((participation) =>
+    participation.id in moved ? { ...participation, dayId: moved[participation.id] } : participation,
+  );
+}
+
+// Straight to the row: placing through the DAL is bound to the number of participants and to the days
+// that have not opened, and these tests need people on days outside both.
+async function putOnDay(participationId: string, dayNumber: number) {
+  return prisma.participation.update({ data: { dayId: (await day(dayNumber)).id }, where: { id: participationId } });
+}
+
+async function setEditionStatus(status: EditionStatus, year = 2025) {
+  await prisma.edition.update({ data: { status }, where: { year } });
+}
+
+async function expectConflict(call: Promise<unknown>, message: string) {
+  const error: unknown = await call.catch((reason: unknown) => reason);
+  expect(error).toBeInstanceOf(ConflictError);
+  expect((error as ConflictError).message).toBe(message);
+}
+
+async function expectInvalidInput(call: Promise<unknown>, message: string) {
+  const error: unknown = await call.catch((reason: unknown) => reason);
+  expect(error).toBeInstanceOf(Error);
+  expect(error).not.toBeInstanceOf(ConflictError);
+  expect((error as Error).message).toBe(message);
+}
+
+const DAY_HAS_OPENED = "Ese día ya ha pasado o es hoy y no se puede cambiar.";
+const NO_LONGER_THERE = "Esa inscripción o ese día ya no existen.";
+const DAYS_JUST_CHANGED = "Los días acaban de cambiar. Recarga la página y vuelve a intentarlo.";
 
 describe("dal Participation", () => {
   describe("getAssignees", () => {
@@ -244,41 +317,6 @@ describe("dal Participation", () => {
   });
 
   describe("placeParticipant", () => {
-    // An edition has one day per participant. The seed's five hold days 1 to 5, so a free number
-    // within the calendar only exists once more people are enrolled.
-    async function enrolGuests(count: number, year = 2025) {
-      const guests: Awaited<ReturnType<typeof enrolGuest>>[] = [];
-      for (let index = 1; index <= count; index++) {
-        guests.push(await enrolGuest(year, `Invitada ${index}`));
-      }
-      return guests;
-    }
-
-    async function participationOn(dayNumber: number) {
-      return prisma.participation.findUniqueOrThrow({ where: { dayId: (await day(dayNumber)).id } });
-    }
-
-    async function removeDayRows(...dayNumbers: number[]) {
-      await prisma.day.deleteMany({ where: { dayNumber: { in: dayNumbers }, year: 2025 } });
-    }
-
-    /** Which day rows the 2025 edition has and who is on each: what a refusal must leave as it was. */
-    async function placements() {
-      const [days, participations] = await Promise.all([
-        prisma.day.findMany({
-          orderBy: { dayNumber: "asc" },
-          select: { dayNumber: true, id: true },
-          where: { year: 2025 },
-        }),
-        prisma.participation.findMany({
-          orderBy: { id: "asc" },
-          select: { dayId: true, id: true },
-          where: { year: 2025 },
-        }),
-      ]);
-      return { days, participations };
-    }
-
     // A simulated failure that the call never reaches would otherwise break the reset of the next test.
     afterEach(() => {
       vi.restoreAllMocks();
@@ -823,6 +861,679 @@ describe("dal Participation", () => {
       expect(after.days.map((item) => item.dayNumber)).toEqual(
         [...new Set([...before.days.map((item) => item.dayNumber), 6])].toSorted((a, b) => a - b),
       );
+    });
+  });
+
+  describe("unplaceParticipant", () => {
+    // A simulated failure that the call never reaches would otherwise break the reset of the next test.
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("leaves someone who holds a day without one: the day row stays, held by nobody", async () => {
+      const ana = await participationOn(3);
+      const before = await placements();
+
+      const result = await unplaceParticipant(ana.id, beforeTheEdition);
+
+      expect(result).toMatchObject({ day: null, dayId: null, id: ana.id, userId: ana.userId, year: 2025 });
+      expect(result.user?.id).toBe(ana.userId);
+      const after = await placements();
+      expect(after.days).toEqual(before.days);
+      expect(after.participations).toEqual(withDays(before, { [ana.id]: null }));
+      expect(await prisma.participation.findUnique({ where: { dayId: ana.dayId! } })).toBeNull();
+      expect(await prisma.participation.count({ where: { year: 2025 } })).toBe(5);
+    });
+
+    it("leaves a guest without a day the same way", async () => {
+      const guest = await participationOn(2);
+      const before = await placements();
+
+      const result = await unplaceParticipant(guest.id, beforeTheEdition);
+
+      expect(result).toMatchObject({
+        day: null,
+        dayId: null,
+        guestName: "Anónimo",
+        id: guest.id,
+        user: null,
+        userId: null,
+      });
+      const after = await placements();
+      expect(after.days).toEqual(before.days);
+      expect(after.participations).toEqual(withDays(before, { [guest.id]: null }));
+    });
+
+    it.each([
+      { dayNumber: 1, holder: "an account" },
+      { dayNumber: 2, holder: "a guest" },
+    ])("leaves the tea of $holder exactly as it was and still theirs", async ({ dayNumber }) => {
+      const holder = await participationOn(dayNumber);
+      const tea = await prisma.tea.findUniqueOrThrow({ where: { participationId: holder.id } });
+
+      const result = await unplaceParticipant(holder.id, beforeTheEdition);
+
+      expect(result).toMatchObject({ day: null, dayId: null, id: holder.id });
+      expect(await prisma.tea.findUniqueOrThrow({ where: { participationId: holder.id } })).toEqual(tea);
+      expect(await prisma.tea.count()).toBe(2);
+    });
+
+    it("takes someone off a leftover day above the number of participants", async () => {
+      const stray = await enrolGuest(2025, "Prima Lejana");
+      await putOnDay(stray.id, 20);
+      const before = await placements();
+
+      const result = await unplaceParticipant(stray.id, beforeTheEdition);
+
+      expect(result).toMatchObject({ day: null, dayId: null, id: stray.id });
+      const after = await placements();
+      expect(after.days).toEqual(before.days);
+      expect(after.participations).toEqual(withDays(before, { [stray.id]: null }));
+    });
+
+    it("resolves with the participation as it was when the person holds no day", async () => {
+      const guest = await enrolGuest(2025, "Prima Lejana");
+      const before = await placements();
+
+      const result = await unplaceParticipant(guest.id, duringTheEdition);
+
+      expect(result).toMatchObject({
+        day: null,
+        dayId: null,
+        guestName: "Prima Lejana",
+        id: guest.id,
+        user: null,
+        year: 2025,
+      });
+      expect(await placements()).toEqual(before);
+    });
+
+    it("resolves for someone without a day in an archived edition too", async () => {
+      const user = await userWithoutDay();
+      const enrolled = await enrolUser(2025, user.id);
+      await setEditionStatus(EditionStatus.ARCHIVED);
+      const before = await placements();
+
+      const result = await unplaceParticipant(enrolled.id, beforeTheEdition);
+
+      expect(result).toMatchObject({ day: null, dayId: null, id: enrolled.id, userId: user.id });
+      expect(result.user?.id).toBe(user.id);
+      expect(await placements()).toEqual(before);
+    });
+
+    it("refuses someone whose day has already opened, who keeps it", async () => {
+      const ana = await participationOn(3);
+      const before = await placements();
+
+      await expectConflict(unplaceParticipant(ana.id, duringTheEdition), DAY_HAS_OPENED);
+      expect(await placements()).toEqual(before);
+    });
+
+    it("refuses the day that opens today and frees the one that opens tomorrow", async () => {
+      const [today, tomorrow] = await enrolGuests(2);
+      await putOnDay(today.id, 10);
+      await putOnDay(tomorrow.id, 11);
+      const before = await placements();
+
+      await expectConflict(unplaceParticipant(today.id, duringTheEdition), DAY_HAS_OPENED);
+      const result = await unplaceParticipant(tomorrow.id, duringTheEdition);
+
+      expect(result).toMatchObject({ day: null, dayId: null, id: tomorrow.id });
+      const after = await placements();
+      expect(after.days).toEqual(before.days);
+      expect(after.participations).toEqual(withDays(before, { [tomorrow.id]: null }));
+    });
+
+    it("refuses every day of an archived edition, whatever the date", async () => {
+      const ana = await participationOn(3);
+      await setEditionStatus(EditionStatus.ARCHIVED);
+      const before = await placements();
+
+      await expectConflict(unplaceParticipant(ana.id, beforeTheEdition), DAY_HAS_OPENED);
+      expect(await placements()).toEqual(before);
+    });
+
+    it("frees any day of an edition in preparation, whatever the date", async () => {
+      const ana = await participationOn(3);
+      await setEditionStatus(EditionStatus.PREPARING);
+      const before = await placements();
+
+      const result = await unplaceParticipant(ana.id, duringTheEdition);
+
+      expect(result).toMatchObject({ day: null, dayId: null, id: ana.id });
+      expect((await placements()).participations).toEqual(withDays(before, { [ana.id]: null }));
+    });
+
+    it("rejects an unknown participation as invalid input, not as a conflict", async () => {
+      const before = await placements();
+
+      await expectInvalidInput(
+        unplaceParticipant("no-such-participation", beforeTheEdition),
+        "The participation with id no-such-participation does not exist.",
+      );
+      expect(await placements()).toEqual(before);
+    });
+
+    it.each(["P2003", "P2025"])(
+      "reports a conflict when the participation or the day disappears mid-way (%s)",
+      async (code) => {
+        const ana = await participationOn(3);
+        const before = await placements();
+        failNextTransaction(code);
+
+        await expectConflict(unplaceParticipant(ana.id, beforeTheEdition), NO_LONGER_THERE);
+        expect(await placements()).toEqual(before);
+      },
+    );
+
+    it("lets any other database error through untouched", async () => {
+      const ana = await participationOn(3);
+      const before = await placements();
+      const transaction = failNextTransaction("P2024");
+
+      const error: unknown = await unplaceParticipant(ana.id, beforeTheEdition).catch((reason: unknown) => reason);
+
+      expect(error).toBeInstanceOf(Prisma.PrismaClientKnownRequestError);
+      expect(error).not.toBeInstanceOf(ConflictError);
+      expect(error).toMatchObject({ code: "P2024", message: "simulated race" });
+      // The very object the database layer threw, not a copy or a wrapper.
+      expect(error).toBe(transaction.mock.settledResults[0].value);
+      expect(await placements()).toEqual(before);
+    });
+  });
+
+  describe("swapParticipants", () => {
+    const SWAPPED_WITH_ITSELF = "A participation cannot be swapped with itself.";
+    const DIFFERENT_EDITIONS = "The participations belong to different editions.";
+
+    type Swap = [string, string];
+
+    function dayIdsAfter(start: Map<string, null | string>, swaps: Swap[]) {
+      const held = new Map(start);
+      for (const [first, second] of swaps) {
+        const dayOfFirst = held.get(first) ?? null;
+        held.set(first, held.get(second) ?? null);
+        held.set(second, dayOfFirst);
+      }
+      return held;
+    }
+
+    /** Sends the swaps at once and checks what must hold whichever of them gets there first. */
+    async function raceSwaps(people: string[], swaps: Swap[]) {
+      const before = await placements();
+      const dayIdsOf = (from: Placements) =>
+        people.map((id) => from.participations.find((participation) => participation.id === id)?.dayId ?? null);
+      const daysHeld = (dayIds: (null | string)[]) =>
+        dayIds.filter((dayId): dayId is string => dayId !== null).toSorted();
+
+      const results = await Promise.allSettled(
+        swaps.map(([first, second]) => swapParticipants(first, second, beforeTheEdition)),
+      );
+
+      for (const result of results) {
+        if (result.status === "rejected") {
+          expect(result.reason).toBeInstanceOf(ConflictError);
+        }
+      }
+      const after = await placements();
+      // Between them the same days as before, one each: nobody shares a day and no day is lost.
+      expect(daysHeld(dayIdsOf(after))).toEqual(daysHeld(dayIdsOf(before)));
+      expect(after.days).toEqual(before.days);
+      expect(after.participations.filter((participation) => !people.includes(participation.id))).toEqual(
+        before.participations.filter((participation) => !people.includes(participation.id)),
+      );
+      // All or nothing: a swap that was refused changed nothing, and the ones that resolved were done whole,
+      // one after the other in whichever order they got in.
+      const done = swaps.filter((_, index) => results[index].status === "fulfilled");
+      const start = new Map(before.participations.map((participation) => [participation.id, participation.dayId]));
+      const outcomes = [done, done.toReversed()].map((order) => {
+        const held = dayIdsAfter(start, order);
+        return people.map((id) => held.get(id) ?? null);
+      });
+      expect(outcomes).toContainEqual(dayIdsOf(after));
+    }
+
+    // Who wins a race is a matter of timing, so each one is run a few times, from wherever the last left things.
+    const ROUNDS = 5;
+
+    // A simulated failure that the call never reaches would otherwise break the reset of the next test.
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("puts each of two people who hold a day on the other's day, and answers in argument order", async () => {
+      const ana = await participationOn(3);
+      const sony = await participationOn(4);
+      const before = await placements();
+
+      const result = await swapParticipants(ana.id, sony.id, beforeTheEdition);
+
+      expect(result).toHaveLength(2);
+      expect(result[0]).toMatchObject({ dayId: sony.dayId, id: ana.id, userId: ana.userId, year: 2025 });
+      expect(result[0].day?.dayNumber).toBe(4);
+      expect(result[0].user?.id).toBe(ana.userId);
+      expect(result[1]).toMatchObject({ dayId: ana.dayId, id: sony.id, userId: sony.userId, year: 2025 });
+      expect(result[1].day?.dayNumber).toBe(3);
+      expect(result[1].user?.id).toBe(sony.userId);
+      const after = await placements();
+      expect(after.days).toEqual(before.days);
+      expect(after.participations).toEqual(withDays(before, { [ana.id]: sony.dayId, [sony.id]: ana.dayId }));
+    });
+
+    it("answers in the order of its arguments when they come the other way round", async () => {
+      const ana = await participationOn(3);
+      const sony = await participationOn(4);
+      const before = await placements();
+
+      const result = await swapParticipants(sony.id, ana.id, beforeTheEdition);
+
+      expect(result[0]).toMatchObject({ dayId: ana.dayId, id: sony.id });
+      expect(result[0].day?.dayNumber).toBe(3);
+      expect(result[1]).toMatchObject({ dayId: sony.dayId, id: ana.id });
+      expect(result[1].day?.dayNumber).toBe(4);
+      expect((await placements()).participations).toEqual(
+        withDays(before, { [ana.id]: sony.dayId, [sony.id]: ana.dayId }),
+      );
+    });
+
+    it.each([{ holder: "first" }, { holder: "second" }])(
+      "passes the day to the one without when the $holder of the two holds it",
+      async ({ holder }) => {
+        const ana = await participationOn(3);
+        const guest = await enrolGuest(2025, "Prima Lejana");
+        const before = await placements();
+
+        const result =
+          holder === "first"
+            ? await swapParticipants(ana.id, guest.id, beforeTheEdition)
+            : await swapParticipants(guest.id, ana.id, beforeTheEdition);
+
+        const [fromAna, fromGuest] = holder === "first" ? result : [result[1], result[0]];
+        expect(fromAna).toMatchObject({ day: null, dayId: null, id: ana.id, userId: ana.userId });
+        expect(fromAna.user?.id).toBe(ana.userId);
+        expect(fromGuest).toMatchObject({ dayId: ana.dayId, guestName: "Prima Lejana", id: guest.id, user: null });
+        expect(fromGuest.day?.dayNumber).toBe(3);
+        const after = await placements();
+        expect(after.days).toEqual(before.days);
+        expect(after.participations).toEqual(withDays(before, { [ana.id]: null, [guest.id]: ana.dayId }));
+      },
+    );
+
+    it("leaves both teas with their people, each now reached through the other's day", async () => {
+      const manager = await participationOn(1);
+      const guest = await participationOn(2);
+      const teas = await prisma.tea.findMany({ orderBy: { id: "asc" } });
+
+      const result = await swapParticipants(manager.id, guest.id, beforeTheEdition);
+
+      expect(result[0]).toMatchObject({ dayId: guest.dayId, id: manager.id, userId: manager.userId });
+      expect(result[1]).toMatchObject({ dayId: manager.dayId, guestName: "Anónimo", id: guest.id, user: null });
+      expect(await prisma.tea.findMany({ orderBy: { id: "asc" } })).toEqual(teas);
+      const [dayOne, dayTwo] = await Promise.all(
+        [manager.dayId!, guest.dayId!].map((id) =>
+          prisma.day.findUniqueOrThrow({ include: { participation: { include: { tea: true } } }, where: { id } }),
+        ),
+      );
+      expect(dayOne.participation).toMatchObject({ id: guest.id, tea: { name: "Pakistaní" } });
+      expect(dayTwo.participation).toMatchObject({ id: manager.id, tea: { name: "Ruta del desierto" } });
+    });
+
+    it("leaves the tea with someone who passes their day to a person without one", async () => {
+      const manager = await participationOn(1);
+      const guest = await enrolGuest(2025, "Prima Lejana");
+      const tea = await prisma.tea.findUniqueOrThrow({ where: { participationId: manager.id } });
+
+      await swapParticipants(manager.id, guest.id, beforeTheEdition);
+
+      expect(await prisma.tea.findUniqueOrThrow({ where: { id: tea.id } })).toEqual(tea);
+      expect(await prisma.tea.count()).toBe(2);
+      const dayOne = await prisma.day.findUniqueOrThrow({
+        include: { participation: { include: { tea: true } } },
+        where: { id: manager.dayId! },
+      });
+      expect(dayOne.participation).toMatchObject({ id: guest.id, tea: null });
+      expect((await prisma.participation.findUniqueOrThrow({ where: { id: manager.id } })).dayId).toBeNull();
+    });
+
+    it("swaps two guests", async () => {
+      const anonymous = await participationOn(2);
+      const [guest] = await enrolGuests(1);
+      const { dayId: six } = await putOnDay(guest.id, 6);
+      const before = await placements();
+
+      const result = await swapParticipants(anonymous.id, guest.id, beforeTheEdition);
+
+      expect(result[0]).toMatchObject({ dayId: six, guestName: "Anónimo", id: anonymous.id, user: null });
+      expect(result[0].day?.dayNumber).toBe(6);
+      expect(result[1]).toMatchObject({ dayId: anonymous.dayId, guestName: "Invitada 1", id: guest.id, user: null });
+      expect(result[1].day?.dayNumber).toBe(2);
+      const after = await placements();
+      expect(after.days).toEqual(before.days);
+      expect(after.participations).toEqual(withDays(before, { [anonymous.id]: six, [guest.id]: anonymous.dayId }));
+    });
+
+    it("swaps someone on a leftover day above the number of participants like anyone else", async () => {
+      const ana = await participationOn(3);
+      const stray = await enrolGuest(2025, "Prima Lejana");
+      const { dayId: twenty } = await putOnDay(stray.id, 20);
+      const before = await placements();
+
+      const result = await swapParticipants(stray.id, ana.id, beforeTheEdition);
+
+      expect(result[0]).toMatchObject({ dayId: ana.dayId, id: stray.id });
+      expect(result[0].day?.dayNumber).toBe(3);
+      expect(result[1]).toMatchObject({ dayId: twenty, id: ana.id });
+      expect(result[1].day?.dayNumber).toBe(20);
+      const after = await placements();
+      expect(after.days).toEqual(before.days);
+      expect(after.participations).toEqual(withDays(before, { [ana.id]: twenty, [stray.id]: ana.dayId }));
+    });
+
+    it("passes a leftover day above the number of participants to someone without a day", async () => {
+      const [stray, other] = await enrolGuests(2);
+      const { dayId: twenty } = await putOnDay(stray.id, 20);
+      const before = await placements();
+
+      const result = await swapParticipants(other.id, stray.id, beforeTheEdition);
+
+      expect(result[0]).toMatchObject({ dayId: twenty, id: other.id });
+      expect(result[0].day?.dayNumber).toBe(20);
+      expect(result[1]).toMatchObject({ day: null, dayId: null, id: stray.id });
+      const after = await placements();
+      expect(after.days).toEqual(before.days);
+      expect(after.participations).toEqual(withDays(before, { [other.id]: twenty, [stray.id]: null }));
+    });
+
+    it("swaps two people of another edition and leaves 2025 alone", async () => {
+      await upsertEdition(2030, EditionStatus.PREPARING);
+      const [first, second] = await enrolGuests(2, 2030);
+      const one = await prisma.day.create({ data: { dayNumber: 1, year: 2030 } });
+      const two = await prisma.day.create({ data: { dayNumber: 2, year: 2030 } });
+      await prisma.participation.update({ data: { dayId: one.id }, where: { id: first.id } });
+      await prisma.participation.update({ data: { dayId: two.id }, where: { id: second.id } });
+      const before = await placements();
+
+      const result = await swapParticipants(first.id, second.id, beforeTheEdition);
+
+      expect(result[0]).toMatchObject({ dayId: two.id, id: first.id, year: 2030 });
+      expect(result[1]).toMatchObject({ dayId: one.id, id: second.id, year: 2030 });
+      expect((await prisma.participation.findUniqueOrThrow({ where: { id: first.id } })).dayId).toBe(two.id);
+      expect((await prisma.participation.findUniqueOrThrow({ where: { id: second.id } })).dayId).toBe(one.id);
+      expect(await prisma.day.count({ where: { year: 2030 } })).toBe(2);
+      expect(await placements()).toEqual(before);
+    });
+
+    it("resolves with both as they were when neither holds a day", async () => {
+      const [first, second] = await enrolGuests(2);
+      const before = await placements();
+
+      const result = await swapParticipants(first.id, second.id, duringTheEdition);
+
+      expect(result).toHaveLength(2);
+      expect(result[0]).toMatchObject({ day: null, dayId: null, guestName: "Invitada 1", id: first.id });
+      expect(result[1]).toMatchObject({ day: null, dayId: null, guestName: "Invitada 2", id: second.id });
+      expect(await placements()).toEqual(before);
+    });
+
+    it("resolves for two people without a day in an archived edition too", async () => {
+      const [first, second] = await enrolGuests(2);
+      await setEditionStatus(EditionStatus.ARCHIVED);
+      const before = await placements();
+
+      const result = await swapParticipants(first.id, second.id, beforeTheEdition);
+
+      expect(result[0]).toMatchObject({ day: null, dayId: null, id: first.id });
+      expect(result[1]).toMatchObject({ day: null, dayId: null, id: second.id });
+      expect(await placements()).toEqual(before);
+    });
+
+    it("rejects swapping a participation with itself as invalid input, before looking it up", async () => {
+      const ana = await participationOn(3);
+      const before = await placements();
+
+      await expectInvalidInput(swapParticipants(ana.id, ana.id, beforeTheEdition), SWAPPED_WITH_ITSELF);
+      await expectInvalidInput(
+        swapParticipants("no-such-participation", "no-such-participation", beforeTheEdition),
+        SWAPPED_WITH_ITSELF,
+      );
+      expect(await placements()).toEqual(before);
+    });
+
+    it("rejects an unknown participation as invalid input and names the first unknown one", async () => {
+      const ana = await participationOn(3);
+      const before = await placements();
+
+      await expectInvalidInput(
+        swapParticipants("no-such-participation", ana.id, beforeTheEdition),
+        "The participation with id no-such-participation does not exist.",
+      );
+      await expectInvalidInput(
+        swapParticipants(ana.id, "no-such-participation", beforeTheEdition),
+        "The participation with id no-such-participation does not exist.",
+      );
+      await expectInvalidInput(
+        swapParticipants("gone-first", "gone-second", beforeTheEdition),
+        "The participation with id gone-first does not exist.",
+      );
+      expect(await placements()).toEqual(before);
+    });
+
+    it("rejects two participations of different editions as invalid input, whatever their days", async () => {
+      await upsertEdition(2030, EditionStatus.PREPARING);
+      const [ghost] = await enrolGuests(1, 2030);
+      const ana = await participationOn(3);
+      const guest = await enrolGuest(2025, "Prima Lejana");
+      const before = await placements();
+
+      await expectInvalidInput(swapParticipants(ana.id, ghost.id, beforeTheEdition), DIFFERENT_EDITIONS);
+      await expectInvalidInput(swapParticipants(ghost.id, ana.id, beforeTheEdition), DIFFERENT_EDITIONS);
+      // Said before finding that there is nothing to swap, and before finding that a day has opened.
+      await expectInvalidInput(swapParticipants(guest.id, ghost.id, beforeTheEdition), DIFFERENT_EDITIONS);
+      await expectInvalidInput(swapParticipants(ana.id, ghost.id, duringTheEdition), DIFFERENT_EDITIONS);
+      expect(await placements()).toEqual(before);
+      expect((await prisma.participation.findUniqueOrThrow({ where: { id: ghost.id } })).dayId).toBeNull();
+      expect(await prisma.day.count({ where: { year: 2030 } })).toBe(0);
+    });
+
+    it("refuses two days that have already opened: both keep theirs", async () => {
+      const ana = await participationOn(3);
+      const sony = await participationOn(4);
+      const before = await placements();
+
+      await expectConflict(swapParticipants(ana.id, sony.id, duringTheEdition), DAY_HAS_OPENED);
+      expect(await placements()).toEqual(before);
+    });
+
+    it.each([{ opened: "first" }, { opened: "second" }])(
+      "refuses when only the day of the $opened of the two has opened",
+      async ({ opened }) => {
+        const ana = await participationOn(3);
+        const [late] = await enrolGuests(7);
+        await putOnDay(late.id, 12);
+        const before = await placements();
+
+        await expectConflict(
+          opened === "first"
+            ? swapParticipants(ana.id, late.id, duringTheEdition)
+            : swapParticipants(late.id, ana.id, duringTheEdition),
+          DAY_HAS_OPENED,
+        );
+        expect(await placements()).toEqual(before);
+      },
+    );
+
+    it.each([{ holder: "first" }, { holder: "second" }])(
+      "refuses to pass on a day that has opened to someone without one (held by the $holder)",
+      async ({ holder }) => {
+        const ana = await participationOn(3);
+        const guest = await enrolGuest(2025, "Prima Lejana");
+        const before = await placements();
+
+        await expectConflict(
+          holder === "first"
+            ? swapParticipants(ana.id, guest.id, duringTheEdition)
+            : swapParticipants(guest.id, ana.id, duringTheEdition),
+          DAY_HAS_OPENED,
+        );
+        expect(await placements()).toEqual(before);
+      },
+    );
+
+    it("refuses the day that opens today and swaps the ones that open later", async () => {
+      const [today, tomorrow, later] = await enrolGuests(7);
+      await putOnDay(today.id, 10);
+      const { dayId: eleven } = await putOnDay(tomorrow.id, 11);
+      const { dayId: twelve } = await putOnDay(later.id, 12);
+      const before = await placements();
+
+      await expectConflict(swapParticipants(today.id, tomorrow.id, duringTheEdition), DAY_HAS_OPENED);
+      await expectConflict(swapParticipants(tomorrow.id, today.id, duringTheEdition), DAY_HAS_OPENED);
+      expect(await placements()).toEqual(before);
+
+      const result = await swapParticipants(tomorrow.id, later.id, duringTheEdition);
+
+      expect(result[0].day?.dayNumber).toBe(12);
+      expect(result[1].day?.dayNumber).toBe(11);
+      const after = await placements();
+      expect(after.days).toEqual(before.days);
+      expect(after.participations).toEqual(withDays(before, { [later.id]: eleven, [tomorrow.id]: twelve }));
+    });
+
+    it("refuses every day of an archived edition, whatever the date", async () => {
+      const ana = await participationOn(3);
+      const sony = await participationOn(4);
+      const guest = await enrolGuest(2025, "Prima Lejana");
+      await setEditionStatus(EditionStatus.ARCHIVED);
+      const before = await placements();
+
+      await expectConflict(swapParticipants(ana.id, sony.id, beforeTheEdition), DAY_HAS_OPENED);
+      await expectConflict(swapParticipants(ana.id, guest.id, beforeTheEdition), DAY_HAS_OPENED);
+      await expectConflict(swapParticipants(guest.id, ana.id, beforeTheEdition), DAY_HAS_OPENED);
+      expect(await placements()).toEqual(before);
+    });
+
+    it("swaps any two days of an edition in preparation, whatever the date", async () => {
+      const ana = await participationOn(3);
+      const sony = await participationOn(4);
+      await setEditionStatus(EditionStatus.PREPARING);
+      const before = await placements();
+
+      const result = await swapParticipants(ana.id, sony.id, duringTheEdition);
+
+      expect(result[0].day?.dayNumber).toBe(4);
+      expect(result[1].day?.dayNumber).toBe(3);
+      expect((await placements()).participations).toEqual(
+        withDays(before, { [ana.id]: sony.dayId, [sony.id]: ana.dayId }),
+      );
+    });
+
+    it("reports that the days have just changed when the database reports a clash", async () => {
+      const ana = await participationOn(3);
+      const sony = await participationOn(4);
+      const before = await placements();
+      failNextTransaction("P2002");
+
+      await expectConflict(swapParticipants(ana.id, sony.id, beforeTheEdition), DAYS_JUST_CHANGED);
+      expect(await placements()).toEqual(before);
+    });
+
+    it("reports the same clash when only one of the two holds a day", async () => {
+      const ana = await participationOn(3);
+      const guest = await enrolGuest(2025, "Prima Lejana");
+      const before = await placements();
+      failNextTransaction("P2002");
+
+      await expectConflict(swapParticipants(guest.id, ana.id, beforeTheEdition), DAYS_JUST_CHANGED);
+      expect(await placements()).toEqual(before);
+    });
+
+    it.each(["P2003", "P2025"])(
+      "reports a conflict when a participation or a day disappears mid-way (%s)",
+      async (code) => {
+        const ana = await participationOn(3);
+        const sony = await participationOn(4);
+        const before = await placements();
+        failNextTransaction(code);
+
+        await expectConflict(swapParticipants(ana.id, sony.id, beforeTheEdition), NO_LONGER_THERE);
+        expect(await placements()).toEqual(before);
+      },
+    );
+
+    it("lets any other database error through untouched", async () => {
+      const ana = await participationOn(3);
+      const sony = await participationOn(4);
+      const before = await placements();
+      const transaction = failNextTransaction("P2024");
+
+      const error: unknown = await swapParticipants(ana.id, sony.id, beforeTheEdition).catch(
+        (reason: unknown) => reason,
+      );
+
+      expect(error).toBeInstanceOf(Prisma.PrismaClientKnownRequestError);
+      expect(error).not.toBeInstanceOf(ConflictError);
+      expect(error).toMatchObject({ code: "P2024", message: "simulated race" });
+      // The very object the database layer threw, not a copy or a wrapper.
+      expect(error).toBe(transaction.mock.settledResults[0].value);
+      expect(await placements()).toEqual(before);
+    });
+
+    it("keeps the three days, one each, when A<->B and B<->C arrive at once", async () => {
+      const [ana, sony, miko] = [await participationOn(3), await participationOn(4), await participationOn(5)];
+
+      for (let round = 0; round < ROUNDS; round++) {
+        await raceSwaps(
+          [ana.id, sony.id, miko.id],
+          [
+            [ana.id, sony.id],
+            [sony.id, miko.id],
+          ],
+        );
+      }
+    });
+
+    it("keeps the two days, one each, when A<->B and B<->C arrive at once and B holds no day", async () => {
+      const [ana, miko] = [await participationOn(3), await participationOn(5)];
+      const guest = await enrolGuest(2025, "Prima Lejana");
+
+      for (let round = 0; round < ROUNDS; round++) {
+        await raceSwaps(
+          [ana.id, guest.id, miko.id],
+          [
+            [ana.id, guest.id],
+            [guest.id, miko.id],
+          ],
+        );
+      }
+    });
+
+    it("gives the day to one of them only when A<->B and B<->C arrive at once and only B holds a day", async () => {
+      const sony = await participationOn(4);
+      const [first, second] = await enrolGuests(2);
+
+      for (let round = 0; round < ROUNDS; round++) {
+        await raceSwaps(
+          [first.id, sony.id, second.id],
+          [
+            [first.id, sony.id],
+            [sony.id, second.id],
+          ],
+        );
+      }
+    });
+
+    it("keeps the two days, one each, when the same two are swapped at once from both sides", async () => {
+      const [ana, sony] = [await participationOn(3), await participationOn(4)];
+
+      for (let round = 0; round < ROUNDS; round++) {
+        await raceSwaps(
+          [ana.id, sony.id],
+          [
+            [ana.id, sony.id],
+            [sony.id, ana.id],
+          ],
+        );
+      }
     });
   });
 

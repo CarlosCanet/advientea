@@ -1,10 +1,24 @@
 import { revalidatePath } from "next/cache";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { changeEditionStatusAction, enrolGuestAction, enrolUserAction } from "@/app/actions/editionActions";
+import {
+  changeEditionStatusAction,
+  enrolGuestAction,
+  enrolUserAction,
+  placeParticipantAction,
+  swapParticipantsAction,
+} from "@/app/actions/editionActions";
 import { EditionStatus, Role } from "@/generated/prisma/enums";
-import { changeEditionStatus, enrolGuest, enrolUser, requireRole } from "@/lib/dal";
-import { ConflictError } from "@/lib/errors";
+import {
+  changeEditionStatus,
+  enrolGuest,
+  enrolUser,
+  placeParticipant,
+  requireRole,
+  swapParticipants,
+  unplaceParticipant,
+} from "@/lib/dal";
+import { ConflictError, ForbiddenError, UnauthenticatedError } from "@/lib/errors";
 
 vi.mock("@/lib/dal", () => ({
   changeEditionStatus: vi.fn(),
@@ -12,9 +26,24 @@ vi.mock("@/lib/dal", () => ({
   deleteEdition: vi.fn(),
   enrolGuest: vi.fn(),
   enrolUser: vi.fn(),
+  placeParticipant: vi.fn(),
   requireRole: vi.fn(),
+  swapParticipants: vi.fn(),
+  unplaceParticipant: vi.fn(),
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+
+type PlacedParticipation = Awaited<ReturnType<typeof placeParticipant>>;
+
+/** A participation as the DAL returns it, with only what the actions read to word their answer. */
+function participation(who: { guestName?: string; username?: string }, dayNumber: null | number, year = 2026) {
+  return {
+    day: dayNumber === null ? null : { dayNumber, year },
+    guestName: who.guestName ?? null,
+    user: who.username === undefined ? null : { username: who.username },
+    year,
+  } as PlacedParticipation;
+}
 
 describe("changeEditionStatusAction", () => {
   beforeEach(() => {
@@ -173,6 +202,274 @@ describe("enrolGuestAction", () => {
     const result = await enrolGuestAction(2026, "anónimo");
 
     expect(result).toEqual({ message: "Anónimo ya está en la edición 2026 como invitado.", success: false });
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+});
+
+describe("placeParticipantAction", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(requireRole).mockResolvedValue({} as Awaited<ReturnType<typeof requireRole>>);
+    vi.mocked(placeParticipant).mockResolvedValue(participation({ username: "Ana" }, 5));
+    vi.mocked(unplaceParticipant).mockResolvedValue(participation({ username: "Ana" }, null));
+  });
+
+  it("is open to the admin and to the calendar manager", async () => {
+    await placeParticipantAction("participation-id", 5);
+
+    expect(requireRole).toHaveBeenCalledWith(Role.ADMIN, Role.EXECUTEAVE);
+  });
+
+  it.each([
+    { error: new UnauthenticatedError(), visitor: "someone without a session" },
+    { error: new ForbiddenError(), visitor: "someone without the role" },
+  ])("answers $visitor with the message of the refusal and never reaches the DAL", async ({ error }) => {
+    vi.mocked(requireRole).mockRejectedValue(error);
+
+    const placing = await placeParticipantAction("participation-id", 5);
+    const unplacing = await placeParticipantAction("participation-id", null);
+
+    expect(placing).toEqual({ message: error.message, success: false });
+    expect(unplacing).toEqual({ message: error.message, success: false });
+    expect(placeParticipant).not.toHaveBeenCalled();
+    expect(unplaceParticipant).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("places the person on the day, says so and refreshes the page of their edition", async () => {
+    const result = await placeParticipantAction("participation-id", 5);
+
+    expect(placeParticipant).toHaveBeenCalledTimes(1);
+    expect(placeParticipant).toHaveBeenCalledWith("participation-id", 5);
+    expect(unplaceParticipant).not.toHaveBeenCalled();
+    expect(revalidatePath).toHaveBeenCalledWith("/editions/2026");
+    expect(result).toEqual({ message: "Ana tiene ahora el día 5.", success: true });
+  });
+
+  it("leaves the person without a day when the day is null, says so and refreshes the page", async () => {
+    const result = await placeParticipantAction("participation-id", null);
+
+    expect(unplaceParticipant).toHaveBeenCalledTimes(1);
+    expect(unplaceParticipant).toHaveBeenCalledWith("participation-id");
+    expect(placeParticipant).not.toHaveBeenCalled();
+    expect(revalidatePath).toHaveBeenCalledWith("/editions/2026");
+    expect(result).toEqual({ message: "Ana se queda sin día.", success: true });
+  });
+
+  it("refreshes the page of the edition the participation belongs to", async () => {
+    vi.mocked(placeParticipant).mockResolvedValue(participation({ username: "Ana" }, 5, 2031));
+    vi.mocked(unplaceParticipant).mockResolvedValue(participation({ username: "Ana" }, null, 2032));
+
+    await placeParticipantAction("participation-id", 5);
+    await placeParticipantAction("participation-id", null);
+
+    expect(revalidatePath).toHaveBeenNthCalledWith(1, "/editions/2031");
+    expect(revalidatePath).toHaveBeenNthCalledWith(2, "/editions/2032");
+  });
+
+  it("names a guest by the guest name", async () => {
+    vi.mocked(placeParticipant).mockResolvedValue(participation({ guestName: "Prima Lejana" }, 3));
+    vi.mocked(unplaceParticipant).mockResolvedValue(participation({ guestName: "Prima Lejana" }, null));
+
+    const placing = await placeParticipantAction("participation-id", 3);
+    const unplacing = await placeParticipantAction("participation-id", null);
+
+    expect(placing).toEqual({ message: "Prima Lejana tiene ahora el día 3.", success: true });
+    expect(unplacing).toEqual({ message: "Prima Lejana se queda sin día.", success: true });
+  });
+
+  it("names someone whose account was deleted without a name", async () => {
+    vi.mocked(placeParticipant).mockResolvedValue(participation({}, 3));
+    vi.mocked(unplaceParticipant).mockResolvedValue(participation({}, null));
+
+    const placing = await placeParticipantAction("participation-id", 3);
+    const unplacing = await placeParticipantAction("participation-id", null);
+
+    expect(placing).toEqual({ message: "Esa persona tiene ahora el día 3.", success: true });
+    expect(unplacing).toEqual({ message: "Esa persona se queda sin día.", success: true });
+  });
+
+  it.each([
+    { dayNumber: 5, participationId: "" },
+    { dayNumber: 5, participationId: 7 },
+    { dayNumber: 5, participationId: undefined },
+    { dayNumber: null, participationId: "" },
+    { dayNumber: 0, participationId: "participation-id" },
+    { dayNumber: -1, participationId: "participation-id" },
+    { dayNumber: 2.5, participationId: "participation-id" },
+    { dayNumber: Number.NaN, participationId: "participation-id" },
+    { dayNumber: "3", participationId: "participation-id" },
+    { dayNumber: undefined, participationId: "participation-id" },
+  ])("refuses the participation $participationId with the day $dayNumber before reaching the DAL", async (input) => {
+    const result = await placeParticipantAction(input.participationId as string, input.dayNumber as null | number);
+
+    expect(result).toEqual({ message: "La inscripción o el día no son válidos.", success: false });
+    expect(placeParticipant).not.toHaveBeenCalled();
+    expect(unplaceParticipant).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("shows the conflict message from the DAL when placing", async () => {
+    vi.mocked(placeParticipant).mockRejectedValue(new ConflictError("El día 5 es de Sony."));
+
+    const result = await placeParticipantAction("participation-id", 5);
+
+    expect(result).toEqual({ message: "El día 5 es de Sony.", success: false });
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("shows the conflict message from the DAL when leaving without a day", async () => {
+    vi.mocked(unplaceParticipant).mockRejectedValue(
+      new ConflictError("Ese día ya ha pasado o es hoy y no se puede cambiar."),
+    );
+
+    const result = await placeParticipantAction("participation-id", null);
+
+    expect(result).toEqual({ message: "Ese día ya ha pasado o es hoy y no se puede cambiar.", success: false });
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("hides an unexpected error behind a generic message", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.mocked(placeParticipant).mockRejectedValue(new Error("connection refused"));
+    vi.mocked(unplaceParticipant).mockRejectedValue(
+      new Error("The participation with id participation-id does not exist."),
+    );
+
+    const placing = await placeParticipantAction("participation-id", 5);
+    const unplacing = await placeParticipantAction("participation-id", null);
+
+    expect(placing).toEqual({ message: "No se pudo cambiar el día. Inténtalo de nuevo.", success: false });
+    expect(unplacing).toEqual({ message: "No se pudo cambiar el día. Inténtalo de nuevo.", success: false });
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+});
+
+describe("swapParticipantsAction", () => {
+  const swapped = (...pair: [PlacedParticipation, PlacedParticipation]) =>
+    pair as Awaited<ReturnType<typeof swapParticipants>>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(requireRole).mockResolvedValue({} as Awaited<ReturnType<typeof requireRole>>);
+    vi.mocked(swapParticipants).mockResolvedValue(
+      swapped(participation({ username: "Ana" }, 5), participation({ guestName: "Prima Lejana" }, 3)),
+    );
+  });
+
+  it("is open to the admin and to the calendar manager", async () => {
+    await swapParticipantsAction("first-id", "second-id");
+
+    expect(requireRole).toHaveBeenCalledWith(Role.ADMIN, Role.EXECUTEAVE);
+  });
+
+  it.each([
+    { error: new UnauthenticatedError(), visitor: "someone without a session" },
+    { error: new ForbiddenError(), visitor: "someone without the role" },
+  ])("answers $visitor with the message of the refusal and never reaches the DAL", async ({ error }) => {
+    vi.mocked(requireRole).mockRejectedValue(error);
+
+    const result = await swapParticipantsAction("first-id", "second-id");
+
+    expect(result).toEqual({ message: error.message, success: false });
+    expect(swapParticipants).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("swaps the two, says where each one ends in argument order and refreshes the page of the edition", async () => {
+    const result = await swapParticipantsAction("first-id", "second-id");
+
+    expect(swapParticipants).toHaveBeenCalledTimes(1);
+    expect(swapParticipants).toHaveBeenCalledWith("first-id", "second-id");
+    expect(revalidatePath).toHaveBeenCalledWith("/editions/2026");
+    expect(result).toEqual({ message: "Ana pasa al día 5 y Prima Lejana pasa al día 3.", success: true });
+  });
+
+  it("refreshes the page of the edition the participations belong to", async () => {
+    vi.mocked(swapParticipants).mockResolvedValue(
+      swapped(participation({ username: "Ana" }, 5, 2031), participation({ guestName: "Prima Lejana" }, 3, 2031)),
+    );
+
+    await swapParticipantsAction("first-id", "second-id");
+
+    expect(revalidatePath).toHaveBeenCalledWith("/editions/2031");
+  });
+
+  it("says that the first one is left without a day when the day passed to the second", async () => {
+    vi.mocked(swapParticipants).mockResolvedValue(
+      swapped(participation({ username: "Ana" }, null), participation({ guestName: "Prima Lejana" }, 3)),
+    );
+
+    const result = await swapParticipantsAction("first-id", "second-id");
+
+    expect(result).toEqual({ message: "Ana se queda sin día y Prima Lejana pasa al día 3.", success: true });
+  });
+
+  it("says that the second one is left without a day when the day passed to the first", async () => {
+    vi.mocked(swapParticipants).mockResolvedValue(
+      swapped(participation({ username: "Ana" }, 5), participation({ guestName: "Prima Lejana" }, null)),
+    );
+
+    const result = await swapParticipantsAction("first-id", "second-id");
+
+    expect(result).toEqual({ message: "Ana pasa al día 5 y Prima Lejana se queda sin día.", success: true });
+  });
+
+  it("says that both are left without a day when neither had one", async () => {
+    vi.mocked(swapParticipants).mockResolvedValue(
+      swapped(participation({ username: "Ana" }, null), participation({ guestName: "Prima Lejana" }, null)),
+    );
+
+    const result = await swapParticipantsAction("first-id", "second-id");
+
+    expect(result).toEqual({ message: "Ana se queda sin día y Prima Lejana se queda sin día.", success: true });
+  });
+
+  it("names someone whose account was deleted without a name", async () => {
+    vi.mocked(swapParticipants).mockResolvedValue(
+      swapped(participation({}, 5), participation({ username: "Sony" }, null)),
+    );
+
+    const result = await swapParticipantsAction("first-id", "second-id");
+
+    expect(result).toEqual({ message: "Esa persona pasa al día 5 y Sony se queda sin día.", success: true });
+  });
+
+  it.each([
+    { first: "", second: "second-id" },
+    { first: "first-id", second: "" },
+    { first: "same-id", second: "same-id" },
+    { first: 7, second: "second-id" },
+    { first: "first-id", second: undefined },
+  ])("refuses the participations $first and $second before reaching the DAL", async ({ first, second }) => {
+    const result = await swapParticipantsAction(first as string, second as string);
+
+    expect(result).toEqual({ message: "Las inscripciones no son válidas.", success: false });
+    expect(swapParticipants).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("shows the conflict message from the DAL", async () => {
+    vi.mocked(swapParticipants).mockRejectedValue(
+      new ConflictError("Los días acaban de cambiar. Recarga la página y vuelve a intentarlo."),
+    );
+
+    const result = await swapParticipantsAction("first-id", "second-id");
+
+    expect(result).toEqual({
+      message: "Los días acaban de cambiar. Recarga la página y vuelve a intentarlo.",
+      success: false,
+    });
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("hides an unexpected error behind a generic message", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.mocked(swapParticipants).mockRejectedValue(new Error("The participations belong to different editions."));
+
+    const result = await swapParticipantsAction("first-id", "second-id");
+
+    expect(result).toEqual({ message: "No se pudo intercambiar. Inténtalo de nuevo.", success: false });
     expect(revalidatePath).not.toHaveBeenCalled();
   });
 });
