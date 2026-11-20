@@ -117,7 +117,7 @@ describe("dal Edition", () => {
 
   describe("getEditionInfo", () => {
     // An edition has one calendar day per person enrolled. Day rows are only storage: the seed gives
-    // 2025 twenty-five of them and five participants, so the two numbers never agree by accident.
+    // 2025 one per participant, so a test that must tell the two numbers apart adds rows of its own.
     async function enrolGuests(year: number, count: number) {
       const guests: Awaited<ReturnType<typeof enrolGuest>>[] = [];
       for (let index = 1; index <= count; index++) {
@@ -126,9 +126,9 @@ describe("dal Edition", () => {
       return guests;
     }
 
-    async function addDayRows(year: number, count: number) {
+    async function addDayRows(year: number, count: number, firstDayNumber = 1) {
       await prisma.day.createMany({
-        data: Array.from({ length: count }, (_, index) => ({ dayNumber: index + 1, year })),
+        data: Array.from({ length: count }, (_, index) => ({ dayNumber: firstDayNumber + index, year })),
       });
     }
 
@@ -198,6 +198,7 @@ describe("dal Edition", () => {
     it("gives the seeded edition its number of participants, far below its day rows", async () => {
       const enrolled = await prisma.participation.count({ where: { year: 2025 } });
       expect(enrolled).toBeGreaterThan(0);
+      await addDayRows(2025, 20, enrolled + 1);
       expect(await prisma.day.count({ where: { year: 2025 } })).toBeGreaterThan(enrolled);
 
       expect((await getEditionInfo(2025)).lastDayNumber).toBe(enrolled);
@@ -275,7 +276,7 @@ describe("dal Edition", () => {
   });
 
   it("refuses to delete an edition that still has days", async () => {
-    // The seed creates the 2025 edition with its 25 days before every test.
+    // The seed creates the 2025 edition with its days before every test.
     await expect(prisma.edition.delete({ where: { year: 2025 } })).rejects.toThrow();
     expect(await prisma.edition.count({ where: { year: 2025 } })).toBe(1);
   });

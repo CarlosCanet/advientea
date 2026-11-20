@@ -1,12 +1,11 @@
 import { EditionStatus, Role, TeaType } from "@/generated/prisma/enums";
 import {
-  add25Days,
   addStoryTea,
   addTea,
-  assignDay,
-  AssigneeInput,
   createPrismaUser,
-  getDayByDayNumber,
+  enrolGuest,
+  enrolUser,
+  placeParticipant,
   replaceStoryImages,
   upsertEdition,
 } from "@/lib/dal";
@@ -56,22 +55,24 @@ export async function seedDatabase({ accounts = true, year = 2025 }: SeedOptions
 
   // Active: the seeded year is the one dev and the tests play with, and nothing else creates editions.
   await upsertEdition(year, EditionStatus.ACTIVE);
-  await add25Days(year);
 
-  // Assigning is only allowed on days that have not opened, so the seed clock sits before the edition.
+  // Everyone is enrolled before anyone is placed: an edition has as many days as participants, so
+  // day 5 is refused until the fifth one is in. The order here is the day each of them gets.
+  const managerParticipation = await enrolUser(year, manager.id);
+  const guestParticipation = await enrolGuest(year, "Anónimo");
+  const participations = [
+    managerParticipation,
+    guestParticipation,
+    await enrolUser(year, ana.id),
+    await enrolUser(year, sony.id),
+    await enrolUser(year, miko.id),
+  ];
+
+  // A day can only be given while it has not opened, so the seed clock sits before the edition.
   const seedNow = new Date(`${year}-11-01T12:00:00+01:00`);
-  const assign = async (dayNumber: number, assignee: AssigneeInput) => {
-    const seededDay = await getDayByDayNumber({ dayNumber, year });
-    if (!seededDay) {
-      throw new Error(`Day ${dayNumber}/${year} was not created`);
-    }
-    return assignDay(seededDay.id, assignee, seedNow);
-  };
-  const managerParticipation = await assign(1, { userId: manager.id });
-  const guestParticipation = await assign(2, { guestName: "Anónimo" });
-  await assign(3, { userId: ana.id });
-  await assign(4, { userId: sony.id });
-  await assign(5, { userId: miko.id });
+  for (const [index, participation] of participations.entries()) {
+    await placeParticipant(participation.id, index + 1, seedNow);
+  }
 
   const tea1 = await addTea(
     {

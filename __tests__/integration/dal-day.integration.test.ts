@@ -19,12 +19,17 @@ const beforeTheEdition = new Date("2025-11-15T12:00:00+01:00");
 const FUTURE_YEAR = new Date().getFullYear() + 10;
 
 // The seed gives day 1 of 2025 to the manager and day 2 to the guest "Anónimo", both with a tea;
-// days 3, 4 and 5 go to ana, sony and miko without one, and the rest are free.
+// days 3, 4 and 5 go to ana, sony and miko without one. Those five rows are all the edition has.
 async function seededDay(dayNumber: number) {
   return prisma.day.findUniqueOrThrow({
     include: { participation: { include: { tea: true } } },
     where: { dayNumber_year: { dayNumber, year: 2025 } },
   });
+}
+
+// A row nobody holds: the seed has none, so a test that needs one adds it.
+async function addFreeDay(dayNumber: number, year = 2025) {
+  return prisma.day.create({ data: { dayNumber, year } });
 }
 
 async function addGuesses(dayId: string, count: number) {
@@ -69,7 +74,7 @@ describe("dal Day", () => {
 
     it("returns no tea for a day whose holder has not uploaded one, nor for a free day", async () => {
       const held = await getDayById((await seededDay(3)).id);
-      const free = await getDayById((await seededDay(6)).id);
+      const free = await getDayById((await addFreeDay(6)).id);
 
       expect(held?.participation).toEqual({ tea: null });
       expect(free?.participation).toBeNull();
@@ -90,11 +95,13 @@ describe("dal Day", () => {
 
   describe("getDaysForEdition", () => {
     it("returns every day row of the edition, held or not, in order", async () => {
+      await addFreeDay(7);
+      await addFreeDay(6);
       const rows = await prisma.day.findMany({ orderBy: { dayNumber: "asc" }, where: { year: 2025 } });
 
       const days = await getDaysForEdition(2025);
 
-      expect(days.map((item) => item.dayNumber)).toEqual(Array.from({ length: 25 }, (_, index) => index + 1));
+      expect(days.map((item) => item.dayNumber)).toEqual([1, 2, 3, 4, 5, 6, 7]);
       expect(days.map((item) => item.id)).toEqual(rows.map((row) => row.id));
     });
 
@@ -117,16 +124,18 @@ describe("dal Day", () => {
     it("leaves out the rows of the other editions", async () => {
       await upsertEdition(2030, EditionStatus.PREPARING);
       const other = await prisma.day.create({ data: { dayNumber: 1, year: 2030 } });
+      await addFreeDay(6);
 
       const days = await getDaysForEdition(2025);
 
-      expect(days).toHaveLength(25);
+      expect(days).toHaveLength(6);
       expect(days.map((item) => item.id)).not.toContain(other.id);
     });
 
     it("counts the guesses of each day, zero when there are none", async () => {
       await addGuesses((await seededDay(1)).id, 2);
-      await addGuesses((await seededDay(6)).id, 1);
+      await addGuesses((await addFreeDay(6)).id, 1);
+      await addFreeDay(7);
 
       const days = await getDaysForEdition(2025);
 
@@ -134,7 +143,7 @@ describe("dal Day", () => {
       expect(guessesByDay.get(1)).toBe(2);
       expect(guessesByDay.get(6)).toBe(1);
       const others = days.filter((item) => item.dayNumber !== 1 && item.dayNumber !== 6);
-      expect(others).toHaveLength(23);
+      expect(others.map((item) => item.dayNumber)).toEqual([2, 3, 4, 5, 7]);
       expect(others.map((item) => item._count.guesses)).toEqual(others.map(() => 0));
     });
 
@@ -142,7 +151,7 @@ describe("dal Day", () => {
       await upsertEdition(2030, EditionStatus.PREPARING);
       const other = await prisma.day.create({ data: { dayNumber: 6, year: 2030 } });
       await addGuesses(other.id, 3);
-      await addGuesses((await seededDay(6)).id, 1);
+      await addGuesses((await addFreeDay(6)).id, 1);
 
       const days = await getDaysForEdition(2025);
       const otherDays = await getDaysForEdition(2030);
@@ -171,7 +180,7 @@ describe("dal Day", () => {
     });
 
     it("refuses a day that has already been deleted", async () => {
-      const six = await seededDay(6);
+      const six = await addFreeDay(6);
       await deleteDay(six.id);
 
       await expectConflict(deleteDay(six.id), "Ese día ya no existe.");
@@ -217,17 +226,17 @@ describe("dal Day", () => {
     });
 
     it("deletes a day nobody holds and resolves with the deleted row", async () => {
-      const six = await seededDay(6);
+      const six = await addFreeDay(6);
 
       const result = await deleteDay(six.id);
 
       expect(result).toMatchObject({ dayNumber: 6, id: six.id, year: 2025 });
       expect(await prisma.day.findUnique({ where: { id: six.id } })).toBeNull();
-      expect(await prisma.day.count({ where: { year: 2025 } })).toBe(24);
+      expect(await prisma.day.count({ where: { year: 2025 } })).toBe(5);
     });
 
     it("deletes the guesses of the day with it", async () => {
-      const six = await seededDay(6);
+      const six = await addFreeDay(6);
       await addGuesses(six.id, 3);
 
       await deleteDay(six.id);
@@ -237,10 +246,10 @@ describe("dal Day", () => {
     });
 
     it("changes nothing else: other days, participations, teas and the guesses of other days", async () => {
-      const six = await seededDay(6);
+      const six = await addFreeDay(6);
       await addGuesses(six.id, 2);
       await addGuesses((await seededDay(1)).id, 2);
-      await addGuesses((await seededDay(7)).id, 1);
+      await addGuesses((await addFreeDay(7)).id, 1);
       const before = await everything();
 
       await deleteDay(six.id);
@@ -258,7 +267,7 @@ describe("dal Day", () => {
       const other = await prisma.day.create({ data: { dayNumber: 6, year: 2030 } });
       await addGuesses(other.id, 1);
 
-      await deleteDay((await seededDay(6)).id);
+      await deleteDay((await addFreeDay(6)).id);
 
       expect(await prisma.day.findUnique({ where: { id: other.id } })).not.toBeNull();
       expect(await prisma.teaGuess.count({ where: { dayId: other.id } })).toBe(1);
@@ -275,7 +284,7 @@ describe("dal Day", () => {
         await upsertEdition(2025, EditionStatus.ARCHIVED);
       }
       await upsertEdition(year, status);
-      const free = year === 2025 ? await seededDay(6) : await prisma.day.create({ data: { dayNumber: 6, year } });
+      const free = await addFreeDay(6, year);
       await addGuesses(free.id, 2);
 
       const result = await deleteDay(free.id);
@@ -327,8 +336,8 @@ describe("dal Day", () => {
     ])(
       "never deletes the day $who is being placed on at that very moment",
       async ({ holdsAnotherDay }) => {
-        // With the seed's five that makes 5 + 2 * ROUNDS participants: every round has a free row within
-        // the calendar to fight over, and another one for the person to start on.
+        // With the seed's five that makes 5 + 2 * ROUNDS participants: every round has a number within
+        // the calendar for the free row to fight over, and another one for the person to start on.
         const guests: Awaited<ReturnType<typeof enrolGuest>>[] = [];
         for (let index = 1; index <= ROUNDS * 2; index++) {
           guests.push(await enrolGuest(2025, `Invitada ${index}`));
@@ -341,7 +350,7 @@ describe("dal Day", () => {
           if (holdsAnotherDay) {
             await placeParticipant(guest.id, startNumber, beforeTheEdition);
           }
-          const target = await seededDay(targetNumber);
+          const target = await addFreeDay(targetNumber);
           const start = await prisma.participation.findUniqueOrThrow({ where: { id: guest.id } });
           const others = { id: { not: guest.id }, year: 2025 };
           const othersBefore = await prisma.participation.findMany({ orderBy: { id: "asc" }, where: others });

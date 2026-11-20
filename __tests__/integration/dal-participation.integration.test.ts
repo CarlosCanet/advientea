@@ -19,15 +19,15 @@ import {
 import { ConflictError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 
-// The seed gives 2025 an active edition with 25 days: day 1 manager (with tea), day 2 guest "Anónimo"
-// (with tea), days 3, 4 and 5 to ana, sony and miko, the rest free.
+// The seed gives 2025 an active edition with five participants, each on a day: day 1 manager (with tea),
+// day 2 guest "Anónimo" (with tea), days 3, 4 and 5 to ana, sony and miko. It has no other day row.
 const beforeTheEdition = new Date("2025-11-15T12:00:00+01:00");
 const duringTheEdition = new Date("2025-12-10T12:00:00+01:00");
 
 async function day(dayNumber: number) {
   const found = await getDayByDayNumber({ dayNumber, year: 2025 });
   if (!found) {
-    throw new Error(`seed has no day ${dayNumber}`);
+    throw new Error(`2025 has no day ${dayNumber}`);
   }
   return found;
 }
@@ -43,7 +43,7 @@ async function userWithoutDay() {
 }
 
 // An edition has one day per participant. The seed's five hold days 1 to 5, so a free number
-// within the calendar only exists once more people are enrolled.
+// within the calendar only exists once more people are enrolled, and its row once someone adds it.
 async function enrolGuests(count: number, year = 2025) {
   const guests: Awaited<ReturnType<typeof enrolGuest>>[] = [];
   for (let index = 1; index <= count; index++) {
@@ -56,8 +56,10 @@ async function participationOn(dayNumber: number) {
   return prisma.participation.findUniqueOrThrow({ where: { dayId: (await day(dayNumber)).id } });
 }
 
-async function removeDayRows(...dayNumbers: number[]) {
-  await prisma.day.deleteMany({ where: { dayNumber: { in: dayNumbers }, year: 2025 } });
+// A row nobody holds, within the calendar or left over above it. The seed has none: placing someone
+// creates the row of their day, so one that is already there is the trace of an earlier placement.
+async function addFreeDay(dayNumber: number) {
+  return prisma.day.create({ data: { dayNumber, year: 2025 } });
 }
 
 /** Which day rows the 2025 edition has and who is on each: what a refusal must leave as it was. */
@@ -89,7 +91,8 @@ function withDays(before: Placements, moved: Record<string, null | string>) {
 // Straight to the row: placing through the DAL is bound to the number of participants and to the days
 // that have not opened, and these tests need people on days outside both.
 async function putOnDay(participationId: string, dayNumber: number) {
-  return prisma.participation.update({ data: { dayId: (await day(dayNumber)).id }, where: { id: participationId } });
+  const row = await addFreeDay(dayNumber);
+  return prisma.participation.update({ data: { dayId: row.id }, where: { id: participationId } });
 }
 
 async function setEditionStatus(status: EditionStatus, year = 2025) {
@@ -183,7 +186,7 @@ describe("dal Participation", () => {
   describe("assignDay", () => {
     it("puts a user with no participation on a free day, taking the year from the day", async () => {
       const user = await userWithoutDay();
-      const free = await day(6);
+      const free = await addFreeDay(6);
 
       const result = await assignDay(free.id, { userId: user.id }, beforeTheEdition);
 
@@ -212,7 +215,7 @@ describe("dal Participation", () => {
 
     it("refuses to move in silence a user who already has another day this year", async () => {
       const ana = await prisma.participation.findUniqueOrThrow({ where: { dayId: (await day(3)).id } });
-      const free = await day(7);
+      const free = await addFreeDay(7);
 
       await expect(assignDay(free.id, { userId: ana.userId! }, beforeTheEdition)).rejects.toThrow(/el día 3/);
       expect((await prisma.participation.findUniqueOrThrow({ where: { id: ana.id } })).dayId).toBe(ana.dayId);
@@ -223,7 +226,7 @@ describe("dal Participation", () => {
       const enrolled = await prisma.participation.create({
         data: { edition: { connect: { year: 2025 } }, user: { connect: { id: user.id } } },
       });
-      const free = await day(8);
+      const free = await addFreeDay(8);
 
       const result = await assignDay(free.id, { userId: user.id }, beforeTheEdition);
 
@@ -232,7 +235,7 @@ describe("dal Participation", () => {
     });
 
     it("creates a guest participation on a free day", async () => {
-      const free = await day(9);
+      const free = await addFreeDay(9);
 
       const result = await assignDay(free.id, { guestName: "Prima Lejana" }, beforeTheEdition);
 
@@ -250,7 +253,7 @@ describe("dal Participation", () => {
 
     it("refuses a day that has already opened", async () => {
       const user = await userWithoutDay();
-      const past = await day(7);
+      const past = await addFreeDay(7);
 
       await expect(assignDay(past.id, { userId: user.id }, duringTheEdition)).rejects.toThrow(/ya ha pasado o es hoy/);
     });
@@ -295,7 +298,7 @@ describe("dal Participation", () => {
     });
 
     it("does nothing on a free day", async () => {
-      const free = await day(10);
+      const free = await addFreeDay(10);
 
       await expect(unassignDay(free.id, beforeTheEdition)).resolves.toBeUndefined();
     });
@@ -310,7 +313,7 @@ describe("dal Participation", () => {
     it("places someone enrolled without a day on the day with that number", async () => {
       const user = await userWithoutDay();
       const enrolled = await enrolUser(2025, user.id);
-      const six = await day(6);
+      const six = await addFreeDay(6);
       const before = await placements();
 
       const result = await placeParticipant(enrolled.id, 6, beforeTheEdition);
@@ -324,7 +327,7 @@ describe("dal Participation", () => {
 
     it("places a guest the same way", async () => {
       const guest = await enrolGuest(2025, "Prima Lejana");
-      const six = await day(6);
+      const six = await addFreeDay(6);
 
       const result = await placeParticipant(guest.id, 6, beforeTheEdition);
 
@@ -364,11 +367,12 @@ describe("dal Participation", () => {
 
     it("creates the row of a day within the calendar that has none yet", async () => {
       const [guest] = await enrolGuests(1);
-      await removeDayRows(6);
+      const rows = await prisma.day.count();
 
       const result = await placeParticipant(guest.id, 6, beforeTheEdition);
 
       expect(result.day).toMatchObject({ dayNumber: 6, year: 2025 });
+      expect(await prisma.day.count()).toBe(rows + 1);
       const created = await day(6);
       expect(result.dayId).toBe(created.id);
       expect((await prisma.participation.findUniqueOrThrow({ where: { id: guest.id } })).dayId).toBe(created.id);
@@ -376,7 +380,6 @@ describe("dal Participation", () => {
 
     it("creates only the row asked for, not the missing ones below it", async () => {
       const [guest] = await enrolGuests(3);
-      await removeDayRows(6, 7, 8);
       const before = await placements();
 
       await placeParticipant(guest.id, 8, beforeTheEdition);
@@ -389,6 +392,7 @@ describe("dal Participation", () => {
 
     it("accepts a number it refused once one more person is enrolled", async () => {
       const [guest] = await enrolGuests(1);
+      await addFreeDay(7);
       await expect(placeParticipant(guest.id, 7, beforeTheEdition)).rejects.toThrow(
         new ConflictError("La edición 2025 tiene 6 participantes: elige un día entre 1 y 6."),
       );
@@ -402,7 +406,7 @@ describe("dal Participation", () => {
 
     it.each([7, 25])("refuses day %i, a free leftover row above the number of participants", async (dayNumber) => {
       const [guest] = await enrolGuests(1);
-      await day(dayNumber);
+      await addFreeDay(dayNumber);
       const before = await placements();
 
       await expect(placeParticipant(guest.id, dayNumber, beforeTheEdition)).rejects.toThrow(ConflictError);
@@ -414,7 +418,7 @@ describe("dal Participation", () => {
 
     it("refuses to move someone to a leftover row above the number of participants: they keep their day", async () => {
       const ana = await participationOn(3);
-      await day(6);
+      await addFreeDay(6);
       const before = await placements();
 
       await expect(placeParticipant(ana.id, 6, beforeTheEdition)).rejects.toThrow(
@@ -425,10 +429,11 @@ describe("dal Participation", () => {
     });
 
     it("moves someone off a leftover day above the calendar to a free day within it", async () => {
-      const twenty = await day(20);
+      const twenty = await addFreeDay(20);
       const stray = await prisma.participation.create({
         data: { dayId: twenty.id, guestName: "Prima Lejana", year: 2025 },
       });
+      await addFreeDay(6);
 
       const result = await placeParticipant(stray.id, 6, beforeTheEdition);
 
@@ -440,7 +445,7 @@ describe("dal Participation", () => {
     });
 
     it("changes nothing when asked for the leftover day above the calendar the person already holds", async () => {
-      const twenty = await day(20);
+      const twenty = await addFreeDay(20);
       const stray = await prisma.participation.create({
         data: { dayId: twenty.id, guestName: "Prima Lejana", year: 2025 },
       });
@@ -456,7 +461,7 @@ describe("dal Participation", () => {
     it("moves someone who already holds a day and leaves the old day free", async () => {
       await enrolGuests(1);
       const ana = await participationOn(3);
-      const six = await day(6);
+      const six = await addFreeDay(6);
 
       const result = await placeParticipant(ana.id, 6, beforeTheEdition);
 
@@ -470,7 +475,6 @@ describe("dal Participation", () => {
 
     it("moves someone to a day whose row does not exist yet, leaving the old day free", async () => {
       await enrolGuests(1);
-      await removeDayRows(6);
       const ana = await participationOn(3);
 
       const result = await placeParticipant(ana.id, 6, beforeTheEdition);
@@ -483,6 +487,7 @@ describe("dal Participation", () => {
 
     it("moves someone with a tea and leaves the tea row exactly as it was", async () => {
       await enrolGuests(1);
+      await addFreeDay(6);
       const manager = await participationOn(1);
       const tea = await prisma.tea.findUniqueOrThrow({ where: { participationId: manager.id } });
 
@@ -499,6 +504,7 @@ describe("dal Participation", () => {
 
     it("moves a guest with a tea: the tea stays with the guest", async () => {
       await enrolGuests(1);
+      await addFreeDay(6);
       const guest = await participationOn(2);
       const tea = await prisma.tea.findUniqueOrThrow({ where: { participationId: guest.id } });
 
@@ -570,6 +576,7 @@ describe("dal Participation", () => {
 
     it.each([7, 10])("refuses day %i of the calendar once it has opened", async (dayNumber) => {
       const [guest] = await enrolGuests(5);
+      await addFreeDay(dayNumber);
       const before = await placements();
 
       await expect(placeParticipant(guest.id, dayNumber, duringTheEdition)).rejects.toThrow(ConflictError);
@@ -579,6 +586,7 @@ describe("dal Participation", () => {
 
     it("refuses to move someone whose own day has opened, even to a day that has not", async () => {
       await enrolGuests(10);
+      await addFreeDay(15);
       const ana = await participationOn(3);
       const before = await placements();
 
@@ -589,7 +597,6 @@ describe("dal Participation", () => {
 
     it("refuses to move someone whose own day has opened to a day without a row, and does not create it", async () => {
       await enrolGuests(10);
-      await removeDayRows(15);
       const ana = await participationOn(3);
       const before = await placements();
 
@@ -600,7 +607,8 @@ describe("dal Participation", () => {
 
     it("refuses to move someone from a day that has not opened to one that has", async () => {
       const [late] = await enrolGuests(7);
-      await prisma.participation.update({ data: { dayId: (await day(12)).id }, where: { id: late.id } });
+      await putOnDay(late.id, 12);
+      await addFreeDay(6);
       const before = await placements();
 
       await expect(placeParticipant(late.id, 6, duringTheEdition)).rejects.toThrow(ConflictError);
@@ -610,7 +618,6 @@ describe("dal Participation", () => {
 
     it("refuses to create the row of a day whose date has already passed", async () => {
       const [guest] = await enrolGuests(3);
-      await removeDayRows(8);
       const before = await placements();
 
       await expect(placeParticipant(guest.id, 8, duringTheEdition)).rejects.toThrow(ConflictError);
@@ -620,6 +627,7 @@ describe("dal Participation", () => {
 
     it("places someone on a day that has not opened while the edition is running", async () => {
       const [guest] = await enrolGuests(6);
+      await addFreeDay(11);
 
       const result = await placeParticipant(guest.id, 11, duringTheEdition);
 
@@ -629,8 +637,9 @@ describe("dal Participation", () => {
 
     it("moves someone between two days that have not opened while the edition is running", async () => {
       const [late] = await enrolGuests(8);
-      const twelve = await day(12);
+      const twelve = await addFreeDay(12);
       await prisma.participation.update({ data: { dayId: twelve.id }, where: { id: late.id } });
+      await addFreeDay(13);
 
       const result = await placeParticipant(late.id, 13, duringTheEdition);
 
@@ -692,6 +701,7 @@ describe("dal Participation", () => {
       await upsertEdition(2030, EditionStatus.PREPARING);
       const [ghost] = await enrolGuests(2, 2030);
       const guest = await enrolGuest(2025, "Prima Lejana");
+      await addFreeDay(7);
 
       await expect(placeParticipant(ghost.id, 3, beforeTheEdition)).rejects.toThrow(
         new ConflictError("La edición 2030 tiene 2 participantes: elige un día entre 1 y 2."),
@@ -730,7 +740,7 @@ describe("dal Participation", () => {
 
     it("returns the placement when the database reports a clash and the person is already on that day", async () => {
       const [guest] = await enrolGuests(1);
-      const six = await day(6);
+      const six = await addFreeDay(6);
       await placeParticipant(guest.id, 6, beforeTheEdition);
       const before = await placements();
       const transaction = failNextTransaction("P2002");
@@ -746,6 +756,7 @@ describe("dal Participation", () => {
 
     it("reports that the day has just gone to someone else when the database reports a clash", async () => {
       const [guest] = await enrolGuests(1);
+      await addFreeDay(6);
       const before = await placements();
       failNextTransaction("P2002");
 
@@ -759,6 +770,7 @@ describe("dal Participation", () => {
 
     it("reports the same clash to someone who holds another day, who keeps it", async () => {
       await enrolGuests(1);
+      await addFreeDay(6);
       const ana = await participationOn(3);
       const before = await placements();
       failNextTransaction("P2002");
@@ -775,6 +787,7 @@ describe("dal Participation", () => {
       "reports a conflict when the participation or the day disappears mid-way (%s)",
       async (code) => {
         const [guest] = await enrolGuests(1);
+        await addFreeDay(6);
         const before = await placements();
         failNextTransaction(code);
 
@@ -788,6 +801,7 @@ describe("dal Participation", () => {
 
     it("lets any other database error through untouched", async () => {
       const [guest] = await enrolGuests(1);
+      await addFreeDay(6);
       const before = await placements();
       const transaction = failNextTransaction("P2024");
 
@@ -807,8 +821,8 @@ describe("dal Participation", () => {
     ])("lets only one of two people placed at once on $target", async ({ rowExists }) => {
       const first = await enrolGuest(2025, "Prima Lejana");
       const second = await enrolUser(2025, (await userWithoutDay()).id);
-      if (!rowExists) {
-        await removeDayRows(6);
+      if (rowExists) {
+        await addFreeDay(6);
       }
       const before = await placements();
 
