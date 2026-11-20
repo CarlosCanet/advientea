@@ -107,39 +107,6 @@ export async function addDay(dayYear: DayYear): Promise<Day | null> {
   }
 }
 
-export async function addNextDay(year: number): Promise<Day | null> {
-  let nextDayNumber;
-  try {
-    const days = await prisma.day.aggregate({
-      _max: { dayNumber: true },
-      where: { year },
-    });
-    const maxDay = days._max?.dayNumber ?? 0;
-    nextDayNumber = maxDay + 1;
-    const created = await prisma.day.create({ data: { dayNumber: nextDayNumber, year } });
-    return created;
-  } catch (error) {
-    console.error(error);
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      console.error(`Day ${nextDayNumber}/${year} already exists`);
-      return null;
-    }
-    throw error;
-  }
-}
-
-export async function add25Days(year: number): Promise<number> {
-  const days = Array.from({ length: 25 }, (_, i) => ({
-    dayNumber: i + 1,
-    year,
-  }));
-  const result = await prisma.day.createMany({
-    data: days,
-    skipDuplicates: true,
-  });
-  return result.count;
-}
-
 export async function editDay(data: Prisma.DayUncheckedUpdateInput, id: string): Promise<Day> {
   const dayUpdated = await prisma.day.update({
     data,

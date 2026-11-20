@@ -7,7 +7,6 @@ export type UserForManagement = Prisma.UserGetPayload<{
     email: true;
     id: true;
     image: true;
-    participations: { include: { day: true } };
     role: true;
     username: true;
   };
@@ -41,7 +40,6 @@ export async function getAllUsers(): Promise<Array<UserForManagement>> {
       email: true,
       id: true,
       image: true,
-      participations: { include: { day: true } },
       role: true,
       username: true,
     },

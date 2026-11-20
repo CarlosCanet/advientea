@@ -556,15 +556,16 @@ describe("deleteDayAction", () => {
     expect(revalidatePath).not.toHaveBeenCalled();
   });
 
-  it("deletes the day, says which one and refreshes the page of its edition and the tea form", async () => {
+  it("deletes the day, says which one and refreshes the page of its edition and nothing else", async () => {
     const result = await deleteDayAction("day-id");
 
     expect(deleteDay).toHaveBeenCalledTimes(1);
     expect(deleteDay).toHaveBeenCalledWith("day-id");
     expectNothingElseFromTheDal();
     expect(result).toEqual({ message: "Día 7 borrado.", success: true });
+    expect(revalidatePath).toHaveBeenCalledTimes(1);
     expect(revalidatePath).toHaveBeenCalledWith("/editions/2026");
-    expect(revalidatePath).toHaveBeenCalledWith("/edit-tea-info");
+    expect(revalidatePath).not.toHaveBeenCalledWith("/edit-tea-info");
   });
 
   it("takes the number and the edition from the day the DAL returns", async () => {
@@ -573,9 +574,10 @@ describe("deleteDayAction", () => {
     const result = await deleteDayAction("day-id");
 
     expect(result).toEqual({ message: "Día 12 borrado.", success: true });
+    expect(revalidatePath).toHaveBeenCalledTimes(1);
     expect(revalidatePath).toHaveBeenCalledWith("/editions/2031");
     expect(revalidatePath).not.toHaveBeenCalledWith("/editions/2026");
-    expect(revalidatePath).toHaveBeenCalledWith("/edit-tea-info");
+    expect(revalidatePath).not.toHaveBeenCalledWith("/edit-tea-info");
   });
 
   it.each([{ dayId: "" }, { dayId: 7 }, { dayId: undefined }, { dayId: null }, { dayId: { id: "day-id" } }])(

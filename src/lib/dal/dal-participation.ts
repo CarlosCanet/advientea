@@ -18,10 +18,10 @@ export type Assignee = Prisma.ParticipationGetPayload<{
 }>;
 export type ParticipationForEdition = Prisma.ParticipationGetPayload<{
   select: {
-    day: { select: { dayNumber: true } };
+    day: { select: { dayNumber: true; id: true } };
     guestName: true;
     id: true;
-    tea: { select: { id: true } };
+    tea: { select: { id: true; name: true } };
     user: { select: { username: true } };
     userId: true;
   };
@@ -75,10 +75,10 @@ export async function getAssignees(year: number): Promise<Array<Assignee>> {
 export async function getParticipationsForEdition(year: number): Promise<Array<ParticipationForEdition>> {
   return prisma.participation.findMany({
     select: {
-      day: { select: { dayNumber: true } },
+      day: { select: { dayNumber: true, id: true } },
       guestName: true,
       id: true,
-      tea: { select: { id: true } },
+      tea: { select: { id: true, name: true } },
       user: { select: { username: true } },
       userId: true,
     },
@@ -158,20 +158,6 @@ export async function assignDay(
       },
       include: { day: true, user: true },
     });
-  });
-}
-
-export async function unassignDay(dayId: string, now: Date = getNow()): Promise<void> {
-  await prisma.$transaction(async (tx) => {
-    const dayRecord = await tx.day.findUnique({ include: { participation: true }, where: { id: dayId } });
-    if (!dayRecord) {
-      throw new Error(`The day with id ${dayId} does not exist.`);
-    }
-    if (!dayRecord.participation) {
-      return;
-    }
-    await assertDayCanChange(dayRecord.dayNumber, dayRecord.year, now);
-    await tx.participation.update({ data: { day: { disconnect: true } }, where: { id: dayRecord.participation.id } });
   });
 }
 

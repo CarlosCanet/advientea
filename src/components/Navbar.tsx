@@ -84,6 +84,11 @@ async function Navbar() {
                 <Link href="/edit-tea-info">Editar tu té</Link>
               </li>
             )}
+            {session && (session.user.role === Role.ADMIN || session.user.role === Role.EXECUTEAVE) && (
+              <li>
+                <Link href="/editions">Ediciones</Link>
+              </li>
+            )}
             <li>
               <Link href="/timer">Temporizador</Link>
             </li>

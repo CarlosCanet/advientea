@@ -45,9 +45,8 @@ function basenameOf(publicId: string): string {
   return publicId.slice(publicId.lastIndexOf("/") + 1);
 }
 
-async function planMoves(): Promise<{ moves: Array<Move>; skipped: Array<string> }> {
+async function planMoves(): Promise<Array<Move>> {
   const moves: Array<Move> = [];
-  const skipped: Array<string> = [];
   const images = await prisma.storyImage.findMany({
     select: {
       id: true,
@@ -86,7 +85,7 @@ async function planMoves(): Promise<{ moves: Array<Move>; skipped: Array<string>
   if (duplicated.length > 0) {
     throw new Error(`Several rows map to the same copy, nothing done: ${duplicated.map((m) => m.from).join(", ")}`);
   }
-  return { moves, skipped };
+  return moves;
 }
 
 async function cloneMove(move: Move): Promise<void> {
@@ -104,11 +103,8 @@ async function cloneMove(move: Move): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  const { moves, skipped } = await planMoves();
-  console.log(`[cloudinary-clone] ${host} -> ${root}: ${moves.length} assets to clone, ${skipped.length} skipped`);
-  for (const line of skipped) {
-    console.log(`  skip  ${line}`);
-  }
+  const moves = await planMoves();
+  console.log(`[cloudinary-clone] ${host} -> ${root}: ${moves.length} assets to clone`);
   for (const move of moves) {
     console.log(`  ${move.from} -> ${move.to}`);
   }

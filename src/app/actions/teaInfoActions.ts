@@ -1,12 +1,8 @@
 "use server";
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { Prisma } from "@/generated/prisma/client";
-import { Role } from "@/generated/prisma/enums";
 import { deleteAsset, uploadImage } from "@/lib/cloudinary";
 import {
-  add25Days,
   addDay,
   addStoryImage,
   addStoryTea,
@@ -17,17 +13,15 @@ import {
   getDayByDayNumber,
   getTeaById,
   replaceStoryImages,
-  requireRole,
   requireSession,
   StoryImageSlot,
-  unassignDay,
   updateTeaContent,
   verifySession,
 } from "@/lib/dal";
-import { ConflictError, ForbiddenError, UnauthenticatedError } from "@/lib/errors";
+import { ForbiddenError, UnauthenticatedError } from "@/lib/errors";
 import { teaInfoFormSchema } from "@/lib/schemas/tea";
 import { userCanEditTea } from "@/lib/services/tea-edit-service";
-import { ActionResponse, TeaInfoActionResponse, TeaInfoFormData } from "@/lib/types";
+import { TeaInfoActionResponse, TeaInfoFormData } from "@/lib/types";
 
 import { getFormBoolean, getFormFilesByPrefix, getFormNumber, getFormString } from "./commonActions";
 
@@ -280,53 +274,6 @@ export async function editTeaInfoAction(
     return {
       errors: { errors: [message] },
       message,
-      success: false,
-    };
-  }
-}
-
-export async function assignUserToDay(dayId: string, value: string): Promise<ActionResponse> {
-  try {
-    await requireRole(Role.ADMIN, Role.EXECUTEAVE);
-    if (!value) {
-      await unassignDay(dayId);
-      revalidatePath("/edit-tea-info");
-      return { message: "Asignación eliminada", success: true };
-    }
-    await assignDay(dayId, { userId: value });
-    revalidatePath("/edit-tea-info");
-    return { message: "Asignación actualizada", success: true };
-  } catch (error: unknown) {
-    const isGuardError =
-      error instanceof UnauthenticatedError || error instanceof ForbiddenError || error instanceof ConflictError;
-    const isAlreadyAssigned = error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
-    if (isGuardError || isAlreadyAssigned) {
-      console.warn(`[assignUserToDay] rejected: ${error.name} — dayId=${dayId} — ${error.message}`);
-    } else {
-      console.error("[assignUserToDay] unexpected error", error);
-    }
-    let message = "No se pudo guardar la asignación. Inténtalo de nuevo.";
-    if (isGuardError) message = error.message;
-    else if (isAlreadyAssigned) message = "Esa persona ya tiene un día asignado este año.";
-    return { message, success: false };
-  }
-}
-
-export async function addDaysAction(year: number): Promise<ActionResponse> {
-  try {
-    await requireRole(Role.ADMIN);
-    await add25Days(year);
-    revalidatePath("/edit-tea-info");
-    return { message: "Días creados", success: true };
-  } catch (error: unknown) {
-    const isGuardError = error instanceof UnauthenticatedError || error instanceof ForbiddenError;
-    if (isGuardError) {
-      console.warn(`[addDaysAction] rejected: ${error.name} — year=${year} — ${error.message}`);
-    } else {
-      console.error("[addDaysAction] unexpected error", error);
-    }
-    return {
-      message: isGuardError ? error.message : "No se pudieron crear los días. Inténtalo de nuevo.",
       success: false,
     };
   }

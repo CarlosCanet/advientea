@@ -204,7 +204,6 @@ export async function deleteDayAction(dayId: string): Promise<ActionResponse> {
     }
     const day = await deleteDay(validatedFields.data.dayId);
     revalidatePath(`/editions/${day.year}`);
-    revalidatePath("/edit-tea-info");
     return { message: `Día ${day.dayNumber} borrado.`, success: true };
   } catch (error: unknown) {
     return failure("deleteDayAction", error, "No se pudo borrar el día. Inténtalo de nuevo.");

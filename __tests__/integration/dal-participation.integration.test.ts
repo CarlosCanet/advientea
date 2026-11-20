@@ -12,7 +12,6 @@ import {
   getParticipationsForEdition,
   placeParticipant,
   swapParticipants,
-  unassignDay,
   unplaceParticipant,
   upsertEdition,
 } from "@/lib/dal";
@@ -132,6 +131,15 @@ describe("dal Participation", () => {
   });
 
   describe("getParticipationsForEdition", () => {
+    const teaWithoutDay = {
+      addMilk: false,
+      canReinfuse: false,
+      hasTheine: true,
+      infusionTime: 3,
+      name: "Sin día",
+      temperature: 80,
+    };
+
     it("returns everyone in the edition with their day number, enrolled without a day included", async () => {
       const enrolled = await enrolGuest(2025, "Prima Lejana");
 
@@ -146,18 +154,98 @@ describe("dal Participation", () => {
       expect(participations.find((participation) => participation.id === enrolled.id)?.day).toBeNull();
     });
 
+    it("gives each person the id and the number of the day row they hold, and nothing else of it", async () => {
+      const held = await prisma.participation.findMany({
+        select: { day: { select: { dayNumber: true, id: true } }, id: true },
+        where: { year: 2025 },
+      });
+
+      const participations = await getParticipationsForEdition(2025);
+
+      expect(participations).toHaveLength(5);
+      for (const { day: row, id } of held) {
+        expect(participations.find((participation) => participation.id === id)?.day).toEqual(row);
+      }
+      expect(participations.map((participation) => participation.day?.dayNumber).toSorted()).toEqual([1, 2, 3, 4, 5]);
+      expect(participations.find((participation) => participation.guestName === "Anónimo")?.day).toEqual({
+        dayNumber: 2,
+        id: (await day(2)).id,
+      });
+    });
+
+    it("follows the person to the row of the day they are moved to", async () => {
+      const [guest] = await enrolGuests(1);
+      const ana = await participationOn(3);
+      const three = await day(3);
+      await placeParticipant(ana.id, 6, beforeTheEdition);
+      await placeParticipant(guest.id, 3, beforeTheEdition);
+
+      const participations = await getParticipationsForEdition(2025);
+
+      expect(participations.find((participation) => participation.id === ana.id)?.day).toEqual({
+        dayNumber: 6,
+        id: (await day(6)).id,
+      });
+      expect(participations.find((participation) => participation.id === guest.id)?.day).toEqual({
+        dayNumber: 3,
+        id: three.id,
+      });
+    });
+
+    it("gives a null day to whoever holds none, enrolled without one or taken off theirs", async () => {
+      const enrolled = await enrolGuest(2025, "Prima Lejana");
+      const ana = await participationOn(3);
+      await unplaceParticipant(ana.id, beforeTheEdition);
+
+      const participations = await getParticipationsForEdition(2025);
+
+      const withoutDay = participations.filter((participation) => participation.day === null);
+      expect(withoutDay.map((participation) => participation.id).toSorted()).toEqual([ana.id, enrolled.id].toSorted());
+    });
+
     it("says who has a tea, with or without a day", async () => {
       const enrolled = await enrolGuest(2025, "Prima Lejana");
-      await addTea(
-        { addMilk: false, canReinfuse: false, hasTheine: true, infusionTime: 3, name: "Sin día", temperature: 80 },
-        [],
-        enrolled.id,
-      );
+      await addTea(teaWithoutDay, [], enrolled.id);
 
       const participations = await getParticipationsForEdition(2025);
 
       const withTea = participations.filter((participation) => participation.tea !== null);
       expect(withTea.map((participation) => participation.day?.dayNumber ?? null).toSorted()).toEqual([1, 2, null]);
+    });
+
+    it("gives the id and the name of the tea of whoever has one, and nothing else of it", async () => {
+      const enrolled = await enrolGuest(2025, "Prima Lejana");
+      const added = await addTea(teaWithoutDay, [], enrolled.id);
+      const manager = await participationOn(1);
+      const guest = await participationOn(2);
+      const teaOf = async (participationId: string) =>
+        prisma.tea.findUniqueOrThrow({ select: { id: true, name: true }, where: { participationId } });
+
+      const participations = await getParticipationsForEdition(2025);
+
+      const found = (id: string) => participations.find((participation) => participation.id === id);
+      expect(found(manager.id)?.tea).toEqual({ id: (await teaOf(manager.id)).id, name: "Ruta del desierto" });
+      expect(found(guest.id)?.tea).toEqual({ id: (await teaOf(guest.id)).id, name: "Pakistaní" });
+      expect(found(enrolled.id)?.tea).toEqual({ id: added.id, name: "Sin día" });
+      expect(found(enrolled.id)?.day).toBeNull();
+    });
+
+    it("gives a null tea to whoever has none, with or without a day", async () => {
+      const enrolled = await enrolGuest(2025, "Prima Lejana");
+
+      const participations = await getParticipationsForEdition(2025);
+
+      const withoutTea = participations.filter((participation) => participation.tea === null);
+      expect(withoutTea.map((participation) => participation.day?.dayNumber ?? null).toSorted()).toEqual([
+        3,
+        4,
+        5,
+        null,
+      ]);
+      expect(participations.find((participation) => participation.id === enrolled.id)).toMatchObject({
+        day: null,
+        tea: null,
+      });
     });
 
     it("never loads the guest token or anything of the account but the username", async () => {
@@ -167,10 +255,38 @@ describe("dal Participation", () => {
 
       for (const participation of participations) {
         expect(participation).not.toHaveProperty("guestToken");
+        expect(participation).not.toHaveProperty("email");
         if (participation.user) {
           expect(Object.keys(participation.user)).toEqual(["username"]);
         }
       }
+    });
+
+    it("carries no guest token and no email anywhere in what it returns", async () => {
+      const enrolled = await enrolGuest(2025, "Prima Lejana");
+      const anonymous = await participationOn(2);
+      // Whether enrolling hands out a token or not, these two guests have one the payload could leak.
+      await prisma.participation.update({ data: { guestToken: "token-of-anonymous" }, where: { id: anonymous.id } });
+      await prisma.participation.update({ data: { guestToken: "token-of-the-cousin" }, where: { id: enrolled.id } });
+      const users = await prisma.user.findMany({ select: { email: true } });
+      const tokens = await prisma.participation.findMany({
+        select: { guestToken: true },
+        where: { guestToken: { not: null } },
+      });
+
+      const participations = await getParticipationsForEdition(2025);
+
+      const payload = JSON.stringify(participations);
+      expect(users).toHaveLength(5);
+      expect(tokens.length).toBeGreaterThanOrEqual(2);
+      for (const { email } of users) {
+        expect(payload).not.toContain(email);
+      }
+      for (const { guestToken } of tokens) {
+        expect(payload).not.toContain(guestToken);
+      }
+      expect(payload).not.toContain("guestToken");
+      expect(payload).not.toContain("email");
     });
 
     it("leaves out the other editions", async () => {
@@ -262,45 +378,6 @@ describe("dal Participation", () => {
       await expect(assignDay("no-such-day", { guestName: "Nadie" }, beforeTheEdition)).rejects.toThrow(
         /does not exist/,
       );
-    });
-  });
-
-  describe("unassignDay", () => {
-    it("frees the day and keeps the person enrolled without one", async () => {
-      const three = await day(3);
-      const before = await prisma.participation.findUniqueOrThrow({ where: { dayId: three.id } });
-
-      await unassignDay(three.id, beforeTheEdition);
-
-      const after = await prisma.participation.findUniqueOrThrow({ where: { id: before.id } });
-      expect(after.dayId).toBeNull();
-      expect(after.userId).toBe(before.userId);
-    });
-
-    it("frees a day whose holder has a tea: the tea stays with the person", async () => {
-      const one = await day(1);
-      const before = await prisma.participation.findUniqueOrThrow({
-        include: { tea: true },
-        where: { dayId: one.id },
-      });
-
-      await unassignDay(one.id, beforeTheEdition);
-
-      const after = await prisma.participation.findUniqueOrThrow({ include: { tea: true }, where: { id: before.id } });
-      expect(after.dayId).toBeNull();
-      expect(after.tea?.id).toBe(before.tea!.id);
-    });
-
-    it("refuses to free a day that has already opened", async () => {
-      const three = await day(3);
-
-      await expect(unassignDay(three.id, duringTheEdition)).rejects.toThrow(ConflictError);
-    });
-
-    it("does nothing on a free day", async () => {
-      const free = await addFreeDay(10);
-
-      await expect(unassignDay(free.id, beforeTheEdition)).resolves.toBeUndefined();
     });
   });
 

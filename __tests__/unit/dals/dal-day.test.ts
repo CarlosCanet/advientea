@@ -3,9 +3,7 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 import { Day, Prisma, TeaType } from "@/generated/prisma/client";
 import { prismaMock } from "@/lib/__mocks__/prisma";
 import {
-  add25Days,
   addDay,
-  addNextDay,
   DayWithParticipationTeaStoryImages,
   DayWithParticipationTeaStoryImagesAndUser,
   editDay,
@@ -159,85 +157,6 @@ describe("DAL Day", () => {
       prismaMock.day.create.mockRejectedValue(genericError);
 
       await expect(addDay({ dayNumber: 5, year: 2025 })).rejects.toThrow("DB connection failed");
-    });
-  });
-
-  describe("addNextDay", () => {
-    it("should increment max day number", async () => {
-      prismaMock.day.aggregate.mockResolvedValue({
-        _avg: {},
-        _count: {},
-        _max: { dayNumber: 4 },
-        _min: {},
-        _sum: {},
-      });
-
-      const mockNewDay: Day = {
-        createdAt: new Date(),
-        dayNumber: 5,
-        id: "day-5",
-        updatedAt: new Date(),
-        year: 2025,
-      };
-      prismaMock.day.create.mockResolvedValue(mockNewDay);
-
-      await addNextDay(2025);
-
-      expect(prismaMock.day.create).toHaveBeenCalledWith({
-        data: { dayNumber: 5, year: 2025 },
-      });
-    });
-
-    it("should start at 1 if no days exist", async () => {
-      prismaMock.day.aggregate.mockResolvedValue({
-        _avg: {},
-        _count: {},
-        _max: { dayNumber: null },
-        _min: {},
-        _sum: {},
-      });
-
-      await addNextDay(2025);
-
-      expect(prismaMock.day.create).toHaveBeenCalledWith({
-        data: { dayNumber: 1, year: 2025 },
-      });
-    });
-
-    it("should handle P2002 conflict in addNextDay", async () => {
-      prismaMock.day.aggregate.mockResolvedValue({
-        _avg: {},
-        _count: {},
-        _max: { dayNumber: 4 },
-        _min: {},
-        _sum: {},
-      });
-
-      const p2002Error = new Prisma.PrismaClientKnownRequestError("Unique constraint", {
-        clientVersion: "1",
-        code: "P2002",
-      });
-      prismaMock.day.create.mockRejectedValue(p2002Error);
-
-      const result = await addNextDay(2025);
-      expect(result).toBeNull();
-    });
-  });
-
-  describe("add25Days", () => {
-    it("should batch create 25 days skipping duplicates", async () => {
-      prismaMock.day.createMany.mockResolvedValue({ count: 25 });
-
-      const count = await add25Days(2025);
-
-      expect(count).toBe(25);
-      expect(prismaMock.day.createMany).toHaveBeenCalledWith({
-        data: expect.arrayContaining([
-          { dayNumber: 1, year: 2025 },
-          { dayNumber: 25, year: 2025 },
-        ]),
-        skipDuplicates: true,
-      });
     });
   });
 

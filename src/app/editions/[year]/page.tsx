@@ -7,7 +7,7 @@ import EnrolGuestForm from "@/components/ui/EnrolGuestForm";
 import EnrolUserForm from "@/components/ui/EnrolUserForm";
 import ParticipantDaySelect, { CalendarDayOption } from "@/components/ui/ParticipantDaySelect";
 import { EditionStatus, Role } from "@/generated/prisma/enums";
-import { getDaySchedule } from "@/lib/advientea-rules";
+import { canEditTea, getDaySchedule } from "@/lib/advientea-rules";
 import { getNow } from "@/lib/advientea-time";
 import { auth } from "@/lib/auth";
 import { getDaysForEdition, getEdition, getEditionInfo, getParticipationsForEdition, getUsersBasic } from "@/lib/dal";
@@ -98,12 +98,17 @@ export default async function EditionPage({ params }: { params: Promise<{ year: 
     .map((participation) => {
       const dayNumber = participation.day?.dayNumber ?? null;
       return {
+        canEditTea: canEditTea(session.user.role, {
+          editionStatus: edition.status,
+          isOwn: participation.userId === session.user.id,
+        }),
+        dayId: participation.day?.id ?? null,
         dayNumber,
-        hasTea: participation.tea !== null,
         id: participation.id,
         isGuest: participation.userId === null && participation.guestName !== null,
         isOwnDayReleased: dayNumber !== null && getDaySchedule(dayNumber, editionInfo, now).isReleased,
         name: toParticipantName(participation) ?? DELETED_ACCOUNT,
+        tea: participation.tea,
       };
     })
     .sort((first, second) => {
@@ -191,6 +196,9 @@ export default async function EditionPage({ params }: { params: Promise<{ year: 
                     <th className="w-1 px-1">Día</th>
                     <th>Participante</th>
                     <th>Té</th>
+                    <th className="w-1 px-1">
+                      <span className="sr-only">Ver el día</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -209,7 +217,28 @@ export default async function EditionPage({ params }: { params: Promise<{ year: 
                         {row.name}
                         {row.isGuest && <span className="badge badge-ghost badge-sm ml-2">Invitado</span>}
                       </td>
-                      <td>{row.hasTea ? "Subido" : "Falta"}</td>
+                      <td>
+                        {row.tea === null ? (
+                          "Falta"
+                        ) : row.canEditTea ? (
+                          <Link className="link" href={`/edit-tea-info/${row.tea.id}`}>
+                            {row.tea.name}
+                          </Link>
+                        ) : (
+                          row.tea.name
+                        )}
+                      </td>
+                      <td className="px-1">
+                        {row.dayId !== null && (
+                          <Link
+                            aria-label={`Ver el día ${row.dayNumber}`}
+                            className="link"
+                            href={`/teaDay/${row.dayId}?simulated=true`}
+                          >
+                            Ver
+                          </Link>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
