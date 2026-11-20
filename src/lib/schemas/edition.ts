@@ -52,3 +52,7 @@ export const swapParticipantsSchema = z
     secondParticipationId: z.string().min(1),
   })
   .refine((ids) => ids.firstParticipationId !== ids.secondParticipationId);
+
+export const deleteDaySchema = z.object({
+  dayId: z.string().min(1),
+});

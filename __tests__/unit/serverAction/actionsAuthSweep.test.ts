@@ -181,6 +181,16 @@ describe("authorization sweep", () => {
     }
   });
 
+  it("finds each action in one module only", () => {
+    // The lists above go by name alone, so a copy left behind when an action moves would hide behind the new one.
+    const modulesByAction = new Map<string, string[]>();
+    for (const { actionName, moduleName } of ALL_ACTIONS) {
+      modulesByAction.set(actionName, [...(modulesByAction.get(actionName) ?? []), moduleName]);
+    }
+    const repeated = [...modulesByAction].filter(([, modules]) => modules.length > 1);
+    expect(repeated).toEqual([]);
+  });
+
   describe("no session: nothing reaches the DAL", () => {
     beforeEach(() => {
       vi.clearAllMocks();

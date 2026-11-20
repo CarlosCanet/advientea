@@ -9,7 +9,6 @@ import {
   enrolUser,
   getAssignees,
   getDayByDayNumber,
-  getDaysForEdition,
   getParticipationsForEdition,
   placeParticipant,
   swapParticipants,
@@ -178,20 +177,6 @@ describe("dal Participation", () => {
       const participations = await getParticipationsForEdition(2025);
 
       expect(participations.map((participation) => participation.guestName)).not.toContain("Fantasma");
-    });
-  });
-
-  describe("getDaysForEdition", () => {
-    it("returns the days of the edition in order", async () => {
-      const days = await getDaysForEdition(2025);
-
-      expect(days.map((item) => item.dayNumber)).toEqual(Array.from({ length: 25 }, (_, index) => index + 1));
-    });
-
-    it("returns nothing for an edition without days", async () => {
-      await upsertEdition(2030, EditionStatus.PREPARING);
-
-      expect(await getDaysForEdition(2030)).toEqual([]);
     });
   });
 

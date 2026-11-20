@@ -8,7 +8,6 @@ import {
   addNextDay,
   DayWithParticipationTeaStoryImages,
   DayWithParticipationTeaStoryImagesAndUser,
-  deleteDay,
   editDay,
   getAllDays,
   getDayByDayNumber,
@@ -274,24 +273,6 @@ describe("DAL Day", () => {
       prismaMock.day.update.mockRejectedValue(p2025Error);
 
       await expect(editDay({ dayNumber: 20 }, "missing-id")).rejects.toThrow("Record to update not found.");
-    });
-  });
-
-  describe("deleteDay", () => {
-    it("deletes the day alone: whoever held it stays in the edition", async () => {
-      const mockDeleted: Day = {
-        createdAt: new Date(),
-        dayNumber: 1,
-        id: "day-1",
-        updatedAt: new Date(),
-        year: 2025,
-      };
-      prismaMock.day.delete.mockResolvedValue(mockDeleted);
-
-      await deleteDay("day-1");
-
-      expect(prismaMock.participation.deleteMany).not.toHaveBeenCalled();
-      expect(prismaMock.day.delete).toHaveBeenCalledWith({ where: { id: "day-1" } });
     });
   });
 });

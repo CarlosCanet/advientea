@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   changeEditionStatusAction,
+  deleteDayAction,
   enrolGuestAction,
   enrolUserAction,
   placeParticipantAction,
@@ -11,6 +12,9 @@ import {
 import { EditionStatus, Role } from "@/generated/prisma/enums";
 import {
   changeEditionStatus,
+  createEdition,
+  deleteDay,
+  deleteEdition,
   enrolGuest,
   enrolUser,
   placeParticipant,
@@ -23,6 +27,7 @@ import { ConflictError, ForbiddenError, UnauthenticatedError } from "@/lib/error
 vi.mock("@/lib/dal", () => ({
   changeEditionStatus: vi.fn(),
   createEdition: vi.fn(),
+  deleteDay: vi.fn(),
   deleteEdition: vi.fn(),
   enrolGuest: vi.fn(),
   enrolUser: vi.fn(),
@@ -470,6 +475,140 @@ describe("swapParticipantsAction", () => {
     const result = await swapParticipantsAction("first-id", "second-id");
 
     expect(result).toEqual({ message: "No se pudo intercambiar. Inténtalo de nuevo.", success: false });
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+});
+
+describe("deleteDayAction", () => {
+  type DeletedDay = Awaited<ReturnType<typeof deleteDay>>;
+
+  const deletedDay = (dayNumber: number, year: number): DeletedDay => ({
+    createdAt: new Date("2026-11-01T12:00:00+01:00"),
+    dayNumber,
+    id: "day-id",
+    updatedAt: new Date("2026-11-01T12:00:00+01:00"),
+    year,
+  });
+
+  const OTHER_DAL_FUNCTIONS = {
+    changeEditionStatus,
+    createEdition,
+    deleteEdition,
+    enrolGuest,
+    enrolUser,
+    placeParticipant,
+    swapParticipants,
+    unplaceParticipant,
+  };
+
+  function expectNothingElseFromTheDal() {
+    for (const [name, dalFunction] of Object.entries(OTHER_DAL_FUNCTIONS)) {
+      expect(dalFunction, `deleteDayAction reached dal.${name}`).not.toHaveBeenCalled();
+    }
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(requireRole).mockResolvedValue({} as Awaited<ReturnType<typeof requireRole>>);
+    vi.mocked(deleteDay).mockResolvedValue(deletedDay(7, 2026));
+  });
+
+  it("is open to the admin only, not to the calendar manager", async () => {
+    await deleteDayAction("day-id");
+
+    expect(requireRole).toHaveBeenCalledTimes(1);
+    expect(requireRole).toHaveBeenCalledWith(Role.ADMIN);
+  });
+
+  it.each([
+    { error: new UnauthenticatedError(), visitor: "someone without a session" },
+    { error: new ForbiddenError(), visitor: "someone without the role" },
+  ])("answers $visitor with the message of the refusal and never reaches the DAL", async ({ error }) => {
+    vi.mocked(requireRole).mockRejectedValue(error);
+
+    const result = await deleteDayAction("day-id");
+
+    expect(result).toEqual({ message: error.message, success: false });
+    expect(deleteDay).not.toHaveBeenCalled();
+    expectNothingElseFromTheDal();
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("asks for the role before looking at the day: a refusal wins over a day that is not valid", async () => {
+    const refusal = new ForbiddenError();
+    vi.mocked(requireRole).mockRejectedValue(refusal);
+
+    const result = await deleteDayAction("");
+
+    expect(result).toEqual({ message: refusal.message, success: false });
+    expect(deleteDay).not.toHaveBeenCalled();
+  });
+
+  it("answers without throwing when the role check fails for another reason, and never reaches the DAL", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.mocked(requireRole).mockRejectedValue(new Error("connection refused"));
+
+    const result = await deleteDayAction("day-id");
+
+    expect(result.success).toBe(false);
+    expect(result.message).not.toContain("connection refused");
+    expect(deleteDay).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("deletes the day, says which one and refreshes the page of its edition and the tea form", async () => {
+    const result = await deleteDayAction("day-id");
+
+    expect(deleteDay).toHaveBeenCalledTimes(1);
+    expect(deleteDay).toHaveBeenCalledWith("day-id");
+    expectNothingElseFromTheDal();
+    expect(result).toEqual({ message: "Día 7 borrado.", success: true });
+    expect(revalidatePath).toHaveBeenCalledWith("/editions/2026");
+    expect(revalidatePath).toHaveBeenCalledWith("/edit-tea-info");
+  });
+
+  it("takes the number and the edition from the day the DAL returns", async () => {
+    vi.mocked(deleteDay).mockResolvedValue(deletedDay(12, 2031));
+
+    const result = await deleteDayAction("day-id");
+
+    expect(result).toEqual({ message: "Día 12 borrado.", success: true });
+    expect(revalidatePath).toHaveBeenCalledWith("/editions/2031");
+    expect(revalidatePath).not.toHaveBeenCalledWith("/editions/2026");
+    expect(revalidatePath).toHaveBeenCalledWith("/edit-tea-info");
+  });
+
+  it.each([{ dayId: "" }, { dayId: 7 }, { dayId: undefined }, { dayId: null }, { dayId: { id: "day-id" } }])(
+    "refuses the day $dayId before reaching the DAL",
+    async ({ dayId }) => {
+      const result = await deleteDayAction(dayId as string);
+
+      expect(result).toEqual({ message: "El día no es válido.", success: false });
+      expect(deleteDay).not.toHaveBeenCalled();
+      expectNothingElseFromTheDal();
+      expect(revalidatePath).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["Ese día ya no existe.", "El día 7 es de Sony. Quítale el día antes de borrarlo."])(
+    "shows the conflict message from the DAL as it is: %s",
+    async (message) => {
+      vi.mocked(deleteDay).mockRejectedValue(new ConflictError(message));
+
+      const result = await deleteDayAction("day-id");
+
+      expect(result).toEqual({ message, success: false });
+      expect(revalidatePath).not.toHaveBeenCalled();
+    },
+  );
+
+  it("hides an unexpected error behind a generic message", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.mocked(deleteDay).mockRejectedValue(new Error("connection refused"));
+
+    const result = await deleteDayAction("day-id");
+
+    expect(result).toEqual({ message: "No se pudo borrar el día. Inténtalo de nuevo.", success: false });
     expect(revalidatePath).not.toHaveBeenCalled();
   });
 });

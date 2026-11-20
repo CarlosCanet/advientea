@@ -6,6 +6,7 @@ import { EditionStatus, Role } from "@/generated/prisma/enums";
 import {
   changeEditionStatus,
   createEdition,
+  deleteDay,
   deleteEdition,
   enrolGuest,
   enrolUser,
@@ -16,6 +17,7 @@ import {
 } from "@/lib/dal";
 import { ConflictError, ForbiddenError, UnauthenticatedError } from "@/lib/errors";
 import {
+  deleteDaySchema,
   editionFormSchema,
   editionStatusChangeSchema,
   enrolGuestSchema,
@@ -190,5 +192,21 @@ export async function swapParticipantsAction(
     return { message: `${clauses.join(" y ")}.`, success: true };
   } catch (error: unknown) {
     return failure("swapParticipantsAction", error, "No se pudo intercambiar. Inténtalo de nuevo.");
+  }
+}
+
+export async function deleteDayAction(dayId: string): Promise<ActionResponse> {
+  try {
+    await requireRole(Role.ADMIN);
+    const validatedFields = deleteDaySchema.safeParse({ dayId });
+    if (!validatedFields.success) {
+      return { message: "El día no es válido.", success: false };
+    }
+    const day = await deleteDay(validatedFields.data.dayId);
+    revalidatePath(`/editions/${day.year}`);
+    revalidatePath("/edit-tea-info");
+    return { message: `Día ${day.dayNumber} borrado.`, success: true };
+  } catch (error: unknown) {
+    return failure("deleteDayAction", error, "No se pudo borrar el día. Inténtalo de nuevo.");
   }
 }

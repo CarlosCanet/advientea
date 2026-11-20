@@ -12,7 +12,6 @@ import {
   addStoryTea,
   addTea,
   assignDay,
-  deleteDay,
   editStoryTea,
   getActiveEdition,
   getDayByDayNumber,
@@ -328,26 +327,6 @@ export async function addDaysAction(year: number): Promise<ActionResponse> {
     }
     return {
       message: isGuardError ? error.message : "No se pudieron crear los días. Inténtalo de nuevo.",
-      success: false,
-    };
-  }
-}
-
-export async function deleteDayAction(dayId: string): Promise<ActionResponse> {
-  try {
-    await requireRole(Role.ADMIN);
-    await deleteDay(dayId);
-    revalidatePath("/edit-tea-info");
-    return { message: "Día borrado", success: true };
-  } catch (error: unknown) {
-    const isGuardError = error instanceof UnauthenticatedError || error instanceof ForbiddenError;
-    if (isGuardError) {
-      console.warn(`[deleteDayAction] rejected: ${error.name} — dayId=${dayId} — ${error.message}`);
-    } else {
-      console.error("[deleteDayAction] unexpected error", error);
-    }
-    return {
-      message: isGuardError ? error.message : "No se pudo borrar el día. Inténtalo de nuevo.",
       success: false,
     };
   }

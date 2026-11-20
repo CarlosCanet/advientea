@@ -1,5 +1,7 @@
 import { Day, Prisma } from "@/generated/prisma/client";
+import { ConflictError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
+import { toParticipantName } from "@/lib/utils";
 
 import { storyTeaWithImagesInclude } from "./includes";
 
@@ -29,7 +31,9 @@ export type DayForGuessing = Prisma.DayGetPayload<{
     year: true;
   };
 }>;
-export type DayForEdition = Prisma.DayGetPayload<{ select: { dayNumber: true } }>;
+export type DayForEdition = Prisma.DayGetPayload<{
+  select: { _count: { select: { guesses: true } }; dayNumber: true; id: true };
+}>;
 
 export type DayYear = {
   dayNumber: number;
@@ -84,7 +88,7 @@ export async function getAllDays(year: number): Promise<Array<DayWithParticipati
 export async function getDaysForEdition(year: number): Promise<Array<DayForEdition>> {
   return prisma.day.findMany({
     orderBy: { dayNumber: "asc" },
-    select: { dayNumber: true },
+    select: { _count: { select: { guesses: true } }, dayNumber: true, id: true },
     where: { year },
   });
 }
@@ -144,7 +148,40 @@ export async function editDay(data: Prisma.DayUncheckedUpdateInput, id: string):
   return dayUpdated;
 }
 
+/** Deletes a day that nobody holds, guesses included. A held day is refused: its holder has to be taken off it first. */
 export async function deleteDay(id: string): Promise<Day> {
-  // Whoever held the day stays in the edition without one, tea included: the tea hangs from the participation.
-  return prisma.day.delete({ where: { id } });
+  try {
+    return await prisma.$transaction(
+      async (tx) => {
+        // The row is locked before its holder is read. Giving a participation this day makes the foreign key
+        // check take a key-share lock on the row, which FOR UPDATE excludes: a placement under way is waited
+        // for and then seen as the holder, and one that comes later waits and finds the row gone. Checking
+        // without the lock would let a placement commit in between and ON DELETE SET NULL undo it in silence.
+        await tx.$queryRaw`SELECT "id" FROM "Day" WHERE "id" = ${id} FOR UPDATE`;
+
+        const dayRecord = await tx.day.findUnique({
+          select: {
+            dayNumber: true,
+            participation: { select: { guestName: true, user: { select: { username: true } } } },
+          },
+          where: { id },
+        });
+        if (!dayRecord) {
+          throw new ConflictError("Ese día ya no existe.");
+        }
+        if (dayRecord.participation) {
+          const holder = toParticipantName(dayRecord.participation) ?? "otra persona";
+          throw new ConflictError(`El día ${dayRecord.dayNumber} es de ${holder}. Quítale el día antes de borrarlo.`);
+        }
+        return tx.day.delete({ where: { id } });
+      },
+      // The holder must be read as it stands once the lock is granted, not from a snapshot taken before the wait.
+      { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted },
+    );
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
+      throw new ConflictError("Ese día ya no existe.");
+    }
+    throw error;
+  }
 }

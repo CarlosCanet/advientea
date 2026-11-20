@@ -2,7 +2,7 @@
 import { useRef, useTransition } from "react";
 import { FaTrashAlt } from "react-icons/fa";
 
-import { deleteDayAction } from "@/app/actions/teaInfoActions";
+import { deleteDayAction } from "@/app/actions/editionActions";
 import { showActionToast } from "@/lib/action-toast";
 
 interface ButtonDeleteDayProps {

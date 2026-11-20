@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
+import DeleteDayButton from "@/components/ui/DeleteDayButton";
 import EnrolGuestForm from "@/components/ui/EnrolGuestForm";
 import EnrolUserForm from "@/components/ui/EnrolUserForm";
 import ParticipantDaySelect, { CalendarDayOption } from "@/components/ui/ParticipantDaySelect";
@@ -128,6 +129,20 @@ export default async function EditionPage({ params }: { params: Promise<{ year: 
     isReleased: getDaySchedule(index + 1, editionInfo, now).isReleased,
   }));
 
+  // Day rows that nobody holds. Only an admin deletes them, so nobody else is shown them.
+  const unheldDays =
+    session.user.role === Role.ADMIN
+      ? days
+          .filter((day) => !holders.has(day.dayNumber))
+          .map((day) => ({
+            dayNumber: day.dayNumber,
+            guessCount: day._count.guesses,
+            id: day.id,
+            isOutsideCalendar: day.dayNumber > participations.length,
+            isReleased: getDaySchedule(day.dayNumber, editionInfo, now).isReleased,
+          }))
+      : [];
+
   const enrolledUserIds = new Set(participations.map((participation) => participation.userId));
   const usersNotEnrolled = users.filter((user) => !enrolledUserIds.has(user.id));
   const acceptsEnrolments = edition.status !== EditionStatus.ARCHIVED;
@@ -202,6 +217,42 @@ export default async function EditionPage({ params }: { params: Promise<{ year: 
             </div>
           )}
         </section>
+
+        {unheldDays.length > 0 && (
+          <section aria-labelledby="edition-unheld-days">
+            <h2 className="text-lg font-bold mb-2" id="edition-unheld-days">
+              Días sin nadie
+            </h2>
+            <p className="text-sm mb-2">
+              Filas de días que no tiene nadie. Borrarlas no cambia el calendario, que va del 1 al número de
+              participantes.
+            </p>
+            <ul className="flex flex-col gap-2">
+              {unheldDays.map((day) => (
+                <li className="flex items-center justify-between gap-2" key={day.id}>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-semibold">{`Día ${day.dayNumber}`}</span>
+                    {day.isOutsideCalendar && (
+                      <span className="badge badge-warning badge-sm">Fuera del calendario</span>
+                    )}
+                    {day.isReleased && <span className="badge badge-ghost badge-sm">Abierto</span>}
+                    {day.guessCount > 0 && (
+                      <span className="badge badge-ghost badge-sm">
+                        {day.guessCount === 1 ? "1 apuesta" : `${day.guessCount} apuestas`}
+                      </span>
+                    )}
+                  </div>
+                  <DeleteDayButton
+                    dayId={day.id}
+                    dayNumber={day.dayNumber}
+                    guessCount={day.guessCount}
+                    isReleased={day.isReleased}
+                  />
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         <section aria-labelledby="edition-enrol">
           <h2 className="text-lg font-bold mb-2" id="edition-enrol">
