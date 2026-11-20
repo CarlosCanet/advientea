@@ -1,4 +1,5 @@
 import { headers } from "next/headers";
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import CreateEditionDialog from "@/components/CreateEditionDialog";
@@ -53,7 +54,11 @@ export default async function EditionsPage() {
               <tbody>
                 {editions.map((edition) => (
                   <tr key={edition.year}>
-                    <td className="tabular-nums">{edition.year}</td>
+                    <td className="tabular-nums">
+                      <Link className="link" href={`/editions/${edition.year}`}>
+                        {edition.year}
+                      </Link>
+                    </td>
                     <td>{edition.name}</td>
                     <td>
                       {isAdmin ? (

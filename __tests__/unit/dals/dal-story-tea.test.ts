@@ -2,20 +2,15 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 
 import { Tea, TeaType } from "@/generated/prisma/client";
 import { prismaMock } from "@/lib/__mocks__/prisma";
-// dal-day MOCK
-import * as dalDay from "@/lib/dal/dal-day";
 import {
   addStoryTea,
   deleteStoryTea,
   editStoryTea,
   getAllStoriesTea,
-  getStoryTeaByDayNumber,
   getStoryTeaById,
   StoryTeaWithImagesAndTea,
   StoryTeaWithTea,
 } from "@/lib/dal/dal-story-tea";
-vi.mock("@/lib/dal/dal-day");
-const dalDayMock = vi.mocked(dalDay);
 
 describe("DAL StoryTea", () => {
   beforeAll(() => {
@@ -35,12 +30,12 @@ describe("DAL StoryTea", () => {
         addMilk: true,
         canReinfuse: true,
         createdAt: new Date(),
-        dayId: "day-1",
         hasTheine: true,
         id: "tea-1",
         infusionTime: 3,
         moreIndications: null,
         name: "Earl Grey",
+        participationId: "participation-1",
         reinfuseNumber: null,
         storeName: null,
         teaType: TeaType.BLACK,
@@ -68,104 +63,6 @@ describe("DAL StoryTea", () => {
     it("should return null if ID not found", async () => {
       prismaMock.storyTea.findUnique.mockResolvedValue(null);
       const result = await getStoryTeaById("missing");
-      expect(result).toBeNull();
-    });
-
-    it("should get story by Day and reconstruct object", async () => {
-      const mockDayResponse: dalDay.DayWithTeaStoryImages = {
-        createdAt: new Date(),
-        dayNumber: 5,
-        id: "day-1",
-        tea: {
-          ...mockStoryComplete.tea,
-          story: {
-            ...mockStoryComplete,
-          },
-        },
-        updatedAt: new Date(),
-        year: 2025,
-      };
-
-      const realGetDayResponse = {
-        ...mockDayResponse,
-        tea: {
-          ...mockDayResponse.tea!,
-          story: {
-            createdAt: new Date(),
-            id: "story-1",
-            images: [],
-            onlyMusic: false,
-            storyPart1: "Once upon a time",
-            storyPart2: null,
-            storyPart3: null,
-            teaId: "tea-1",
-            updatedAt: new Date(),
-            youtubeURL: null,
-          },
-        },
-      };
-
-      dalDayMock.getDayByDayNumber.mockResolvedValue(realGetDayResponse);
-
-      const result = await getStoryTeaByDayNumber({ dayNumber: 5, year: 2025 });
-
-      expect(dalDayMock.getDayByDayNumber).toHaveBeenCalledWith({ dayNumber: 5, year: 2025 });
-      expect(result).toBeDefined();
-      expect(result?.id).toBe("story-1");
-      expect(result?.tea.id).toBe("tea-1");
-      expect(result?.tea.name).toBe("Earl Grey");
-    });
-
-    it("should return null if day not found", async () => {
-      dalDayMock.getDayByDayNumber.mockResolvedValue(null);
-      const result = await getStoryTeaByDayNumber({ dayNumber: 5, year: 2025 });
-      expect(result).toBeNull();
-    });
-
-    it("should return null if day has no tea", async () => {
-      const mockDayNoTea: dalDay.DayWithTeaStoryImages = {
-        createdAt: new Date(),
-        dayNumber: 5,
-        id: "day-1",
-        tea: null,
-        updatedAt: new Date(),
-        year: 2025,
-      };
-      dalDayMock.getDayByDayNumber.mockResolvedValue(mockDayNoTea);
-
-      const result = await getStoryTeaByDayNumber({ dayNumber: 5, year: 2025 });
-      expect(result).toBeNull();
-    });
-
-    it("should return null if tea has no story", async () => {
-      const mockDayNoStory: dalDay.DayWithTeaStoryImages = {
-        createdAt: new Date(),
-        dayNumber: 5,
-        id: "day-1",
-        tea: {
-          addMilk: false,
-          canReinfuse: false,
-          createdAt: new Date(),
-          dayId: "day-1",
-          hasTheine: true,
-          id: "tea-1",
-          infusionTime: 3,
-          moreIndications: null,
-          name: "Tea",
-          reinfuseNumber: null,
-          storeName: null,
-          story: null,
-          teaType: TeaType.GREEN,
-          temperature: 80,
-          updatedAt: new Date(),
-          url: null,
-        },
-        updatedAt: new Date(),
-        year: 2025,
-      };
-      dalDayMock.getDayByDayNumber.mockResolvedValue(mockDayNoStory);
-
-      const result = await getStoryTeaByDayNumber({ dayNumber: 5, year: 2025 });
       expect(result).toBeNull();
     });
   });

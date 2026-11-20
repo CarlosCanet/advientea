@@ -1,12 +1,11 @@
 import { EditionStatus, Role, TeaType } from "@/generated/prisma/enums";
 import {
-  add25Days,
   addStoryTea,
   addTea,
-  assignDay,
-  AssigneeInput,
   createPrismaUser,
-  getDayByDayNumber,
+  enrolGuest,
+  enrolUser,
+  placeParticipant,
   replaceStoryImages,
   upsertEdition,
 } from "@/lib/dal";
@@ -56,7 +55,24 @@ export async function seedDatabase({ accounts = true, year = 2025 }: SeedOptions
 
   // Active: the seeded year is the one dev and the tests play with, and nothing else creates editions.
   await upsertEdition(year, EditionStatus.ACTIVE);
-  await add25Days(year);
+
+  // Everyone is enrolled before anyone is placed: an edition has as many days as participants, so
+  // day 5 is refused until the fifth one is in. The order here is the day each of them gets.
+  const managerParticipation = await enrolUser(year, manager.id);
+  const guestParticipation = await enrolGuest(year, "Anónimo");
+  const participations = [
+    managerParticipation,
+    guestParticipation,
+    await enrolUser(year, ana.id),
+    await enrolUser(year, sony.id),
+    await enrolUser(year, miko.id),
+  ];
+
+  // A day can only be given while it has not opened, so the seed clock sits before the edition.
+  const seedNow = new Date(`${year}-11-01T12:00:00+01:00`);
+  for (const [index, participation] of participations.entries()) {
+    await placeParticipant(participation.id, index + 1, seedNow);
+  }
 
   const tea1 = await addTea(
     {
@@ -72,12 +88,8 @@ export async function seedDatabase({ accounts = true, year = 2025 }: SeedOptions
       url: "https://www.tiendadelasespecias.com/rutadeldesierto",
     },
     [apple.id, lemon.id],
-    {
-      dayNumber: 1,
-      year,
-    },
+    managerParticipation.id,
   );
-  if (!tea1) throw new Error("Tea for day 1 was not created");
   const story1 = await addStoryTea(
     {
       onlyMusic: false,
@@ -109,12 +121,8 @@ export async function seedDatabase({ accounts = true, year = 2025 }: SeedOptions
       url: "https://www.tiendadelasespecias.com/rutadeldesierto",
     },
     [clove.id, cinnamon.id, cardamom.id],
-    {
-      dayNumber: 2,
-      year,
-    },
+    guestParticipation.id,
   );
-  if (!tea2) throw new Error("Tea for day 2 was not created");
   const story2 = await addStoryTea(
     {
       storyPart1: "Jamás",
@@ -125,19 +133,4 @@ export async function seedDatabase({ accounts = true, year = 2025 }: SeedOptions
     tea2.id,
   );
   await replaceStoryImages(story2.id, [{ kind: "new", publicId: "samples/breakfast" }]);
-
-  // Assigning is only allowed on days that have not opened, so the seed clock sits before the edition.
-  const seedNow = new Date(`${year}-11-01T12:00:00+01:00`);
-  const assign = async (dayNumber: number, assignee: AssigneeInput) => {
-    const seededDay = await getDayByDayNumber({ dayNumber, year });
-    if (!seededDay) {
-      throw new Error(`Day ${dayNumber}/${year} was not created`);
-    }
-    await assignDay(seededDay.id, assignee, seedNow);
-  };
-  await assign(1, { userId: manager.id });
-  await assign(2, { guestName: "Anónimo" });
-  await assign(3, { userId: ana.id });
-  await assign(4, { userId: sony.id });
-  await assign(5, { userId: miko.id });
 }

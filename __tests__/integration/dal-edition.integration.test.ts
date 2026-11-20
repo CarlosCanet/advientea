@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
 
 import { EditionStatus } from "@/generated/prisma/enums";
-import { changeEditionStatus, createEdition, deleteEdition, getAllEditions, upsertEdition } from "@/lib/dal";
+import {
+  changeEditionStatus,
+  createEdition,
+  deleteEdition,
+  enrolGuest,
+  enrolUser,
+  getAllEditions,
+  getEditionInfo,
+  upsertEdition,
+} from "@/lib/dal";
 import { ConflictError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 
@@ -86,7 +95,7 @@ describe("dal Edition", () => {
 
     it("refuses an edition in preparation that already has someone enrolled without a day", async () => {
       await createEdition("Advienté 2026", 2026);
-      await prisma.dayAssignment.create({ data: { guestName: "Prima Lejana", year: 2026 } });
+      await prisma.participation.create({ data: { guestName: "Prima Lejana", year: 2026 } });
 
       await expect(deleteEdition(2026)).rejects.toBeInstanceOf(ConflictError);
       expect(await prisma.edition.count({ where: { year: 2026 } })).toBe(1);
@@ -106,6 +115,153 @@ describe("dal Edition", () => {
     });
   });
 
+  describe("getEditionInfo", () => {
+    // An edition has one calendar day per person enrolled. Day rows are only storage: the seed gives
+    // 2025 one per participant, so a test that must tell the two numbers apart adds rows of its own.
+    async function enrolGuests(year: number, count: number) {
+      const guests: Awaited<ReturnType<typeof enrolGuest>>[] = [];
+      for (let index = 1; index <= count; index++) {
+        guests.push(await enrolGuest(year, `Invitada ${index}`));
+      }
+      return guests;
+    }
+
+    async function addDayRows(year: number, count: number, firstDayNumber = 1) {
+      await prisma.day.createMany({
+        data: Array.from({ length: count }, (_, index) => ({ dayNumber: firstDayNumber + index, year })),
+      });
+    }
+
+    async function dayRow(year: number, dayNumber: number) {
+      return prisma.day.findUniqueOrThrow({ where: { dayNumber_year: { dayNumber, year } } });
+    }
+
+    it("is 0 for an edition with nobody enrolled", async () => {
+      await createEdition("Advienté 2030", 2030);
+
+      expect(await getEditionInfo(2030)).toEqual({ lastDayNumber: 0, status: EditionStatus.PREPARING, year: 2030 });
+    });
+
+    it("stays 0 while the edition only has day rows that nobody holds", async () => {
+      await createEdition("Advienté 2030", 2030);
+      await addDayRows(2030, 25);
+
+      expect((await getEditionInfo(2030)).lastDayNumber).toBe(0);
+    });
+
+    it("counts the participants, not the day rows: 25 rows and 3 participants give 3", async () => {
+      await createEdition("Advienté 2030", 2030);
+      await addDayRows(2030, 25);
+      await enrolGuests(2030, 3);
+
+      expect((await getEditionInfo(2030)).lastDayNumber).toBe(3);
+    });
+
+    it("counts 3 participants in an edition without a single day row", async () => {
+      await createEdition("Advienté 2030", 2030);
+      await enrolGuests(2030, 3);
+
+      expect(await prisma.day.count({ where: { year: 2030 } })).toBe(0);
+      expect((await getEditionInfo(2030)).lastDayNumber).toBe(3);
+    });
+
+    it("counts accounts and guests alike, with or without a day", async () => {
+      await createEdition("Advienté 2030", 2030);
+      const [placedUser, waitingUser] = await prisma.user.findMany({ orderBy: { username: "asc" }, take: 2 });
+      const placedAccount = await enrolUser(2030, placedUser.id);
+      await enrolUser(2030, waitingUser.id);
+      const [placedGuest] = await enrolGuests(2030, 2);
+      await addDayRows(2030, 2);
+      await prisma.participation.update({
+        data: { dayId: (await dayRow(2030, 1)).id },
+        where: { id: placedAccount.id },
+      });
+      await prisma.participation.update({
+        data: { dayId: (await dayRow(2030, 2)).id },
+        where: { id: placedGuest.id },
+      });
+
+      expect((await getEditionInfo(2030)).lastDayNumber).toBe(4);
+    });
+
+    it("counts someone sitting on a leftover day above the calendar exactly once", async () => {
+      await createEdition("Advienté 2030", 2030);
+      await addDayRows(2030, 25);
+      await enrolGuests(2030, 2);
+      await prisma.participation.create({
+        data: { dayId: (await dayRow(2030, 20)).id, guestName: "Prima Lejana", year: 2030 },
+      });
+
+      expect((await getEditionInfo(2030)).lastDayNumber).toBe(3);
+    });
+
+    it("gives the seeded edition its number of participants, far below its day rows", async () => {
+      const enrolled = await prisma.participation.count({ where: { year: 2025 } });
+      expect(enrolled).toBeGreaterThan(0);
+      await addDayRows(2025, 20, enrolled + 1);
+      expect(await prisma.day.count({ where: { year: 2025 } })).toBeGreaterThan(enrolled);
+
+      expect((await getEditionInfo(2025)).lastDayNumber).toBe(enrolled);
+    });
+
+    it("leaves out the participants of the other editions", async () => {
+      await createEdition("Advienté 2030", 2030);
+      await createEdition("Advienté 2031", 2031);
+      await enrolGuests(2030, 2);
+      await enrolGuests(2031, 4);
+      const seeded = await prisma.participation.count({ where: { year: 2025 } });
+
+      expect((await getEditionInfo(2030)).lastDayNumber).toBe(2);
+      expect((await getEditionInfo(2031)).lastDayNumber).toBe(4);
+      expect((await getEditionInfo(2025)).lastDayNumber).toBe(seeded);
+    });
+
+    it("goes up by one with each person enrolled, guest or account", async () => {
+      const before = (await getEditionInfo(2025)).lastDayNumber;
+      expect(before).toBe(await prisma.participation.count({ where: { year: 2025 } }));
+
+      await enrolGuest(2025, "Prima Lejana");
+      expect((await getEditionInfo(2025)).lastDayNumber).toBe(before + 1);
+
+      const newcomer = await prisma.user.findFirstOrThrow({ where: { participations: { none: {} } } });
+      await enrolUser(2025, newcomer.id);
+      expect((await getEditionInfo(2025)).lastDayNumber).toBe(before + 2);
+    });
+
+    it("goes from 0 to 1 with the first person enrolled", async () => {
+      await createEdition("Advienté 2030", 2030);
+      expect((await getEditionInfo(2030)).lastDayNumber).toBe(0);
+
+      await enrolGuest(2030, "Prima Lejana");
+
+      expect((await getEditionInfo(2030)).lastDayNumber).toBe(1);
+    });
+
+    it("returns the status and the year of the edition asked for", async () => {
+      await createEdition("Advienté 2030", 2030);
+      await upsertEdition(2031, EditionStatus.ARCHIVED);
+
+      expect(await getEditionInfo(2025)).toMatchObject({ status: EditionStatus.ACTIVE, year: 2025 });
+      expect(await getEditionInfo(2030)).toMatchObject({ status: EditionStatus.PREPARING, year: 2030 });
+      expect(await getEditionInfo(2031)).toMatchObject({ status: EditionStatus.ARCHIVED, year: 2031 });
+    });
+
+    it("follows the edition when its status changes", async () => {
+      await changeEditionStatus(2025, EditionStatus.ARCHIVED);
+
+      expect((await getEditionInfo(2025)).status).toBe(EditionStatus.ARCHIVED);
+    });
+
+    it("rejects an unknown year with a plain error, not a conflict", async () => {
+      const error: unknown = await getEditionInfo(2099).catch((reason: unknown) => reason);
+
+      expect(error).toBeInstanceOf(Error);
+      expect(error).not.toBeInstanceOf(ConflictError);
+      expect((error as Error).constructor).toBe(Error);
+      expect((error as Error).message).toBe("The edition 2099 does not exist.");
+    });
+  });
+
   describe("upsertEdition", () => {
     it("creates the edition once and only updates its status on a second call", async () => {
       const created = await upsertEdition(2030, EditionStatus.PREPARING);
@@ -120,7 +276,7 @@ describe("dal Edition", () => {
   });
 
   it("refuses to delete an edition that still has days", async () => {
-    // The seed creates the 2025 edition with its 25 days before every test.
+    // The seed creates the 2025 edition with its days before every test.
     await expect(prisma.edition.delete({ where: { year: 2025 } })).rejects.toThrow();
     expect(await prisma.edition.count({ where: { year: 2025 } })).toBe(1);
   });

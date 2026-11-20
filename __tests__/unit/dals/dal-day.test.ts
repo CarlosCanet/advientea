@@ -3,12 +3,9 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 import { Day, Prisma, TeaType } from "@/generated/prisma/client";
 import { prismaMock } from "@/lib/__mocks__/prisma";
 import {
-  add25Days,
   addDay,
-  addNextDay,
-  DayWithAssignmentUserAndTeaStoryImages,
-  DayWithTeaStoryImages,
-  deleteDay,
+  DayWithParticipationTeaStoryImages,
+  DayWithParticipationTeaStoryImagesAndUser,
   editDay,
   getAllDays,
   getDayByDayNumber,
@@ -21,38 +18,40 @@ describe("DAL Day", () => {
   });
 
   describe("getDay", () => {
-    const mockDayComplete: DayWithTeaStoryImages = {
+    const mockDayComplete: DayWithParticipationTeaStoryImages = {
       createdAt: new Date(),
       dayNumber: 1,
       id: "day-1",
-      tea: {
-        addMilk: false,
-        canReinfuse: false,
-        createdAt: new Date(),
-        dayId: "day-1",
-        hasTheine: true,
-        id: "tea-1",
-        infusionTime: 3,
-        moreIndications: null,
-        name: "Test Tea",
-        reinfuseNumber: null,
-        storeName: null,
-        story: {
+      participation: {
+        tea: {
+          addMilk: false,
+          canReinfuse: false,
           createdAt: new Date(),
-          id: "story-1",
-          images: [],
-          onlyMusic: false,
-          storyPart1: "Text",
-          storyPart2: null,
-          storyPart3: null,
-          teaId: "tea-1",
+          hasTheine: true,
+          id: "tea-1",
+          infusionTime: 3,
+          moreIndications: null,
+          name: "Test Tea",
+          participationId: "participation-1",
+          reinfuseNumber: null,
+          storeName: null,
+          story: {
+            createdAt: new Date(),
+            id: "story-1",
+            images: [],
+            onlyMusic: false,
+            storyPart1: "Text",
+            storyPart2: null,
+            storyPart3: null,
+            teaId: "tea-1",
+            updatedAt: new Date(),
+            youtubeURL: null,
+          },
+          teaType: TeaType.GREEN,
+          temperature: 80,
           updatedAt: new Date(),
-          youtubeURL: null,
+          url: null,
         },
-        teaType: TeaType.GREEN,
-        temperature: 80,
-        updatedAt: new Date(),
-        url: null,
       },
       updatedAt: new Date(),
       year: 2025,
@@ -93,22 +92,20 @@ describe("DAL Day", () => {
 
   describe("getAllDays", () => {
     it("should return array of days ordered by number", async () => {
-      const mockDays: DayWithAssignmentUserAndTeaStoryImages[] = [
+      const mockDays: DayWithParticipationTeaStoryImagesAndUser[] = [
         {
-          assignment: null,
           createdAt: new Date(),
           dayNumber: 1,
           id: "day-1",
-          tea: null,
+          participation: null,
           updatedAt: new Date(),
           year: 2025,
         },
         {
-          assignment: null,
           createdAt: new Date(),
           dayNumber: 2,
           id: "day-2",
-          tea: null,
+          participation: null,
           updatedAt: new Date(),
           year: 2025,
         },
@@ -163,85 +160,6 @@ describe("DAL Day", () => {
     });
   });
 
-  describe("addNextDay", () => {
-    it("should increment max day number", async () => {
-      prismaMock.day.aggregate.mockResolvedValue({
-        _avg: {},
-        _count: {},
-        _max: { dayNumber: 4 },
-        _min: {},
-        _sum: {},
-      });
-
-      const mockNewDay: Day = {
-        createdAt: new Date(),
-        dayNumber: 5,
-        id: "day-5",
-        updatedAt: new Date(),
-        year: 2025,
-      };
-      prismaMock.day.create.mockResolvedValue(mockNewDay);
-
-      await addNextDay(2025);
-
-      expect(prismaMock.day.create).toHaveBeenCalledWith({
-        data: { dayNumber: 5, year: 2025 },
-      });
-    });
-
-    it("should start at 1 if no days exist", async () => {
-      prismaMock.day.aggregate.mockResolvedValue({
-        _avg: {},
-        _count: {},
-        _max: { dayNumber: null },
-        _min: {},
-        _sum: {},
-      });
-
-      await addNextDay(2025);
-
-      expect(prismaMock.day.create).toHaveBeenCalledWith({
-        data: { dayNumber: 1, year: 2025 },
-      });
-    });
-
-    it("should handle P2002 conflict in addNextDay", async () => {
-      prismaMock.day.aggregate.mockResolvedValue({
-        _avg: {},
-        _count: {},
-        _max: { dayNumber: 4 },
-        _min: {},
-        _sum: {},
-      });
-
-      const p2002Error = new Prisma.PrismaClientKnownRequestError("Unique constraint", {
-        clientVersion: "1",
-        code: "P2002",
-      });
-      prismaMock.day.create.mockRejectedValue(p2002Error);
-
-      const result = await addNextDay(2025);
-      expect(result).toBeNull();
-    });
-  });
-
-  describe("add25Days", () => {
-    it("should batch create 25 days skipping duplicates", async () => {
-      prismaMock.day.createMany.mockResolvedValue({ count: 25 });
-
-      const count = await add25Days(2025);
-
-      expect(count).toBe(25);
-      expect(prismaMock.day.createMany).toHaveBeenCalledWith({
-        data: expect.arrayContaining([
-          { dayNumber: 1, year: 2025 },
-          { dayNumber: 25, year: 2025 },
-        ]),
-        skipDuplicates: true,
-      });
-    });
-  });
-
   describe("editDay", () => {
     it("should update a day successfully", async () => {
       const mockUpdatedDay: Day = {
@@ -274,31 +192,6 @@ describe("DAL Day", () => {
       prismaMock.day.update.mockRejectedValue(p2025Error);
 
       await expect(editDay({ dayNumber: 20 }, "missing-id")).rejects.toThrow("Record to update not found.");
-    });
-  });
-
-  describe("deleteDay", () => {
-    it("should delete day and return relations", async () => {
-      const mockDeleted: Day = {
-        createdAt: new Date(),
-        dayNumber: 1,
-        id: "day-1",
-        updatedAt: new Date(),
-        year: 2025,
-      };
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      prismaMock.$transaction.mockImplementation((cb: any) => cb(prismaMock));
-      prismaMock.day.delete.mockResolvedValue(mockDeleted);
-
-      await deleteDay("day-1");
-
-      expect(prismaMock.dayAssignment.deleteMany).toHaveBeenCalledWith({ where: { dayId: "day-1" } });
-      expect(prismaMock.day.delete).toHaveBeenCalledWith(
-        expect.objectContaining({
-          include: expect.anything(),
-          where: { id: "day-1" },
-        }),
-      );
     });
   });
 });

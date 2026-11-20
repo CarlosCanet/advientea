@@ -18,24 +18,24 @@ describe("Dal tea guess", async () => {
   const TEST_POINTS = 300;
 
   beforeEach(async () => {
-    const dayAssignmentRecord1 = await prisma.dayAssignment.findFirstOrThrow({
-      include: { day: { include: { tea: { include: { ingredients: true } } } }, user: true },
-      where: { day: { tea: { isNot: null } }, user: { isNot: null } },
+    const participationRecord1 = await prisma.participation.findFirstOrThrow({
+      include: { day: true, tea: { include: { ingredients: true } }, user: true },
+      where: { tea: { isNot: null }, user: { isNot: null } },
     });
-    const dayAssignmentRecord2 = await prisma.dayAssignment.findFirstOrThrow({
-      include: { day: { include: { tea: { include: { ingredients: true } } } }, user: true },
-      where: { day: { tea: { isNot: null } }, id: { not: dayAssignmentRecord1.id }, user: null },
+    const participationRecord2 = await prisma.participation.findFirstOrThrow({
+      include: { day: true, tea: { include: { ingredients: true } }, user: true },
+      where: { id: { not: participationRecord1.id }, tea: { isNot: null }, user: null },
     });
-    const ownerDay1 = dayAssignmentRecord1.user;
+    const ownerDay1 = participationRecord1.user;
     testUser = await prisma.user.findFirstOrThrow({ where: { id: { not: ownerDay1!.id } } });
-    if (!dayAssignmentRecord1.day || !dayAssignmentRecord2.day)
-      throw new Error("DB test seed has assignments without a day");
-    testDay1 = dayAssignmentRecord1.day;
-    testDay2 = dayAssignmentRecord2.day;
-    if (!dayAssignmentRecord1.day.tea) throw new Error("DB test seed has no valid teas");
-    if (!dayAssignmentRecord2.day.tea) throw new Error("DB test seed has no valid teas");
-    const tea1 = dayAssignmentRecord1.day.tea;
-    const tea2 = dayAssignmentRecord2.day.tea;
+    if (!participationRecord1.day || !participationRecord2.day)
+      throw new Error("DB test seed has participations without a day");
+    testDay1 = participationRecord1.day;
+    testDay2 = participationRecord2.day;
+    if (!participationRecord1.tea) throw new Error("DB test seed has no valid teas");
+    if (!participationRecord2.tea) throw new Error("DB test seed has no valid teas");
+    const tea1 = participationRecord1.tea;
+    const tea2 = participationRecord2.tea;
     guessComplete1 = {
       ingredients: tea1.ingredients.map((ingredient) => ingredient.id),
       personName: ownerDay1?.username ?? "",
@@ -44,7 +44,7 @@ describe("Dal tea guess", async () => {
     };
     guessComplete2 = {
       ingredients: tea2.ingredients.map((ingredient) => ingredient.id),
-      personName: dayAssignmentRecord2.guestName!,
+      personName: participationRecord2.guestName!,
       teaName: tea2?.name,
       teaType: tea2?.teaType,
     };

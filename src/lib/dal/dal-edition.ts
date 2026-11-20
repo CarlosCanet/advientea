@@ -42,7 +42,7 @@ export async function deleteEdition(year: number): Promise<Edition> {
   try {
     return await prisma.$transaction(async (tx) => {
       const edition = await tx.edition.findUnique({
-        include: { _count: { select: { assignments: true, days: true } } },
+        include: { _count: { select: { days: true, participations: true } } },
         where: { year },
       });
       if (!edition) {
@@ -51,7 +51,7 @@ export async function deleteEdition(year: number): Promise<Edition> {
       if (edition.status !== EditionStatus.PREPARING) {
         throw new ConflictError(`La edición ${year} no está en preparación y no puede borrarse.`);
       }
-      if (edition._count.days > 0 || edition._count.assignments > 0) {
+      if (edition._count.days > 0 || edition._count.participations > 0) {
         throw new ConflictError(`La edición ${year} ya tiene días o inscritos y no puede borrarse.`);
       }
       return tx.edition.delete({ where: { year } });
@@ -82,15 +82,15 @@ export const getActiveEdition = cache(async function getActiveEdition(): Promise
 
 export const getEditionInfo = cache(async function getEditionInfo(year: number): Promise<EditionInfo> {
   const edition = await prisma.edition.findUnique({
+    select: { _count: { select: { participations: true } }, status: true, year: true },
     where: { year },
   });
   // Every year the rules ask about comes from a Day, and Day.year is a FK: a missing edition is a broken invariant, not a case.
   if (!edition) {
     throw new Error(`The edition ${year} does not exist.`);
   }
-  const result = await prisma.day.aggregate({ _max: { dayNumber: true }, where: { year } });
-  const lastDayNumber = result._max.dayNumber ?? 0;
-  return { lastDayNumber, status: edition.status, year: edition.year };
+  // An edition has as many days as participants: Day rows are storage, and one above that count or held by nobody is a leftover.
+  return { lastDayNumber: edition._count.participations, status: edition.status, year: edition.year };
 });
 
 export async function upsertEdition(year: number, status: EditionStatus): Promise<Edition> {

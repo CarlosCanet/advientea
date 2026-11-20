@@ -9,6 +9,7 @@ import { getAdvienteaDayState, getDaySchedule } from "@/lib/advientea-rules";
 import { getNow } from "@/lib/advientea-time";
 import { auth } from "@/lib/auth";
 import { getActiveEdition, getAllDays, getEditionInfo } from "@/lib/dal";
+import { toParticipantName } from "@/lib/utils";
 
 export default async function DaysList() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -34,11 +35,11 @@ export default async function DaysList() {
           .toSorted((day1, day2) => day2.dayNumber - day1.dayNumber)
           .map((day) => {
             const advienteaDayState = getAdvienteaDayState(day.dayNumber, editionInfo, session?.user.role, false);
-            const assigneeName = day.assignment?.guestName ?? day.assignment?.user?.username;
+            const assigneeName = day.participation ? toParticipantName(day.participation) : null;
+            const tea = day.participation?.tea ?? null;
+            const teaTitle = tea?.name ?? "Falta el té";
             const advienteaDayTitle =
-              advienteaDayState.isPersonNameReleased && assigneeName
-                ? `${day.tea?.name} - ${assigneeName}`
-                : day.tea?.name;
+              advienteaDayState.isPersonNameReleased && assigneeName ? `${teaTitle} - ${assigneeName}` : teaTitle;
             return (
               <li className="rounded-none border-b border-b-secondary/70" key={day.id}>
                 <Link className="list-row items-center justify-center text-center gap-1 " href={`/teaDay/${day.id}`}>
@@ -59,8 +60,8 @@ export default async function DaysList() {
                     ) : (
                       <div className="skeleton skeleton-text font-[Griffy] text-lg">Té desconocido</div>
                     )}
-                    {day.tea && advienteaDayState.isPart1Released && (
-                      <TeaInfusionInfo hasMoreIndication={false} tea={day.tea} xs={true} />
+                    {tea && advienteaDayState.isPart1Released && (
+                      <TeaInfusionInfo hasMoreIndication={false} tea={tea} xs={true} />
                     )}
                   </div>
                   <div className="text-2xl">{day.dayNumber % 2 === 0 ? <BsCupHot /> : <BsCupHotFill />}</div>

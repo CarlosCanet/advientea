@@ -78,8 +78,16 @@ describe("Tea service", () => {
       teaExists: boolean = true,
     ) => {
       vi.mocked(getDayForGuessing).mockResolvedValue({
-        assignment: {
+        dayNumber,
+        participation: {
           guestName: userId ? "" : "Anónimo",
+          tea: teaExists
+            ? {
+                ingredients: [],
+                name: "",
+                teaType: TeaType.BLACK,
+              }
+            : null,
           user: userId
             ? {
                 id: userId,
@@ -87,14 +95,6 @@ describe("Tea service", () => {
               }
             : null,
         },
-        dayNumber,
-        tea: teaExists
-          ? {
-              ingredients: [],
-              name: "",
-              teaType: TeaType.BLACK,
-            }
-          : null,
         year,
       });
     };
@@ -286,15 +286,15 @@ describe("Tea service", () => {
       };
 
       const mockDayData: DayForGuessing = {
-        assignment: {
-          guestName: null,
-          user: { id: "user-id", username: "userName" },
-        },
         dayNumber: 1,
-        tea: {
-          ingredients: [mockIngredient1],
-          name: "Earl Grey",
-          teaType: TeaType.BLACK,
+        participation: {
+          guestName: null,
+          tea: {
+            ingredients: [mockIngredient1],
+            name: "Earl Grey",
+            teaType: TeaType.BLACK,
+          },
+          user: { id: "user-id", username: "userName" },
         },
         year: 2025,
       };
@@ -310,7 +310,7 @@ describe("Tea service", () => {
       it("should return null if the day or tea does not exist", async () => {
         vi.mocked(getDayForGuessing).mockResolvedValue(null);
         const result1 = await calculatePointsFromGuess("day999-id", mockUserGuess);
-        vi.mocked(getDayForGuessing).mockResolvedValue({ assignment: null, dayNumber: 2, tea: null, year: 2025 });
+        vi.mocked(getDayForGuessing).mockResolvedValue({ dayNumber: 2, participation: null, year: 2025 });
         const result2 = await calculatePointsFromGuess("day2-id", mockUserGuess);
         expect(result1).toBeNull();
         expect(result2).toBeNull();
