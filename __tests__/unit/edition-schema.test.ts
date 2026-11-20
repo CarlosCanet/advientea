@@ -9,6 +9,7 @@ import {
   placeParticipantSchema,
   swapParticipantsSchema,
   toEditionYear,
+  unenrolParticipantSchema,
 } from "@/lib/schemas/edition";
 
 describe("editionFormSchema", () => {
@@ -138,5 +139,33 @@ describe("swapParticipantsSchema", () => {
   it("refuses an object with one participation only", () => {
     expect(valid({ firstParticipationId: "first-id" })).toBe(false);
     expect(valid({ secondParticipationId: "second-id" })).toBe(false);
+  });
+});
+
+describe("unenrolParticipantSchema", () => {
+  const valid = (input: unknown) => unenrolParticipantSchema.safeParse(input).success;
+
+  it.each([true, false])("accepts %j as the answer about the tea and keeps it as it came", (deleteTea) => {
+    expect(unenrolParticipantSchema.parse({ deleteTea, participationId: "participation-id" })).toEqual({
+      deleteTea,
+      participationId: "participation-id",
+    });
+  });
+
+  it("refuses an object without the answer about the tea: keeping it has to be said with false", () => {
+    expect(valid({ participationId: "participation-id" })).toBe(false);
+  });
+
+  it.each(["true", "false", "", 1, 0, null, undefined])("refuses %j as the answer about the tea", (deleteTea) => {
+    expect(valid({ deleteTea, participationId: "participation-id" })).toBe(false);
+  });
+
+  it.each(["", 7, null, undefined])("refuses %j as the participation", (participationId) => {
+    expect(valid({ deleteTea: true, participationId })).toBe(false);
+    expect(valid({ deleteTea: false, participationId })).toBe(false);
+  });
+
+  it("refuses an object without a participation", () => {
+    expect(valid({ deleteTea: false })).toBe(false);
   });
 });

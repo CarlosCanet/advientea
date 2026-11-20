@@ -9,9 +9,11 @@ import {
   enrolUser,
   getAssignees,
   getDayByDayNumber,
+  getEditionInfo,
   getParticipationsForEdition,
   placeParticipant,
   swapParticipants,
+  unenrolParticipant,
   unplaceParticipant,
   upsertEdition,
 } from "@/lib/dal";
@@ -98,6 +100,18 @@ async function setEditionStatus(status: EditionStatus, year = 2025) {
   await prisma.edition.update({ data: { status }, where: { year } });
 }
 
+// A guess hangs from the day row, not from whoever holds it, so a row nobody holds can have one too.
+async function addGuess(dayNumber: number, year = 2025) {
+  const guesser = await prisma.user.findFirstOrThrow();
+  const row = await prisma.day.findUniqueOrThrow({ where: { dayNumber_year: { dayNumber, year } } });
+  return prisma.teaGuess.create({ data: { dayId: row.id, userId: guesser.id } });
+}
+
+/** The placements of 2025 together with every guess: what the refusal of a locked day must leave as it was. */
+async function placementsAndGuesses() {
+  return { ...(await placements()), guesses: await prisma.teaGuess.findMany({ orderBy: { id: "asc" } }) };
+}
+
 async function expectConflict(call: Promise<unknown>, message: string) {
   const error: unknown = await call.catch((reason: unknown) => reason);
   expect(error).toBeInstanceOf(ConflictError);
@@ -112,7 +126,9 @@ async function expectInvalidInput(call: Promise<unknown>, message: string) {
 }
 
 const DAY_HAS_OPENED = "Ese día ya ha pasado o es hoy y no se puede cambiar.";
+const dayHasGuesses = (dayNumber: number) => `El día ${dayNumber} ya tiene apuestas y no se puede cambiar.`;
 const NO_LONGER_THERE = "Esa inscripción o ese día ya no existen.";
+const NO_LONGER_ENROLLED = "Esa inscripción ya no existe.";
 const DAYS_JUST_CHANGED = "Los días acaban de cambiar. Recarga la página y vuelve a intentarlo.";
 
 describe("dal Participation", () => {
@@ -789,14 +805,23 @@ describe("dal Participation", () => {
       expect(await prisma.day.count({ where: { year: 2030 } })).toBe(0);
     });
 
-    it("rejects an unknown participation as invalid input, not as a conflict", async () => {
+    it("refuses an unknown participation as a conflict: it no longer exists", async () => {
       const before = await placements();
       const dayRows = await prisma.day.count();
 
-      await expect(placeParticipant("no-such-participation", 1, beforeTheEdition)).rejects.not.toThrow(ConflictError);
-      await expect(placeParticipant("no-such-participation", 26, beforeTheEdition)).rejects.not.toThrow(ConflictError);
+      await expectConflict(placeParticipant("no-such-participation", 1, beforeTheEdition), NO_LONGER_ENROLLED);
+      await expectConflict(placeParticipant("no-such-participation", 26, beforeTheEdition), NO_LONGER_ENROLLED);
       expect(await placements()).toEqual(before);
       expect(await prisma.day.count()).toBe(dayRows);
+    });
+
+    it("refuses someone who has just been removed the same way, and creates no day for them", async () => {
+      const [guest] = await enrolGuests(2);
+      await prisma.participation.delete({ where: { id: guest.id } });
+      const before = await placements();
+
+      await expectConflict(placeParticipant(guest.id, 6, beforeTheEdition), NO_LONGER_ENROLLED);
+      expect(await placements()).toEqual(before);
     });
 
     it.each([0, -1, 2.5])("rejects %j as a day number as invalid input, not as a conflict", async (dayNumber) => {
@@ -937,6 +962,182 @@ describe("dal Participation", () => {
       expect(after.days.map((item) => item.dayNumber)).toEqual(
         [...new Set([...before.days.map((item) => item.dayNumber), 6])].toSorted((a, b) => a - b),
       );
+    });
+
+    describe("a day with guesses is locked", () => {
+      it.each([
+        { rowExists: true, target: "a free day" },
+        { rowExists: false, target: "a day without a row, which is not created" },
+      ])(
+        "refuses to move someone off a day with a guess to $target, in an edition in preparation",
+        async ({ rowExists }) => {
+          await setEditionStatus(EditionStatus.PREPARING);
+          await enrolGuests(1);
+          if (rowExists) {
+            await addFreeDay(6);
+          }
+          const ana = await participationOn(3);
+          await addGuess(3);
+          const before = await placementsAndGuesses();
+
+          await expectConflict(placeParticipant(ana.id, 6, duringTheEdition), dayHasGuesses(3));
+          expect(await placementsAndGuesses()).toEqual(before);
+          expect((await participationOn(3)).id).toBe(ana.id);
+        },
+      );
+
+      it("refuses a row nobody holds that has guesses to someone without a day", async () => {
+        await setEditionStatus(EditionStatus.PREPARING);
+        const [guest] = await enrolGuests(1);
+        await addFreeDay(6);
+        await addGuess(6);
+        const before = await placementsAndGuesses();
+
+        await expectConflict(placeParticipant(guest.id, 6, duringTheEdition), dayHasGuesses(6));
+        expect(await placementsAndGuesses()).toEqual(before);
+        expect((await prisma.participation.findUniqueOrThrow({ where: { id: guest.id } })).dayId).toBeNull();
+      });
+
+      it("refuses to move someone from a day without guesses onto a free row that has them", async () => {
+        await setEditionStatus(EditionStatus.PREPARING);
+        await enrolGuests(1);
+        await addFreeDay(6);
+        await addGuess(6);
+        const ana = await participationOn(3);
+        const before = await placementsAndGuesses();
+
+        await expectConflict(placeParticipant(ana.id, 6, duringTheEdition), dayHasGuesses(6));
+        expect(await placementsAndGuesses()).toEqual(before);
+        expect((await participationOn(3)).id).toBe(ana.id);
+      });
+
+      it("says that a held day has guesses before saying who holds it", async () => {
+        await setEditionStatus(EditionStatus.PREPARING);
+        const [guest] = await enrolGuests(1);
+        await addGuess(4);
+        const before = await placementsAndGuesses();
+
+        await expectConflict(placeParticipant(guest.id, 4, duringTheEdition), dayHasGuesses(4));
+        expect(await placementsAndGuesses()).toEqual(before);
+      });
+
+      it("names the person's own day, not the target, when both have guesses", async () => {
+        await setEditionStatus(EditionStatus.PREPARING);
+        await enrolGuests(1);
+        await addFreeDay(6);
+        await addGuess(6);
+        await addGuess(3);
+        const ana = await participationOn(3);
+        const before = await placementsAndGuesses();
+
+        await expectConflict(placeParticipant(ana.id, 6, duringTheEdition), dayHasGuesses(3));
+        expect(await placementsAndGuesses()).toEqual(before);
+      });
+
+      it("looks at the guesses of the person's own day before the range of the calendar", async () => {
+        await setEditionStatus(EditionStatus.PREPARING);
+        const ana = await participationOn(3);
+        await addGuess(3);
+        const before = await placementsAndGuesses();
+
+        await expectConflict(placeParticipant(ana.id, 26, duringTheEdition), dayHasGuesses(3));
+        expect(await placementsAndGuesses()).toEqual(before);
+      });
+
+      it("looks at the range of the calendar before the guesses of the target", async () => {
+        await setEditionStatus(EditionStatus.PREPARING);
+        const [guest] = await enrolGuests(1);
+        await addFreeDay(7);
+        await addGuess(7);
+        const before = await placementsAndGuesses();
+
+        await expectConflict(
+          placeParticipant(guest.id, 7, duringTheEdition),
+          "La edición 2025 tiene 6 participantes: elige un día entre 1 y 6.",
+        );
+        expect(await placementsAndGuesses()).toEqual(before);
+      });
+
+      it.each([
+        { now: duringTheEdition, status: EditionStatus.PREPARING, when: "in an edition in preparation" },
+        { now: beforeTheEdition, status: EditionStatus.ACTIVE, when: "in an active edition before its date" },
+        { now: duringTheEdition, status: EditionStatus.ACTIVE, when: "once it has also opened" },
+      ])(
+        "still accepts the day the person already holds when it has guesses, $when, since nothing changes",
+        async ({ now, status }) => {
+          await setEditionStatus(status);
+          const ana = await participationOn(3);
+          await addGuess(3);
+          const before = await placementsAndGuesses();
+
+          const result = await placeParticipant(ana.id, 3, now);
+
+          expect(result.id).toBe(ana.id);
+          expect(result.dayId).toBe(ana.dayId);
+          expect(result.day?.dayNumber).toBe(3);
+          expect(await placementsAndGuesses()).toEqual(before);
+        },
+      );
+
+      it("refuses to move someone off a day with a guess in an active edition before the day's date", async () => {
+        await enrolGuests(1);
+        await addFreeDay(6);
+        const ana = await participationOn(3);
+        await addGuess(3);
+        const before = await placementsAndGuesses();
+
+        await expectConflict(placeParticipant(ana.id, 6, beforeTheEdition), dayHasGuesses(3));
+        expect(await placementsAndGuesses()).toEqual(before);
+      });
+
+      it("refuses a free row with guesses in an active edition before the day's date", async () => {
+        const [guest] = await enrolGuests(1);
+        await addFreeDay(6);
+        await addGuess(6);
+        const before = await placementsAndGuesses();
+
+        await expectConflict(placeParticipant(guest.id, 6, beforeTheEdition), dayHasGuesses(6));
+        expect(await placementsAndGuesses()).toEqual(before);
+      });
+
+      it("keeps the message of a day that has opened when that day also has guesses", async () => {
+        const [guest] = await enrolGuests(10);
+        await addFreeDay(7);
+        await addFreeDay(15);
+        await addGuess(7);
+        await addGuess(3);
+        const ana = await participationOn(3);
+        const before = await placementsAndGuesses();
+
+        // Day 3 is the person's own and day 7 the target: both opened before 10 December.
+        await expectConflict(placeParticipant(ana.id, 15, duringTheEdition), DAY_HAS_OPENED);
+        await expectConflict(placeParticipant(guest.id, 7, duringTheEdition), DAY_HAS_OPENED);
+        expect(await placementsAndGuesses()).toEqual(before);
+      });
+
+      it.each([
+        { now: duringTheEdition, status: EditionStatus.PREPARING, when: "an edition in preparation" },
+        { now: beforeTheEdition, status: EditionStatus.ACTIVE, when: "an active edition before its dates" },
+      ])("moves a day without guesses freely while another day of $when has them", async ({ now, status }) => {
+        await setEditionStatus(status);
+        const [guest] = await enrolGuests(2);
+        await addGuess(3);
+        const sony = await participationOn(4);
+        const before = await placementsAndGuesses();
+
+        const moved = await placeParticipant(sony.id, 6, now);
+        const placed = await placeParticipant(guest.id, 4, now);
+
+        expect(moved.day?.dayNumber).toBe(6);
+        expect(placed.day?.dayNumber).toBe(4);
+        expect((await participationOn(6)).id).toBe(sony.id);
+        expect((await participationOn(4)).id).toBe(guest.id);
+        const after = await placementsAndGuesses();
+        expect(after.guesses).toEqual(before.guesses);
+        expect(after.participations).toEqual(
+          withDays(before, { [guest.id]: sony.dayId, [sony.id]: (await day(6)).id }),
+        );
+      });
     });
   });
 
@@ -1080,13 +1281,10 @@ describe("dal Participation", () => {
       expect((await placements()).participations).toEqual(withDays(before, { [ana.id]: null }));
     });
 
-    it("rejects an unknown participation as invalid input, not as a conflict", async () => {
+    it("refuses an unknown participation as a conflict: it no longer exists", async () => {
       const before = await placements();
 
-      await expectInvalidInput(
-        unplaceParticipant("no-such-participation", beforeTheEdition),
-        "The participation with id no-such-participation does not exist.",
-      );
+      await expectConflict(unplaceParticipant("no-such-participation", beforeTheEdition), NO_LONGER_ENROLLED);
       expect(await placements()).toEqual(before);
     });
 
@@ -1115,6 +1313,71 @@ describe("dal Participation", () => {
       // The very object the database layer threw, not a copy or a wrapper.
       expect(error).toBe(transaction.mock.settledResults[0].value);
       expect(await placements()).toEqual(before);
+    });
+
+    describe("a day with guesses is locked", () => {
+      it.each([
+        { now: duringTheEdition, status: EditionStatus.PREPARING, when: "in an edition in preparation" },
+        { now: beforeTheEdition, status: EditionStatus.ACTIVE, when: "in an active edition before the day's date" },
+      ])("refuses someone whose day has a guess $when, who keeps it", async ({ now, status }) => {
+        await setEditionStatus(status);
+        const ana = await participationOn(3);
+        await addGuess(3);
+        const before = await placementsAndGuesses();
+
+        await expectConflict(unplaceParticipant(ana.id, now), dayHasGuesses(3));
+        expect(await placementsAndGuesses()).toEqual(before);
+        expect((await participationOn(3)).id).toBe(ana.id);
+      });
+
+      it("refuses a guest the same way and names the number of their day", async () => {
+        await setEditionStatus(EditionStatus.PREPARING);
+        const guest = await participationOn(2);
+        await addGuess(2);
+        const before = await placementsAndGuesses();
+
+        await expectConflict(unplaceParticipant(guest.id, beforeTheEdition), dayHasGuesses(2));
+        expect(await placementsAndGuesses()).toEqual(before);
+      });
+
+      it("keeps the message of a day that has opened when that day also has guesses", async () => {
+        const ana = await participationOn(3);
+        await addGuess(3);
+        const before = await placementsAndGuesses();
+
+        await expectConflict(unplaceParticipant(ana.id, duringTheEdition), DAY_HAS_OPENED);
+        expect(await placementsAndGuesses()).toEqual(before);
+      });
+
+      it.each([
+        { now: duringTheEdition, status: EditionStatus.PREPARING, when: "an edition in preparation" },
+        { now: beforeTheEdition, status: EditionStatus.ACTIVE, when: "an active edition before its dates" },
+      ])("frees a day without guesses while another day of $when has them", async ({ now, status }) => {
+        await setEditionStatus(status);
+        await addGuess(3);
+        const sony = await participationOn(4);
+        const before = await placementsAndGuesses();
+
+        const result = await unplaceParticipant(sony.id, now);
+
+        expect(result).toMatchObject({ day: null, dayId: null, id: sony.id });
+        const after = await placementsAndGuesses();
+        expect(after.days).toEqual(before.days);
+        expect(after.guesses).toEqual(before.guesses);
+        expect(after.participations).toEqual(withDays(before, { [sony.id]: null }));
+      });
+
+      it("resolves with the participation as it was for someone without a day, whatever the guesses around", async () => {
+        await setEditionStatus(EditionStatus.PREPARING);
+        const guest = await enrolGuest(2025, "Prima Lejana");
+        await addGuess(3);
+        const before = await placementsAndGuesses();
+
+        const result = await unplaceParticipant(guest.id, beforeTheEdition);
+
+        expect(result).toMatchObject({ day: null, dayId: null, id: guest.id });
+        expect(await placementsAndGuesses()).toEqual(before);
+      });
     });
   });
 
@@ -1375,23 +1638,29 @@ describe("dal Participation", () => {
       expect(await placements()).toEqual(before);
     });
 
-    it("rejects an unknown participation as invalid input and names the first unknown one", async () => {
+    it("refuses an unknown participation as a conflict, whichever of the two it is", async () => {
       const ana = await participationOn(3);
+      const guest = await enrolGuest(2025, "Prima Lejana");
       const before = await placements();
 
-      await expectInvalidInput(
-        swapParticipants("no-such-participation", ana.id, beforeTheEdition),
-        "The participation with id no-such-participation does not exist.",
-      );
-      await expectInvalidInput(
-        swapParticipants(ana.id, "no-such-participation", beforeTheEdition),
-        "The participation with id no-such-participation does not exist.",
-      );
-      await expectInvalidInput(
-        swapParticipants("gone-first", "gone-second", beforeTheEdition),
-        "The participation with id gone-first does not exist.",
-      );
+      await expectConflict(swapParticipants("no-such-participation", ana.id, beforeTheEdition), NO_LONGER_ENROLLED);
+      await expectConflict(swapParticipants(ana.id, "no-such-participation", beforeTheEdition), NO_LONGER_ENROLLED);
+      await expectConflict(swapParticipants("no-such-participation", guest.id, beforeTheEdition), NO_LONGER_ENROLLED);
+      await expectConflict(swapParticipants(guest.id, "no-such-participation", beforeTheEdition), NO_LONGER_ENROLLED);
+      await expectConflict(swapParticipants("gone-first", "gone-second", beforeTheEdition), NO_LONGER_ENROLLED);
       expect(await placements()).toEqual(before);
+    });
+
+    it("refuses to swap with someone who has just been removed: the other one keeps their day", async () => {
+      const ana = await participationOn(3);
+      const guest = await enrolGuest(2025, "Prima Lejana");
+      await prisma.participation.delete({ where: { id: guest.id } });
+      const before = await placements();
+
+      await expectConflict(swapParticipants(ana.id, guest.id, beforeTheEdition), NO_LONGER_ENROLLED);
+      await expectConflict(swapParticipants(guest.id, ana.id, beforeTheEdition), NO_LONGER_ENROLLED);
+      expect(await placements()).toEqual(before);
+      expect((await participationOn(3)).id).toBe(ana.id);
     });
 
     it("rejects two participations of different editions as invalid input, whatever their days", async () => {
@@ -1611,6 +1880,1137 @@ describe("dal Participation", () => {
         );
       }
     });
+
+    describe("a day with guesses is locked", () => {
+      it.each([{ locked: "first" }, { locked: "second" }])(
+        "refuses when the day of the $locked of the two has a guess, in an edition in preparation",
+        async ({ locked }) => {
+          await setEditionStatus(EditionStatus.PREPARING);
+          const ana = await participationOn(3);
+          const sony = await participationOn(4);
+          await addGuess(3);
+          const before = await placementsAndGuesses();
+
+          await expectConflict(
+            locked === "first"
+              ? swapParticipants(ana.id, sony.id, duringTheEdition)
+              : swapParticipants(sony.id, ana.id, duringTheEdition),
+            dayHasGuesses(3),
+          );
+          expect(await placementsAndGuesses()).toEqual(before);
+        },
+      );
+
+      it.each([{ holder: "first" }, { holder: "second" }])(
+        "refuses to pass on a day with a guess to someone without one (held by the $holder)",
+        async ({ holder }) => {
+          await setEditionStatus(EditionStatus.PREPARING);
+          const ana = await participationOn(3);
+          const guest = await enrolGuest(2025, "Prima Lejana");
+          await addGuess(3);
+          const before = await placementsAndGuesses();
+
+          await expectConflict(
+            holder === "first"
+              ? swapParticipants(ana.id, guest.id, duringTheEdition)
+              : swapParticipants(guest.id, ana.id, duringTheEdition),
+            dayHasGuesses(3),
+          );
+          expect(await placementsAndGuesses()).toEqual(before);
+          expect((await prisma.participation.findUniqueOrThrow({ where: { id: guest.id } })).dayId).toBeNull();
+        },
+      );
+
+      it("refuses when both days have guesses, naming one of the two", async () => {
+        await setEditionStatus(EditionStatus.PREPARING);
+        const ana = await participationOn(3);
+        const sony = await participationOn(4);
+        await addGuess(3);
+        await addGuess(4);
+        const before = await placementsAndGuesses();
+
+        const error: unknown = await swapParticipants(ana.id, sony.id, duringTheEdition).catch(
+          (reason: unknown) => reason,
+        );
+
+        expect(error).toBeInstanceOf(ConflictError);
+        expect([dayHasGuesses(3), dayHasGuesses(4)]).toContain((error as ConflictError).message);
+        expect(await placementsAndGuesses()).toEqual(before);
+      });
+
+      it("refuses a day with a guess in an active edition before the day's date, from either side", async () => {
+        const ana = await participationOn(3);
+        const sony = await participationOn(4);
+        const guest = await enrolGuest(2025, "Prima Lejana");
+        await addGuess(4);
+        const before = await placementsAndGuesses();
+
+        await expectConflict(swapParticipants(ana.id, sony.id, beforeTheEdition), dayHasGuesses(4));
+        await expectConflict(swapParticipants(sony.id, ana.id, beforeTheEdition), dayHasGuesses(4));
+        await expectConflict(swapParticipants(sony.id, guest.id, beforeTheEdition), dayHasGuesses(4));
+        await expectConflict(swapParticipants(guest.id, sony.id, beforeTheEdition), dayHasGuesses(4));
+        expect(await placementsAndGuesses()).toEqual(before);
+      });
+
+      it("keeps the message of a day that has opened when that day also has guesses", async () => {
+        const ana = await participationOn(3);
+        const [late] = await enrolGuests(7);
+        await putOnDay(late.id, 12);
+        await addGuess(3);
+        const before = await placementsAndGuesses();
+
+        // Day 12 has neither opened nor guesses on 10 December: the only locked day is the third.
+        await expectConflict(swapParticipants(ana.id, late.id, duringTheEdition), DAY_HAS_OPENED);
+        await expectConflict(swapParticipants(late.id, ana.id, duringTheEdition), DAY_HAS_OPENED);
+        expect(await placementsAndGuesses()).toEqual(before);
+      });
+
+      it.each([
+        { now: duringTheEdition, status: EditionStatus.PREPARING, when: "an edition in preparation" },
+        { now: beforeTheEdition, status: EditionStatus.ACTIVE, when: "an active edition before its dates" },
+      ])("swaps two days without guesses while another day of $when has them", async ({ now, status }) => {
+        await setEditionStatus(status);
+        const ana = await participationOn(3);
+        const sony = await participationOn(4);
+        await addGuess(5);
+        const before = await placementsAndGuesses();
+
+        const result = await swapParticipants(ana.id, sony.id, now);
+
+        expect(result[0].day?.dayNumber).toBe(4);
+        expect(result[1].day?.dayNumber).toBe(3);
+        const after = await placementsAndGuesses();
+        expect(after.days).toEqual(before.days);
+        expect(after.guesses).toEqual(before.guesses);
+        expect(after.participations).toEqual(withDays(before, { [ana.id]: sony.dayId, [sony.id]: ana.dayId }));
+      });
+
+      it("resolves with both as they were when neither holds a day, whatever the guesses around", async () => {
+        await setEditionStatus(EditionStatus.PREPARING);
+        const [first, second] = await enrolGuests(2);
+        await addGuess(3);
+        const before = await placementsAndGuesses();
+
+        const result = await swapParticipants(first.id, second.id, beforeTheEdition);
+
+        expect(result[0]).toMatchObject({ day: null, dayId: null, id: first.id });
+        expect(result[1]).toMatchObject({ day: null, dayId: null, id: second.id });
+        expect(await placementsAndGuesses()).toEqual(before);
+      });
+    });
+  });
+
+  describe("unenrolParticipant", () => {
+    const ENROLMENT_JUST_CHANGED = "Esa inscripción acaba de cambiar. Recarga la página y vuelve a intentarlo.";
+    const EDITION_ARCHIVED = "La edición 2025 está archivada.";
+    const holdsOpenedDay = (name: string, dayNumber: number) =>
+      `${name} tiene el día ${dayNumber}, que ya ha pasado o es hoy: su inscripción no se puede quitar.`;
+    const holdsDayWithGuesses = (name: string, dayNumber: number) =>
+      `${name} tiene el día ${dayNumber}, que ya tiene apuestas: su inscripción no se puede quitar.`;
+    const teaAlreadyUploaded = (name: string) => `${name} ya ha subido su té. Recarga la página y vuelve a intentarlo.`;
+
+    const teaData = {
+      addMilk: false,
+      canReinfuse: false,
+      hasTheine: true,
+      infusionTime: 3,
+      name: "Té de prueba",
+      temperature: 80,
+    };
+
+    // Who wins a race is a matter of timing, so each one is run a few times, with someone new every time.
+    const ROUNDS = 5;
+
+    /** Every row an unenrolment could reach, whole: what a refusal must leave as it was. */
+    async function everything() {
+      const [days, guesses, images, participations, stories, teas, users] = await Promise.all([
+        prisma.day.findMany({ orderBy: { id: "asc" } }),
+        prisma.teaGuess.findMany({ orderBy: { id: "asc" } }),
+        prisma.storyImage.findMany({ orderBy: { id: "asc" } }),
+        prisma.participation.findMany({ orderBy: { id: "asc" } }),
+        prisma.storyTea.findMany({ orderBy: { id: "asc" } }),
+        prisma.tea.findMany({ include: { ingredients: { orderBy: { id: "asc" } } }, orderBy: { id: "asc" } }),
+        prisma.user.findMany({ orderBy: { id: "asc" } }),
+      ]);
+      return { days, guesses, images, participations, stories, teas, users };
+    }
+
+    type Everything = Awaited<ReturnType<typeof everything>>;
+
+    /** `before` once the participation is gone, with its tea, story and images when it had them, and nothing else. */
+    function without(before: Everything, participationId: string): Everything {
+      const teaIds = before.teas.filter((tea) => tea.participationId === participationId).map((tea) => tea.id);
+      const storyIds = before.stories.filter((story) => teaIds.includes(story.teaId)).map((story) => story.id);
+      return {
+        ...before,
+        images: before.images.filter((image) => !storyIds.includes(image.storyTeaId)),
+        participations: before.participations.filter((participation) => participation.id !== participationId),
+        stories: before.stories.filter((story) => !storyIds.includes(story.id)),
+        teas: before.teas.filter((tea) => !teaIds.includes(tea.id)),
+      };
+    }
+
+    // A race may go through a day row without changing which day it is, so rows are compared by what they are.
+    function dayRows(from: Everything) {
+      return from.days.map(({ dayNumber, id, year }) => ({ dayNumber, id, year }));
+    }
+
+    async function teaWithStoryOf(participationId: string) {
+      return prisma.tea.findUniqueOrThrow({
+        include: { story: { include: { images: true } } },
+        where: { participationId },
+      });
+    }
+
+    function expectFulfilledOrConflict(result: PromiseSettledResult<unknown>) {
+      if (result.status === "rejected") {
+        expect(result.reason).toBeInstanceOf(ConflictError);
+      }
+    }
+
+    // A simulated failure that the call never reaches would otherwise break the reset of the next test.
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    describe("refusals", () => {
+      it("refuses an unknown participation as a conflict, whatever is said about the tea", async () => {
+        const before = await everything();
+
+        await expectConflict(
+          unenrolParticipant("no-such-participation", { deleteTea: false }, beforeTheEdition),
+          NO_LONGER_ENROLLED,
+        );
+        await expectConflict(
+          unenrolParticipant("no-such-participation", { deleteTea: true }, beforeTheEdition),
+          NO_LONGER_ENROLLED,
+        );
+        expect(await everything()).toEqual(before);
+      });
+
+      it("refuses everyone of an archived edition: with a day, with a tea or with neither", async () => {
+        const manager = await participationOn(1);
+        const ana = await participationOn(3);
+        const guest = await enrolGuest(2025, "Prima Lejana");
+        await setEditionStatus(EditionStatus.ARCHIVED);
+        const before = await everything();
+
+        await expectConflict(unenrolParticipant(guest.id, { deleteTea: false }, beforeTheEdition), EDITION_ARCHIVED);
+        await expectConflict(unenrolParticipant(ana.id, { deleteTea: false }, beforeTheEdition), EDITION_ARCHIVED);
+        await expectConflict(unenrolParticipant(manager.id, { deleteTea: true }, beforeTheEdition), EDITION_ARCHIVED);
+        expect(await everything()).toEqual(before);
+      });
+
+      it("says that the edition is archived before anything about the day, its guesses or the tea", async () => {
+        const manager = await participationOn(1);
+        await addGuess(1);
+        await setEditionStatus(EditionStatus.ARCHIVED);
+        const before = await everything();
+
+        // Every day of an archived edition has opened, this one has a guess and the tea is not to be deleted.
+        await expectConflict(unenrolParticipant(manager.id, { deleteTea: false }, duringTheEdition), EDITION_ARCHIVED);
+        expect(await everything()).toEqual(before);
+      });
+
+      it("names the year of the participation's own edition, and only that one counts", async () => {
+        await upsertEdition(2030, EditionStatus.PREPARING);
+        const [ghost] = await enrolGuests(1, 2030);
+        await setEditionStatus(EditionStatus.ARCHIVED, 2030);
+        const guest = await enrolGuest(2025, "Prima Lejana");
+        const before = await everything();
+
+        await expectConflict(
+          unenrolParticipant(ghost.id, { deleteTea: false }, beforeTheEdition),
+          "La edición 2030 está archivada.",
+        );
+        expect(await everything()).toEqual(before);
+
+        await unenrolParticipant(guest.id, { deleteTea: false }, beforeTheEdition);
+
+        expect(await everything()).toEqual(without(before, guest.id));
+      });
+
+      it.each([
+        { dayNumber: 3, name: "Ñita", who: "an account" },
+        { dayNumber: 2, name: "Anónimo", who: "a guest" },
+      ])("refuses $who whose day has opened and names them and the day", async ({ dayNumber, name }) => {
+        const holder = await participationOn(dayNumber);
+        const before = await everything();
+
+        await expectConflict(
+          unenrolParticipant(holder.id, { deleteTea: true }, duringTheEdition),
+          holdsOpenedDay(name, dayNumber),
+        );
+        expect(await everything()).toEqual(before);
+      });
+
+      it("calls the holder of an opened day 'Esa persona' when their account was deleted", async () => {
+        const ana = await participationOn(3);
+        await prisma.user.delete({ where: { id: ana.userId! } });
+        const before = await everything();
+
+        await expectConflict(
+          unenrolParticipant(ana.id, { deleteTea: false }, duringTheEdition),
+          holdsOpenedDay("Esa persona", 3),
+        );
+        expect(await everything()).toEqual(before);
+      });
+
+      it("refuses whoever holds the day that opens today and removes whoever holds tomorrow's", async () => {
+        const [today, tomorrow] = await enrolGuests(2);
+        await putOnDay(today.id, 10);
+        await putOnDay(tomorrow.id, 11);
+        const before = await everything();
+
+        await expectConflict(
+          unenrolParticipant(today.id, { deleteTea: false }, duringTheEdition),
+          holdsOpenedDay("Invitada 1", 10),
+        );
+        expect(await everything()).toEqual(before);
+
+        const result = await unenrolParticipant(tomorrow.id, { deleteTea: false }, duringTheEdition);
+
+        expect(result.participation.id).toBe(tomorrow.id);
+        expect(result.participation.day?.dayNumber).toBe(11);
+        expect(await everything()).toEqual(without(before, tomorrow.id));
+      });
+
+      it("says that the day has opened before anything about its guesses or the tea", async () => {
+        const manager = await participationOn(1);
+        await addGuess(1);
+        const before = await everything();
+
+        await expectConflict(
+          unenrolParticipant(manager.id, { deleteTea: false }, duringTheEdition),
+          holdsOpenedDay("Deinos", 1),
+        );
+        await expectConflict(
+          unenrolParticipant(manager.id, { deleteTea: true }, duringTheEdition),
+          holdsOpenedDay("Deinos", 1),
+        );
+        expect(await everything()).toEqual(before);
+      });
+
+      it.each([
+        { now: duringTheEdition, status: EditionStatus.PREPARING, when: "in an edition in preparation" },
+        { now: beforeTheEdition, status: EditionStatus.ACTIVE, when: "in an active edition before the day's date" },
+      ])("refuses someone whose day has not opened but has guesses, $when", async ({ now, status }) => {
+        await setEditionStatus(status);
+        const ana = await participationOn(3);
+        await addGuess(3);
+        const before = await everything();
+
+        await expectConflict(unenrolParticipant(ana.id, { deleteTea: false }, now), holdsDayWithGuesses("Ñita", 3));
+        await expectConflict(unenrolParticipant(ana.id, { deleteTea: true }, now), holdsDayWithGuesses("Ñita", 3));
+        expect(await everything()).toEqual(before);
+      });
+
+      it("refuses a guest whose day has guesses and names them and the day", async () => {
+        const guest = await participationOn(2);
+        await addGuess(2);
+        const before = await everything();
+
+        await expectConflict(
+          unenrolParticipant(guest.id, { deleteTea: true }, beforeTheEdition),
+          holdsDayWithGuesses("Anónimo", 2),
+        );
+        expect(await everything()).toEqual(before);
+      });
+
+      it("calls the holder of a day with guesses 'Esa persona' when their account was deleted", async () => {
+        const ana = await participationOn(3);
+        await prisma.user.delete({ where: { id: ana.userId! } });
+        // The guess is added after the account goes: deleting an account takes its own guesses with it.
+        await addGuess(3);
+        const before = await everything();
+
+        await expectConflict(
+          unenrolParticipant(ana.id, { deleteTea: false }, beforeTheEdition),
+          holdsDayWithGuesses("Esa persona", 3),
+        );
+        expect(await everything()).toEqual(before);
+      });
+
+      it("says that the day has guesses before saying that the tea is uploaded", async () => {
+        const manager = await participationOn(1);
+        await addGuess(1);
+        const before = await everything();
+
+        await expectConflict(
+          unenrolParticipant(manager.id, { deleteTea: false }, beforeTheEdition),
+          holdsDayWithGuesses("Deinos", 1),
+        );
+        expect(await everything()).toEqual(before);
+      });
+
+      it.each([
+        { dayNumber: 1, name: "Deinos", who: "an account" },
+        { dayNumber: 2, name: "Anónimo", who: "a guest" },
+      ])(
+        "refuses $who with a tea when it is not told to delete the tea, and names them",
+        async ({ dayNumber, name }) => {
+          const holder = await participationOn(dayNumber);
+          const before = await everything();
+
+          await expectConflict(
+            unenrolParticipant(holder.id, { deleteTea: false }, beforeTheEdition),
+            teaAlreadyUploaded(name),
+          );
+          expect(await everything()).toEqual(before);
+          expect(await prisma.tea.count({ where: { participationId: holder.id } })).toBe(1);
+        },
+      );
+
+      it.each([EditionStatus.PREPARING, EditionStatus.ACTIVE])(
+        "refuses someone with a tea and no day the same way, in an edition that is %s",
+        async (status) => {
+          await setEditionStatus(status);
+          const guest = await enrolGuest(2025, "Prima Lejana");
+          await addTea(teaData, [], guest.id);
+          const before = await everything();
+
+          await expectConflict(
+            unenrolParticipant(guest.id, { deleteTea: false }, duringTheEdition),
+            teaAlreadyUploaded("Prima Lejana"),
+          );
+          expect(await everything()).toEqual(before);
+        },
+      );
+
+      it("calls the owner of the tea 'Esa persona' when their account was deleted", async () => {
+        const manager = await participationOn(1);
+        await prisma.user.delete({ where: { id: manager.userId! } });
+        const before = await everything();
+
+        await expectConflict(
+          unenrolParticipant(manager.id, { deleteTea: false }, beforeTheEdition),
+          teaAlreadyUploaded("Esa persona"),
+        );
+        expect(await everything()).toEqual(before);
+      });
+    });
+
+    describe("removal", () => {
+      it.each([EditionStatus.PREPARING, EditionStatus.ACTIVE])(
+        "removes a guest with no day and no tea from an edition that is %s, whatever the date",
+        async (status) => {
+          await setEditionStatus(status);
+          const guest = await enrolGuest(2025, "Prima Lejana");
+          const before = await everything();
+
+          const result = await unenrolParticipant(guest.id, { deleteTea: false }, duringTheEdition);
+
+          expect(result.participation).toMatchObject({
+            day: null,
+            dayId: null,
+            guestName: "Prima Lejana",
+            id: guest.id,
+            tea: null,
+            user: null,
+            userId: null,
+            year: 2025,
+          });
+          expect(result.storyImagePublicIds).toEqual([]);
+          expect(await prisma.participation.findUnique({ where: { id: guest.id } })).toBeNull();
+          expect(await everything()).toEqual(without(before, guest.id));
+        },
+      );
+
+      it("removes an account with no day and no tea: the account itself stays", async () => {
+        const user = await userWithoutDay();
+        const enrolled = await enrolUser(2025, user.id);
+        const before = await everything();
+
+        const result = await unenrolParticipant(enrolled.id, { deleteTea: false }, duringTheEdition);
+
+        expect(result.participation).toMatchObject({
+          day: null,
+          guestName: null,
+          id: enrolled.id,
+          tea: null,
+          userId: user.id,
+          year: 2025,
+        });
+        expect(result.participation.user).toMatchObject({ id: user.id, username: user.username });
+        expect(result.storyImagePublicIds).toEqual([]);
+        expect(await prisma.participation.findUnique({ where: { id: enrolled.id } })).toBeNull();
+        expect(await prisma.user.findUnique({ where: { id: user.id } })).toEqual(user);
+        expect(await everything()).toEqual(without(before, enrolled.id));
+      });
+
+      it("removes someone who holds a day that has not opened: the day row stays, held by nobody", async () => {
+        const ana = await participationOn(3);
+        const three = await day(3);
+        const before = await everything();
+
+        const result = await unenrolParticipant(ana.id, { deleteTea: false }, beforeTheEdition);
+
+        expect(result.participation).toMatchObject({ dayId: three.id, id: ana.id, tea: null, userId: ana.userId });
+        expect(result.participation.day).toMatchObject({ dayNumber: 3, id: three.id, year: 2025 });
+        expect(result.participation.user).toMatchObject({ id: ana.userId, username: "Ñita" });
+        expect(result.storyImagePublicIds).toEqual([]);
+        expect(await prisma.participation.findUnique({ where: { id: ana.id } })).toBeNull();
+        expect(await prisma.day.findUnique({ where: { id: three.id } })).toMatchObject({ dayNumber: 3, year: 2025 });
+        expect(await prisma.participation.findUnique({ where: { dayId: three.id } })).toBeNull();
+        expect(await prisma.user.findUnique({ where: { id: ana.userId! } })).not.toBeNull();
+        // The other four keep their days and their teas, and no row of any other table is touched.
+        expect(await everything()).toEqual(without(before, ana.id));
+        expect(await prisma.participation.count({ where: { year: 2025 } })).toBe(4);
+        expect(await prisma.day.count({ where: { year: 2025 } })).toBe(5);
+        expect(await prisma.tea.count()).toBe(2);
+      });
+
+      it("removes a guest who holds a day in an edition in preparation, whatever the date", async () => {
+        await setEditionStatus(EditionStatus.PREPARING);
+        const [guest] = await enrolGuests(1);
+        const { dayId: six } = await putOnDay(guest.id, 6);
+        const before = await everything();
+
+        const result = await unenrolParticipant(guest.id, { deleteTea: false }, duringTheEdition);
+
+        expect(result.participation).toMatchObject({ dayId: six, guestName: "Invitada 1", id: guest.id, user: null });
+        expect(result.participation.day?.dayNumber).toBe(6);
+        expect(await prisma.participation.findUnique({ where: { dayId: six! } })).toBeNull();
+        expect(await everything()).toEqual(without(before, guest.id));
+      });
+
+      it("just removes the participation when told to delete a tea that is not there", async () => {
+        const ana = await participationOn(3);
+        const before = await everything();
+
+        const result = await unenrolParticipant(ana.id, { deleteTea: true }, beforeTheEdition);
+
+        expect(result.participation).toMatchObject({ id: ana.id, tea: null });
+        expect(result.storyImagePublicIds).toEqual([]);
+        expect(await everything()).toEqual(without(before, ana.id));
+        expect(await prisma.tea.count()).toBe(2);
+      });
+
+      it("deletes the tea of an account with its story and images, and hands back the images' public ids", async () => {
+        const manager = await participationOn(1);
+        const tea = await teaWithStoryOf(manager.id);
+        const publicIds = tea.story!.images.map((image) => image.publicId).toSorted();
+        expect(publicIds).toHaveLength(3);
+        const before = await everything();
+
+        const result = await unenrolParticipant(manager.id, { deleteTea: true }, beforeTheEdition);
+
+        expect(result.storyImagePublicIds.toSorted()).toEqual(publicIds);
+        expect(result.participation).toMatchObject({
+          dayId: manager.dayId,
+          guestName: null,
+          id: manager.id,
+          userId: manager.userId,
+          year: 2025,
+        });
+        expect(result.participation.day).toMatchObject({ dayNumber: 1, id: manager.dayId, year: 2025 });
+        expect(result.participation.tea).toMatchObject({ id: tea.id, name: "Ruta del desierto" });
+        expect(result.participation.user).toMatchObject({ id: manager.userId, username: "Deinos" });
+        expect(await prisma.participation.findUnique({ where: { id: manager.id } })).toBeNull();
+        expect(await prisma.tea.findUnique({ where: { id: tea.id } })).toBeNull();
+        expect(await prisma.storyTea.findUnique({ where: { id: tea.story!.id } })).toBeNull();
+        expect(await prisma.storyImage.count({ where: { storyTeaId: tea.story!.id } })).toBe(0);
+        // The other tea keeps its story and its image; day 1 stays, held by nobody; the account stays.
+        const after = await everything();
+        expect(after).toEqual(without(before, manager.id));
+        expect(after.teas.map((item) => item.name)).toEqual(["Pakistaní"]);
+        expect(after.stories).toHaveLength(1);
+        expect(after.images.map((image) => image.publicId)).toEqual(["samples/breakfast"]);
+        expect(await prisma.participation.findUnique({ where: { dayId: manager.dayId! } })).toBeNull();
+        expect(await prisma.user.findUnique({ where: { id: manager.userId! } })).not.toBeNull();
+      });
+
+      it("deletes the tea of a guest the same way", async () => {
+        const guest = await participationOn(2);
+        const tea = await teaWithStoryOf(guest.id);
+        const before = await everything();
+
+        const result = await unenrolParticipant(guest.id, { deleteTea: true }, beforeTheEdition);
+
+        expect(result.storyImagePublicIds).toEqual(["samples/breakfast"]);
+        expect(result.participation).toMatchObject({ guestName: "Anónimo", id: guest.id, user: null, userId: null });
+        expect(result.participation.day?.dayNumber).toBe(2);
+        expect(result.participation.tea).toMatchObject({ id: tea.id, name: "Pakistaní" });
+        const after = await everything();
+        expect(after).toEqual(without(before, guest.id));
+        expect(after.teas.map((item) => item.name)).toEqual(["Ruta del desierto"]);
+        expect(after.images).toHaveLength(3);
+      });
+
+      it("deletes the tea of someone without a day too", async () => {
+        const guest = await enrolGuest(2025, "Prima Lejana");
+        const tea = await addTea(teaData, [], guest.id);
+        const before = await everything();
+
+        const result = await unenrolParticipant(guest.id, { deleteTea: true }, duringTheEdition);
+
+        expect(result.participation).toMatchObject({ day: null, id: guest.id });
+        expect(result.participation.tea).toMatchObject({ id: tea.id, name: "Té de prueba" });
+        expect(result.storyImagePublicIds).toEqual([]);
+        expect(await prisma.tea.findUnique({ where: { id: tea.id } })).toBeNull();
+        expect(await everything()).toEqual(without(before, guest.id));
+      });
+
+      it("hands back no public ids for a tea without a story", async () => {
+        const ana = await participationOn(3);
+        const tea = await addTea(teaData, [], ana.id);
+        expect(await prisma.storyTea.count({ where: { teaId: tea.id } })).toBe(0);
+        const before = await everything();
+
+        const result = await unenrolParticipant(ana.id, { deleteTea: true }, beforeTheEdition);
+
+        expect(result.storyImagePublicIds).toEqual([]);
+        expect(result.participation.tea).toMatchObject({ id: tea.id });
+        expect(await prisma.tea.findUnique({ where: { id: tea.id } })).toBeNull();
+        expect(await everything()).toEqual(without(before, ana.id));
+      });
+
+      it("hands back no public ids for a story without images, and deletes the story", async () => {
+        const ana = await participationOn(3);
+        const tea = await addTea(teaData, [], ana.id);
+        const story = await prisma.storyTea.create({ data: { storyPart1: "Érase una vez", teaId: tea.id } });
+        const before = await everything();
+
+        const result = await unenrolParticipant(ana.id, { deleteTea: true }, beforeTheEdition);
+
+        expect(result.storyImagePublicIds).toEqual([]);
+        expect(await prisma.storyTea.findUnique({ where: { id: story.id } })).toBeNull();
+        expect(await prisma.tea.findUnique({ where: { id: tea.id } })).toBeNull();
+        expect(await everything()).toEqual(without(before, ana.id));
+      });
+
+      it("leaves every guess where it was: those of other days and those the person made", async () => {
+        const ana = await participationOn(3);
+        await prisma.teaGuess.create({ data: { dayId: (await day(4)).id, userId: ana.userId! } });
+        await addGuess(1);
+        const before = await everything();
+
+        await unenrolParticipant(ana.id, { deleteTea: false }, beforeTheEdition);
+
+        const after = await everything();
+        expect(after.guesses).toEqual(before.guesses);
+        expect(after.guesses).toHaveLength(2);
+      });
+
+      it("leaves the edition with one participant less: its last day drops by one", async () => {
+        const ana = await participationOn(3);
+        const guest = await enrolGuest(2025, "Prima Lejana");
+        expect((await getEditionInfo(2025)).lastDayNumber).toBe(6);
+
+        await unenrolParticipant(guest.id, { deleteTea: false }, beforeTheEdition);
+        expect((await getEditionInfo(2025)).lastDayNumber).toBe(5);
+
+        await unenrolParticipant(ana.id, { deleteTea: false }, beforeTheEdition);
+        expect((await getEditionInfo(2025)).lastDayNumber).toBe(4);
+      });
+
+      it("lets the same account be enrolled again afterwards, as a new participation without a day", async () => {
+        const ana = await participationOn(3);
+        await unenrolParticipant(ana.id, { deleteTea: false }, beforeTheEdition);
+
+        const again = await enrolUser(2025, ana.userId!);
+
+        expect(again.id).not.toBe(ana.id);
+        expect(again).toMatchObject({ dayId: null, userId: ana.userId, year: 2025 });
+        expect(await prisma.participation.count({ where: { userId: ana.userId, year: 2025 } })).toBe(1);
+        expect((await getEditionInfo(2025)).lastDayNumber).toBe(5);
+      });
+
+      it("removes from its own edition only and leaves the others alone", async () => {
+        await upsertEdition(2030, EditionStatus.PREPARING);
+        const [ghost, other] = await enrolGuests(2, 2030);
+        const before = await everything();
+
+        const result = await unenrolParticipant(ghost.id, { deleteTea: false }, beforeTheEdition);
+
+        expect(result.participation).toMatchObject({ id: ghost.id, year: 2030 });
+        expect(await everything()).toEqual(without(before, ghost.id));
+        expect(await prisma.participation.findMany({ select: { id: true }, where: { year: 2030 } })).toEqual([
+          { id: other.id },
+        ]);
+        expect((await getEditionInfo(2030)).lastDayNumber).toBe(1);
+        expect((await getEditionInfo(2025)).lastDayNumber).toBe(5);
+      });
+    });
+
+    describe("who is left outside the calendar", () => {
+      it("leaves nobody outside when the one removed held the last day", async () => {
+        const miko = await participationOn(5);
+
+        const result = await unenrolParticipant(miko.id, { deleteTea: false }, beforeTheEdition);
+
+        expect(result.holdersOutsideCalendar).toEqual([]);
+        expect(result.lastDayNumber).toBe(4);
+      });
+
+      it("leaves nobody outside when the one removed had no day and nobody holds the last one", async () => {
+        const guest = await enrolGuest(2025, "Prima Lejana");
+
+        const result = await unenrolParticipant(guest.id, { deleteTea: false }, beforeTheEdition);
+
+        expect(result.holdersOutsideCalendar).toEqual([]);
+        expect(result.lastDayNumber).toBe(5);
+      });
+
+      it("leaves the holder of the last day outside when someone without a day is removed", async () => {
+        const [waiting, last] = await enrolGuests(2);
+        await putOnDay(last.id, 7);
+
+        const result = await unenrolParticipant(waiting.id, { deleteTea: false }, beforeTheEdition);
+
+        expect(result.holdersOutsideCalendar).toEqual([{ dayNumber: 7, name: "Invitada 2" }]);
+        expect(result.lastDayNumber).toBe(6);
+      });
+
+      it("leaves the holder of the last day outside when the holder of a lower day is removed", async () => {
+        const ana = await participationOn(3);
+
+        const result = await unenrolParticipant(ana.id, { deleteTea: false }, beforeTheEdition);
+
+        expect(result.holdersOutsideCalendar).toEqual([{ dayNumber: 5, name: "mikoalilla" }]);
+        expect(result.lastDayNumber).toBe(4);
+      });
+
+      it("lists everyone left outside, lowest day first: accounts, guests and whoever has no name", async () => {
+        const [first, second, removed] = await enrolGuests(4);
+        const ana = await participationOn(3);
+        const sony = await participationOn(4);
+        const miko = await participationOn(5);
+        await prisma.user.delete({ where: { id: ana.userId! } });
+        // The rows are created out of order, so the order of the days is not the order of creation.
+        await putOnDay(ana.id, 10);
+        await putOnDay(first.id, 12);
+        await putOnDay(second.id, 9);
+        await putOnDay(miko.id, 11);
+        await putOnDay(sony.id, 8);
+
+        const result = await unenrolParticipant(removed.id, { deleteTea: false }, beforeTheEdition);
+
+        // Eight remain. Sony holds exactly the last day and the fourth guest holds none: neither is outside.
+        expect(result.lastDayNumber).toBe(8);
+        expect(result.lastDayNumber).toBe(await prisma.participation.count({ where: { year: 2025 } }));
+        expect(result.holdersOutsideCalendar).toEqual([
+          { dayNumber: 9, name: "Invitada 2" },
+          { dayNumber: 10, name: null },
+          { dayNumber: 11, name: "mikoalilla" },
+          { dayNumber: 12, name: "Invitada 1" },
+        ]);
+      });
+
+      it("does not list the one removed, whatever day they held", async () => {
+        const [stray] = await enrolGuests(1);
+        await putOnDay(stray.id, 20);
+
+        const result = await unenrolParticipant(stray.id, { deleteTea: false }, beforeTheEdition);
+
+        expect(result.holdersOutsideCalendar).toEqual([]);
+        expect(result.lastDayNumber).toBe(5);
+      });
+
+      it("gives the number of participants that remain, which is what the edition says afterwards", async () => {
+        const ana = await participationOn(3);
+        await enrolGuests(3);
+
+        const result = await unenrolParticipant(ana.id, { deleteTea: false }, beforeTheEdition);
+
+        expect(result.lastDayNumber).toBe(7);
+        expect(result.lastDayNumber).toBe((await getEditionInfo(2025)).lastDayNumber);
+        expect(result.holdersOutsideCalendar).toEqual([]);
+      });
+
+      it.each([
+        { holdsDay: true, which: "who held day 1" },
+        { holdsDay: false, which: "who had no day" },
+      ])("gives 0 and nobody outside when the last participant, $which, goes", async ({ holdsDay }) => {
+        await upsertEdition(2030, EditionStatus.PREPARING);
+        const [ghost] = await enrolGuests(1, 2030);
+        if (holdsDay) {
+          const row = await prisma.day.create({ data: { dayNumber: 1, year: 2030 } });
+          await prisma.participation.update({ data: { dayId: row.id }, where: { id: ghost.id } });
+        }
+
+        const result = await unenrolParticipant(ghost.id, { deleteTea: false }, beforeTheEdition);
+
+        expect(result.lastDayNumber).toBe(0);
+        expect(result.holdersOutsideCalendar).toEqual([]);
+        expect(await prisma.participation.count({ where: { year: 2030 } })).toBe(0);
+      });
+
+      it("keeps each edition to itself: the holders of higher days of another edition are not listed", async () => {
+        await upsertEdition(2030, EditionStatus.PREPARING);
+        const [low, high, waiting] = await enrolGuests(3, 2030);
+        for (const [guest, dayNumber] of [
+          [low, 1],
+          [high, 9],
+        ] as const) {
+          const row = await prisma.day.create({ data: { dayNumber, year: 2030 } });
+          await prisma.participation.update({ data: { dayId: row.id }, where: { id: guest.id } });
+        }
+        const ana = await participationOn(3);
+
+        const from2025 = await unenrolParticipant(ana.id, { deleteTea: false }, beforeTheEdition);
+        const from2030 = await unenrolParticipant(waiting.id, { deleteTea: false }, beforeTheEdition);
+
+        // Day 9 of 2030 is above the four days 2025 is left with, and days 4 and 5 of 2025 above the two of 2030.
+        expect(from2025.lastDayNumber).toBe(4);
+        expect(from2025.holdersOutsideCalendar).toEqual([{ dayNumber: 5, name: "mikoalilla" }]);
+        expect(from2030.lastDayNumber).toBe(2);
+        expect(from2030.holdersOutsideCalendar).toEqual([{ dayNumber: 9, name: "Invitada 2" }]);
+      });
+    });
+
+    describe("database clashes and races", () => {
+      it("deletes nothing when the participation cannot be deleted once its tea was: the tea comes back", async () => {
+        const manager = await participationOn(1);
+        const tea = await teaWithStoryOf(manager.id);
+        expect(tea.story!.images).toHaveLength(3);
+        const before = await everything();
+        const foreignKeyViolation = new Prisma.PrismaClientKnownRequestError("simulated foreign key violation", {
+          clientVersion: "test",
+          code: "P2003",
+        });
+        const teaWasGoneByThen: boolean[] = [];
+        type Work = (client: Prisma.TransactionClient) => Promise<unknown>;
+        const runTransaction = prisma.$transaction.bind(prisma) as unknown as (
+          work: Work,
+          ...rest: unknown[]
+        ) => Promise<unknown>;
+        // The real transaction, on a client whose participation delete fails the way the database does when
+        // a tea still points at the row. Everything before it, the tea delete included, has run for real.
+        vi.spyOn(prisma, "$transaction").mockImplementation(((work: unknown, ...rest: unknown[]) => {
+          if (typeof work !== "function") {
+            throw new Error("unenrolParticipant was expected to open an interactive transaction");
+          }
+          return runTransaction(
+            (client) => {
+              const participation = new Proxy(client.participation, {
+                get(delegate, method) {
+                  if (method !== "delete") {
+                    return Reflect.get(delegate, method);
+                  }
+                  return async () => {
+                    teaWasGoneByThen.push((await client.tea.findUnique({ where: { id: tea.id } })) === null);
+                    throw foreignKeyViolation;
+                  };
+                },
+              });
+              const failing = new Proxy(client, {
+                get(target, property) {
+                  return property === "participation" ? participation : Reflect.get(target, property);
+                },
+              });
+              return (work as Work)(failing);
+            },
+            ...rest,
+          );
+        }) as never);
+
+        await expectConflict(
+          unenrolParticipant(manager.id, { deleteTea: true }, beforeTheEdition),
+          ENROLMENT_JUST_CHANGED,
+        );
+
+        // Without this the tea delete would not have run before the failure, and nothing would be proved.
+        expect(teaWasGoneByThen).toEqual([true]);
+        vi.restoreAllMocks();
+        expect(await everything()).toEqual(before);
+        expect(await prisma.tea.findUnique({ where: { id: tea.id } })).not.toBeNull();
+        expect(await prisma.storyTea.findUnique({ where: { id: tea.story!.id } })).not.toBeNull();
+        expect(await prisma.storyImage.count({ where: { storyTeaId: tea.story!.id } })).toBe(3);
+        expect(await prisma.participation.findUnique({ where: { id: manager.id } })).not.toBeNull();
+      });
+
+      it.each([
+        { code: "P2025", message: NO_LONGER_ENROLLED, what: "is gone when the row disappears before the write" },
+        { code: "P2003", message: ENROLMENT_JUST_CHANGED, what: "has just changed when the delete hits a foreign key" },
+      ])("reports that the participation $what ($code)", async ({ code, message }) => {
+        const manager = await participationOn(1);
+        const before = await everything();
+        const transaction = failNextTransaction(code);
+
+        await expectConflict(unenrolParticipant(manager.id, { deleteTea: true }, beforeTheEdition), message);
+        // Without this the call could have answered before ever writing, and the clash would not be exercised.
+        expect(transaction).toHaveBeenCalled();
+        expect(await everything()).toEqual(before);
+      });
+
+      it("lets only one of two unenrolments of the same participation through", async () => {
+        for (let round = 0; round < ROUNDS; round++) {
+          const racer = await enrolGuest(2025, `Carrera ${round}`);
+          const before = await everything();
+
+          const results = await Promise.allSettled([
+            unenrolParticipant(racer.id, { deleteTea: false }, beforeTheEdition),
+            unenrolParticipant(racer.id, { deleteTea: false }, beforeTheEdition),
+          ]);
+
+          expect(results.map((result) => result.status).toSorted()).toEqual(["fulfilled", "rejected"]);
+          const [done, refused] = results[0].status === "fulfilled" ? results : results.toReversed();
+          if (done.status !== "fulfilled" || refused.status !== "rejected") {
+            throw new Error("one call was expected to succeed and the other to fail");
+          }
+          expect(refused.reason).toBeInstanceOf(ConflictError);
+          expect((refused.reason as ConflictError).message).toBe(NO_LONGER_ENROLLED);
+          expect(done.value.participation.id).toBe(racer.id);
+          expect(await everything()).toEqual(without(before, racer.id));
+        }
+      });
+
+      it("lets only one of two unenrolments through when there is a tea to delete, and deletes it once", async () => {
+        const manager = await participationOn(1);
+        const tea = await teaWithStoryOf(manager.id);
+        const publicIds = tea.story!.images.map((image) => image.publicId).toSorted();
+        const before = await everything();
+
+        const results = await Promise.allSettled([
+          unenrolParticipant(manager.id, { deleteTea: true }, beforeTheEdition),
+          unenrolParticipant(manager.id, { deleteTea: true }, beforeTheEdition),
+        ]);
+
+        expect(results.map((result) => result.status).toSorted()).toEqual(["fulfilled", "rejected"]);
+        const [done, refused] = results[0].status === "fulfilled" ? results : results.toReversed();
+        if (done.status !== "fulfilled" || refused.status !== "rejected") {
+          throw new Error("one call was expected to succeed and the other to fail");
+        }
+        expect(refused.reason).toBeInstanceOf(ConflictError);
+        expect((refused.reason as ConflictError).message).toBe(NO_LONGER_ENROLLED);
+        expect(done.value.storyImagePublicIds.toSorted()).toEqual(publicIds);
+        const after = await everything();
+        expect(after).toEqual(without(before, manager.id));
+        expect(after.teas.map((item) => item.name)).toEqual(["Pakistaní"]);
+      });
+
+      it.each([
+        { holdsDay: false, rowExists: true, target: "a free day" },
+        { holdsDay: false, rowExists: false, target: "a day whose row does not exist yet" },
+        { holdsDay: true, rowExists: true, target: "a free day, from the day they hold" },
+      ])(
+        "settles an unenrolment that races the placement of the same person on $target",
+        async ({ holdsDay, rowExists }) => {
+          // Two more people keep day 6 within the calendar whichever of the two calls gets in first.
+          await enrolGuests(2);
+          if (rowExists) {
+            await addFreeDay(6);
+          }
+
+          for (let round = 0; round < ROUNDS; round++) {
+            const racer = await enrolGuest(2025, `Carrera ${round}`);
+            if (holdsDay) {
+              await putOnDay(racer.id, 20 + round);
+            }
+            const before = await everything();
+
+            const [unenrolled, placed] = await Promise.allSettled([
+              unenrolParticipant(racer.id, { deleteTea: false }, beforeTheEdition),
+              placeParticipant(racer.id, 6, beforeTheEdition),
+            ]);
+
+            expectFulfilledOrConflict(unenrolled);
+            expectFulfilledOrConflict(placed);
+            const after = await everything();
+            // Gone whoever got in first, and nobody else moved: no day row is left pointing at the person.
+            expect(await prisma.participation.findUnique({ where: { id: racer.id } })).toBeNull();
+            expect(after.participations).toEqual(without(before, racer.id).participations);
+            // No day row was lost or renumbered, and the only one that may have appeared is the target's.
+            const known = new Set(before.days.map((row) => row.id));
+            expect(dayRows(after).filter((row) => known.has(row.id))).toEqual(dayRows(before));
+            const added = dayRows(after).filter((row) => !known.has(row.id));
+            expect(added.length).toBeLessThanOrEqual(1);
+            for (const row of added) {
+              expect(row).toMatchObject({ dayNumber: 6, year: 2025 });
+            }
+            const six = await getDayByDayNumber({ dayNumber: 6, year: 2025 });
+            if (placed.status === "fulfilled") {
+              expect(placed.value.id).toBe(racer.id);
+              expect(six).not.toBeNull();
+            }
+            if (six) {
+              expect(await prisma.participation.findUnique({ where: { dayId: six.id } })).toBeNull();
+            }
+            expect({ ...after, days: [], participations: [] }).toEqual({ ...before, days: [], participations: [] });
+          }
+        },
+      );
+
+      it.each([
+        { partner: "someone who holds a day", partnerHoldsDay: true },
+        { partner: "someone without a day", partnerHoldsDay: false },
+      ])("settles an unenrolment that races a swap of the same person with $partner", async ({ partnerHoldsDay }) => {
+        for (let round = 0; round < ROUNDS; round++) {
+          const racer = await enrolGuest(2025, `Carrera ${round}`);
+          const partner = await enrolGuest(2025, `Pareja ${round}`);
+          const { dayId: racerDay } = await putOnDay(racer.id, 20 + 2 * round);
+          const partnerDay = partnerHoldsDay ? (await putOnDay(partner.id, 21 + 2 * round)).dayId : null;
+          const before = await everything();
+
+          const [unenrolled, swapped] = await Promise.allSettled([
+            unenrolParticipant(racer.id, { deleteTea: false }, beforeTheEdition),
+            swapParticipants(racer.id, partner.id, beforeTheEdition),
+          ]);
+
+          expectFulfilledOrConflict(unenrolled);
+          expectFulfilledOrConflict(swapped);
+          const after = await everything();
+          expect(await prisma.participation.findUnique({ where: { id: racer.id } })).toBeNull();
+          // The swap was either done whole before the person left or not done at all: the partner is on
+          // one of the two days, the other one is held by nobody and no row points at the person who left.
+          const partnerEndsOn = swapped.status === "fulfilled" ? racerDay : partnerDay;
+          expect(after.participations.map(({ dayId, id }) => ({ dayId, id }))).toEqual(
+            without(before, racer.id).participations.map(({ dayId, id }) => ({
+              dayId: id === partner.id ? partnerEndsOn : dayId,
+              id,
+            })),
+          );
+          expect(dayRows(after)).toEqual(dayRows(before));
+          expect({ ...after, days: [], participations: [] }).toEqual({ ...before, days: [], participations: [] });
+        }
+      });
+
+      it("never removes someone whose tea arrives during the unenrolment when the tea is to be kept", async () => {
+        for (let round = 0; round < ROUNDS; round++) {
+          const racer = await enrolGuest(2025, `Carrera ${round}`);
+          const before = await everything();
+
+          const [unenrolled, uploaded] = await Promise.allSettled([
+            unenrolParticipant(racer.id, { deleteTea: false }, beforeTheEdition),
+            addTea(teaData, [], racer.id),
+          ]);
+
+          // One of the two gives way: a tea cannot outlive its participation, and nobody asked to delete it.
+          expect([unenrolled.status, uploaded.status].toSorted()).toEqual(["fulfilled", "rejected"]);
+          const after = await everything();
+          if (unenrolled.status === "rejected") {
+            expect(unenrolled.reason).toBeInstanceOf(ConflictError);
+            expect([teaAlreadyUploaded(`Carrera ${round}`), ENROLMENT_JUST_CHANGED]).toContain(
+              (unenrolled.reason as ConflictError).message,
+            );
+            expect(after.participations).toEqual(before.participations);
+            expect(after.teas.filter((tea) => tea.participationId === racer.id)).toHaveLength(1);
+          } else {
+            expect(after).toEqual(without(before, racer.id));
+          }
+        }
+      });
+    });
+  });
+
+  describe("guesses lock the day of their own edition only", () => {
+    const now = duringTheEdition;
+    const DIRECTIONS = [
+      { free: 2030, guessed: 2025 },
+      { free: 2025, guessed: 2030 },
+    ];
+
+    // Two editions in preparation with the same shape: days 1 to 5 held and one more person without a day.
+    async function twoEditionsInPreparation() {
+      await setEditionStatus(EditionStatus.PREPARING);
+      await enrolGuest(2025, "Prima Lejana");
+      await upsertEdition(2030, EditionStatus.PREPARING);
+      const guests = await enrolGuests(6, 2030);
+      for (const [index, guest] of guests.slice(0, 5).entries()) {
+        const row = await prisma.day.create({ data: { dayNumber: index + 1, year: 2030 } });
+        await prisma.participation.update({ data: { dayId: row.id }, where: { id: guest.id } });
+      }
+    }
+
+    async function holderOf(dayNumber: number, year: number) {
+      return prisma.participation.findFirstOrThrow({ include: { user: true }, where: { day: { dayNumber, year } } });
+    }
+
+    async function someoneWithoutDay(year: number) {
+      return prisma.participation.findFirstOrThrow({ where: { dayId: null, year } });
+    }
+
+    async function dayIdOf(participationId: string) {
+      return (await prisma.participation.findUniqueOrThrow({ where: { id: participationId } })).dayId;
+    }
+
+    it.each(DIRECTIONS)(
+      "placeParticipant moves people off and onto day 3 of $free while the guess is on day 3 of $guessed, which stays locked",
+      async ({ free, guessed }) => {
+        await twoEditionsInPreparation();
+        await addGuess(3, guessed);
+        const mover = await holderOf(3, free);
+        const waiting = await someoneWithoutDay(free);
+        const locked = await holderOf(3, guessed);
+        const lockedOut = await someoneWithoutDay(guessed);
+
+        const moved = await placeParticipant(mover.id, 6, now);
+        const placed = await placeParticipant(waiting.id, 3, now);
+
+        expect(moved.day).toMatchObject({ dayNumber: 6, year: free });
+        expect(placed.day).toMatchObject({ dayNumber: 3, year: free });
+        expect(placed.dayId).toBe(mover.dayId);
+        expect((await holderOf(3, free)).id).toBe(waiting.id);
+        await expectConflict(placeParticipant(locked.id, 6, now), dayHasGuesses(3));
+        await expectConflict(placeParticipant(lockedOut.id, 3, now), dayHasGuesses(3));
+        expect((await holderOf(3, guessed)).id).toBe(locked.id);
+        expect(await dayIdOf(lockedOut.id)).toBeNull();
+        expect(await prisma.teaGuess.count()).toBe(1);
+      },
+    );
+
+    it.each(DIRECTIONS)(
+      "unplaceParticipant frees day 3 of $free while the guess is on day 3 of $guessed, which stays locked",
+      async ({ free, guessed }) => {
+        await twoEditionsInPreparation();
+        await addGuess(3, guessed);
+        const mover = await holderOf(3, free);
+        const locked = await holderOf(3, guessed);
+
+        const result = await unplaceParticipant(mover.id, now);
+
+        expect(result).toMatchObject({ day: null, dayId: null, id: mover.id });
+        expect(await dayIdOf(mover.id)).toBeNull();
+        await expectConflict(unplaceParticipant(locked.id, now), dayHasGuesses(3));
+        expect(await dayIdOf(locked.id)).toBe(locked.dayId);
+      },
+    );
+
+    it.each(DIRECTIONS)(
+      "swapParticipants swaps day 3 of $free while the guess is on day 3 of $guessed, which stays locked",
+      async ({ free, guessed }) => {
+        await twoEditionsInPreparation();
+        await addGuess(3, guessed);
+        const mover = await holderOf(3, free);
+        const partner = await holderOf(4, free);
+        const locked = await holderOf(3, guessed);
+        const lockedPartner = await holderOf(4, guessed);
+
+        const result = await swapParticipants(mover.id, partner.id, now);
+
+        expect(result[0].day).toMatchObject({ dayNumber: 4, year: free });
+        expect(result[1].day).toMatchObject({ dayNumber: 3, year: free });
+        expect(await dayIdOf(mover.id)).toBe(partner.dayId);
+        expect(await dayIdOf(partner.id)).toBe(mover.dayId);
+        await expectConflict(swapParticipants(locked.id, lockedPartner.id, now), dayHasGuesses(3));
+        await expectConflict(swapParticipants(lockedPartner.id, locked.id, now), dayHasGuesses(3));
+        expect(await dayIdOf(locked.id)).toBe(locked.dayId);
+        expect(await dayIdOf(lockedPartner.id)).toBe(lockedPartner.dayId);
+      },
+    );
+
+    it.each(DIRECTIONS)(
+      "unenrolParticipant removes the holder of day 3 of $free while the guess is on day 3 of $guessed, whose holder stays",
+      async ({ free, guessed }) => {
+        await twoEditionsInPreparation();
+        await addGuess(3, guessed);
+        const mover = await holderOf(3, free);
+        const locked = await holderOf(3, guessed);
+        const lockedName = locked.user?.username ?? locked.guestName;
+
+        const result = await unenrolParticipant(mover.id, { deleteTea: false }, now);
+
+        expect(result.participation.id).toBe(mover.id);
+        expect(await prisma.participation.findUnique({ where: { id: mover.id } })).toBeNull();
+        await expectConflict(
+          unenrolParticipant(locked.id, { deleteTea: false }, now),
+          `${lockedName} tiene el día 3, que ya tiene apuestas: su inscripción no se puede quitar.`,
+        );
+        expect(await dayIdOf(locked.id)).toBe(locked.dayId);
+        expect(await prisma.teaGuess.count()).toBe(1);
+      },
+    );
   });
 
   describe("enrolUser", () => {

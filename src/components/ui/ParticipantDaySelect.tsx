@@ -12,8 +12,8 @@ export interface CalendarDayOption {
   dayNumber: number;
   /** Who holds the day, if anyone. */
   holder: null | { name: string; participationId: string };
-  /** A day that has already opened cannot change hands. */
-  isReleased: boolean;
+  /** A day that has opened or has guesses cannot change hands. */
+  isLocked: boolean;
 }
 
 interface ParticipantDaySelectProps {
@@ -21,7 +21,7 @@ interface ParticipantDaySelectProps {
   dayNumber: null | number;
   /** The edition's calendar, days 1..N in order. */
   days: Array<CalendarDayOption>;
-  isOwnDayReleased: boolean;
+  isOwnDayLocked: boolean;
   name: string;
   participationId: string;
 }
@@ -33,7 +33,7 @@ const NO_DAY = "";
 export default function ParticipantDaySelect({
   dayNumber,
   days,
-  isOwnDayReleased,
+  isOwnDayLocked,
   name,
   participationId,
 }: ParticipantDaySelectProps) {
@@ -84,13 +84,13 @@ export default function ParticipantDaySelect({
       <select
         aria-label={`Día de ${name}`}
         className="select select-sm w-22"
-        disabled={isPending || isOwnDayReleased}
+        disabled={isPending || isOwnDayLocked}
         onChange={onChange}
         value={dayNumber === null ? NO_DAY : String(dayNumber)}
       >
         <option value={NO_DAY}>Sin día</option>
         {days.map((day) => (
-          <option disabled={day.isReleased} key={day.dayNumber} value={day.dayNumber}>
+          <option disabled={day.isLocked} key={day.dayNumber} value={day.dayNumber}>
             {day.holder && day.holder.participationId !== participationId
               ? `${day.dayNumber} · ${day.holder.name}`
               : day.dayNumber}

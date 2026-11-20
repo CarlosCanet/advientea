@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { EditionStatus, Role } from "@/generated/prisma/enums";
+import { deleteAsset } from "@/lib/cloudinary";
 import {
   changeEditionStatus,
   createEdition,
@@ -13,6 +14,7 @@ import {
   placeParticipant,
   requireRole,
   swapParticipants,
+  unenrolParticipant,
   unplaceParticipant,
 } from "@/lib/dal";
 import { ConflictError, ForbiddenError, UnauthenticatedError } from "@/lib/errors";
@@ -24,6 +26,7 @@ import {
   enrolUserSchema,
   placeParticipantSchema,
   swapParticipantsSchema,
+  unenrolParticipantSchema,
 } from "@/lib/schemas/edition";
 import { ActionResponse, EditionActionResponse, EditionFormData } from "@/lib/types";
 import { EDITION_STATUS_LABELS, toParticipantName } from "@/lib/utils";
@@ -142,6 +145,15 @@ export async function enrolGuestAction(year: number, name: string): Promise<Acti
 }
 
 const UNNAMED_PARTICIPANT = "Esa persona";
+const DELETED_ACCOUNT_HOLDER = "una cuenta borrada";
+
+/** "A", "A y B", "A, B y C". */
+function toSpanishList(items: Array<string>): string {
+  if (items.length <= 1) {
+    return items.join("");
+  }
+  return `${items.slice(0, -1).join(", ")} y ${items[items.length - 1]}`;
+}
 
 export async function placeParticipantAction(
   participationId: string,
@@ -207,5 +219,44 @@ export async function deleteDayAction(dayId: string): Promise<ActionResponse> {
     return { message: `Día ${day.dayNumber} borrado.`, success: true };
   } catch (error: unknown) {
     return failure("deleteDayAction", error, "No se pudo borrar el día. Inténtalo de nuevo.");
+  }
+}
+
+export async function unenrolParticipantAction(participationId: string, deleteTea: boolean): Promise<ActionResponse> {
+  try {
+    await requireRole(Role.ADMIN, Role.EXECUTEAVE);
+    const validatedFields = unenrolParticipantSchema.safeParse({ deleteTea, participationId });
+    if (!validatedFields.success) {
+      return { message: "La inscripción no es válida.", success: false };
+    }
+    const { holdersOutsideCalendar, lastDayNumber, participation, storyImagePublicIds } = await unenrolParticipant(
+      validatedFields.data.participationId,
+      { deleteTea: validatedFields.data.deleteTea },
+    );
+    revalidatePath(`/editions/${participation.year}`);
+
+    // Best effort, after the transaction has committed: the participation is gone whatever happens to its assets.
+    const deletions = await Promise.allSettled(storyImagePublicIds.map(async (publicId) => deleteAsset(publicId)));
+    deletions.forEach((deletion, index) => {
+      if (deletion.status === "rejected") {
+        console.error(`[unenrolParticipantAction] asset ${storyImagePublicIds[index]} not deleted`, deletion.reason);
+      } else if (deletion.value === undefined) {
+        console.error(`[unenrolParticipantAction] asset ${storyImagePublicIds[index]} not deleted`);
+      }
+    });
+
+    const name = toParticipantName(participation) ?? UNNAMED_PARTICIPANT;
+    const gone = `${name} ya no está en la edición ${participation.year}`;
+    const sentences = [participation.tea ? `${gone} y su té «${participation.tea.name}» se ha borrado.` : `${gone}.`];
+    if (holdersOutsideCalendar.length > 0) {
+      const holders = toSpanishList(
+        holdersOutsideCalendar.map((holder) => `${holder.name ?? DELETED_ACCOUNT_HOLDER} (día ${holder.dayNumber})`),
+      );
+      const stay = holdersOutsideCalendar.length === 1 ? "se queda fuera" : "se quedan fuera";
+      sentences.push(`El calendario acaba ahora en el día ${lastDayNumber}: ${holders} ${stay}.`);
+    }
+    return { message: sentences.join(" "), success: true };
+  } catch (error: unknown) {
+    return failure("unenrolParticipantAction", error, "No se pudo quitar la inscripción. Inténtalo de nuevo.");
   }
 }

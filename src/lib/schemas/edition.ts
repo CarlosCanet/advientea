@@ -56,3 +56,8 @@ export const swapParticipantsSchema = z
 export const deleteDaySchema = z.object({
   dayId: z.string().min(1),
 });
+
+export const unenrolParticipantSchema = z.object({
+  deleteTea: z.boolean(),
+  participationId: z.string().min(1),
+});

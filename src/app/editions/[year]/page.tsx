@@ -6,6 +6,7 @@ import DeleteDayButton from "@/components/ui/DeleteDayButton";
 import EnrolGuestForm from "@/components/ui/EnrolGuestForm";
 import EnrolUserForm from "@/components/ui/EnrolUserForm";
 import ParticipantDaySelect, { CalendarDayOption } from "@/components/ui/ParticipantDaySelect";
+import UnenrolParticipantButton from "@/components/ui/UnenrolParticipantButton";
 import { EditionStatus, Role } from "@/generated/prisma/enums";
 import { canEditTea, getDaySchedule } from "@/lib/advientea-rules";
 import { getNow } from "@/lib/advientea-time";
@@ -80,6 +81,12 @@ export default async function EditionPage({ params }: { params: Promise<{ year: 
   ]);
   const now = getNow();
 
+  // A day that has opened or has guesses cannot change hands, and whoever holds it cannot be removed.
+  const guessCounts = new Map(days.map((day) => [day.dayNumber, day._count.guesses]));
+  const isDayLocked = (dayNumber: number) =>
+    getDaySchedule(dayNumber, editionInfo, now).isReleased || (guessCounts.get(dayNumber) ?? 0) > 0;
+  const acceptsEnrolments = edition.status !== EditionStatus.ARCHIVED;
+
   const issueLines = toIssueLines(
     findEditionIssues(
       days,
@@ -97,16 +104,18 @@ export default async function EditionPage({ params }: { params: Promise<{ year: 
   const rows = participations
     .map((participation) => {
       const dayNumber = participation.day?.dayNumber ?? null;
+      const isOwnDayLocked = dayNumber !== null && isDayLocked(dayNumber);
       return {
         canEditTea: canEditTea(session.user.role, {
           editionStatus: edition.status,
           isOwn: participation.userId === session.user.id,
         }),
+        canUnenrol: acceptsEnrolments && !isOwnDayLocked,
         dayId: participation.day?.id ?? null,
         dayNumber,
         id: participation.id,
         isGuest: participation.userId === null && participation.guestName !== null,
-        isOwnDayReleased: dayNumber !== null && getDaySchedule(dayNumber, editionInfo, now).isReleased,
+        isOwnDayLocked,
         name: toParticipantName(participation) ?? DELETED_ACCOUNT,
         tea: participation.tea,
       };
@@ -131,7 +140,7 @@ export default async function EditionPage({ params }: { params: Promise<{ year: 
   const calendarDays: Array<CalendarDayOption> = Array.from({ length: participations.length }, (_, index) => ({
     dayNumber: index + 1,
     holder: holders.get(index + 1) ?? null,
-    isReleased: getDaySchedule(index + 1, editionInfo, now).isReleased,
+    isLocked: isDayLocked(index + 1),
   }));
 
   // Day rows that nobody holds. Only an admin deletes them, so nobody else is shown them.
@@ -150,7 +159,6 @@ export default async function EditionPage({ params }: { params: Promise<{ year: 
 
   const enrolledUserIds = new Set(participations.map((participation) => participation.userId));
   const usersNotEnrolled = users.filter((user) => !enrolledUserIds.has(user.id));
-  const acceptsEnrolments = edition.status !== EditionStatus.ARCHIVED;
 
   return (
     <div className="flex justify-center">
@@ -199,6 +207,9 @@ export default async function EditionPage({ params }: { params: Promise<{ year: 
                     <th className="w-1 px-1">
                       <span className="sr-only">Ver el día</span>
                     </th>
+                    <th className="w-1 px-1">
+                      <span className="sr-only">Quitar</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -208,7 +219,7 @@ export default async function EditionPage({ params }: { params: Promise<{ year: 
                         <ParticipantDaySelect
                           dayNumber={row.dayNumber}
                           days={calendarDays}
-                          isOwnDayReleased={row.isOwnDayReleased}
+                          isOwnDayLocked={row.isOwnDayLocked}
                           name={row.name}
                           participationId={row.id}
                         />
@@ -237,6 +248,15 @@ export default async function EditionPage({ params }: { params: Promise<{ year: 
                           >
                             Ver
                           </Link>
+                        )}
+                      </td>
+                      <td className="px-1">
+                        {row.canUnenrol && (
+                          <UnenrolParticipantButton
+                            name={row.name}
+                            participationId={row.id}
+                            teaName={row.tea?.name ?? null}
+                          />
                         )}
                       </td>
                     </tr>

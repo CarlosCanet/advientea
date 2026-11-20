@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 
 import { EditionStatus, Participation, Prisma } from "@/generated/prisma/client";
-import { getDaySchedule } from "@/lib/advientea-rules";
+import { EditionInfo, getDaySchedule } from "@/lib/advientea-rules";
 import { getNow } from "@/lib/advientea-time";
 import { ConflictError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
@@ -86,11 +86,39 @@ export async function getParticipationsForEdition(year: number): Promise<Array<P
   });
 }
 
-// Only a day that has not opened yet can change hands: no guess can exist on it.
-async function assertDayCanChange(dayNumber: number, year: number, now: Date): Promise<void> {
-  const edition = await getEditionInfo(year);
+// Not invalid input: a manager with a stale page asks about someone another manager has just removed.
+const PARTICIPATION_GONE = "Esa inscripción ya no existe.";
+
+type DayLock = "guesses" | "opened";
+
+// The guesses of a day were scored against the tea and author it had, so they lock it whatever the edition
+// status: an edition moved back to PREPARING counts no day as opened, and its guesses are still there.
+async function getDayLock(
+  tx: Prisma.TransactionClient,
+  dayNumber: number,
+  edition: EditionInfo,
+  now: Date,
+): Promise<DayLock | null> {
   if (getDaySchedule(dayNumber, edition, now).isReleased) {
+    return "opened";
+  }
+  const guessCount = await tx.teaGuess.count({ where: { day: { dayNumber, year: edition.year } } });
+  return guessCount > 0 ? "guesses" : null;
+}
+
+// A locked day cannot change hands: it has opened, or it has guesses.
+async function assertDayCanChange(
+  tx: Prisma.TransactionClient,
+  dayNumber: number,
+  year: number,
+  now: Date,
+): Promise<void> {
+  const lock = await getDayLock(tx, dayNumber, await getEditionInfo(year), now);
+  if (lock === "opened") {
     throw new ConflictError("Ese día ya ha pasado o es hoy y no se puede cambiar.");
+  }
+  if (lock === "guesses") {
+    throw new ConflictError(`El día ${dayNumber} ya tiene apuestas y no se puede cambiar.`);
   }
 }
 
@@ -118,12 +146,12 @@ export async function assignDay(
       if (samePerson) {
         return tx.participation.findUniqueOrThrow({ include: { day: true, user: true }, where: { id: current.id } });
       }
-      await assertDayCanChange(dayRecord.dayNumber, dayRecord.year, now);
+      await assertDayCanChange(tx, dayRecord.dayNumber, dayRecord.year, now);
       // Never replace in silence: the manager frees the day first (S3.3 offers swap or unassign).
       const holder = toParticipantName(current) ?? "otra persona";
       throw new ConflictError(`Ese día ya tiene asignada a ${holder}. Libéralo antes de asignar a otra persona.`);
     }
-    await assertDayCanChange(dayRecord.dayNumber, dayRecord.year, now);
+    await assertDayCanChange(tx, dayRecord.dayNumber, dayRecord.year, now);
 
     if ("guestName" in assignee) {
       return tx.participation.create({
@@ -181,15 +209,15 @@ export async function placeParticipant(
         where: { id: participationId },
       });
       if (!participation) {
-        throw new Error(`The participation with id ${participationId} does not exist.`);
+        throw new ConflictError(PARTICIPATION_GONE);
       }
       const { year } = participation;
-      // Asking for the day already held changes nothing, so it is fine even once that day has opened.
+      // Asking for the day already held changes nothing, so it is fine even when that day is locked.
       if (participation.day?.dayNumber === dayNumber) {
         return participation;
       }
       if (participation.day) {
-        await assertDayCanChange(participation.day.dayNumber, year, now);
+        await assertDayCanChange(tx, participation.day.dayNumber, year, now);
       }
 
       const participantCount = await tx.participation.count({ where: { year } });
@@ -198,7 +226,7 @@ export async function placeParticipant(
           `La edición ${year} tiene ${participantCount} participantes: elige un día entre 1 y ${participantCount}.`,
         );
       }
-      await assertDayCanChange(dayNumber, year, now);
+      await assertDayCanChange(tx, dayNumber, year, now);
 
       const dayRecord = await tx.day.findUnique({
         include: { participation: { include: { user: true } } },
@@ -257,12 +285,12 @@ export async function unplaceParticipant(
         where: { id: participationId },
       });
       if (!participation) {
-        throw new Error(`The participation with id ${participationId} does not exist.`);
+        throw new ConflictError(PARTICIPATION_GONE);
       }
       if (!participation.day) {
         return participation;
       }
-      await assertDayCanChange(participation.day.dayNumber, participation.year, now);
+      await assertDayCanChange(tx, participation.day.dayNumber, participation.year, now);
       return tx.participation.update({
         data: { dayId: null },
         include: { day: true, user: true },
@@ -309,11 +337,8 @@ export async function swapParticipants(
       });
       const first = participations.find((participation) => participation.id === firstParticipationId);
       const second = participations.find((participation) => participation.id === secondParticipationId);
-      if (!first) {
-        throw new Error(`The participation with id ${firstParticipationId} does not exist.`);
-      }
-      if (!second) {
-        throw new Error(`The participation with id ${secondParticipationId} does not exist.`);
+      if (!first || !second) {
+        throw new ConflictError(PARTICIPATION_GONE);
       }
       if (first.year !== second.year) {
         throw new Error("The participations belong to different editions.");
@@ -323,7 +348,7 @@ export async function swapParticipants(
       }
       for (const day of [first.day, second.day]) {
         if (day) {
-          await assertDayCanChange(day.dayNumber, first.year, now);
+          await assertDayCanChange(tx, day.dayNumber, first.year, now);
         }
       }
 
@@ -431,6 +456,106 @@ export async function enrolGuest(year: number, name: string): Promise<Participat
     // The edition can be deleted between the check and the write.
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003") {
       throw new ConflictError(`La edición ${year} ya no existe.`);
+    }
+    throw error;
+  }
+}
+
+export type Unenrolment = {
+  /** Participants of the edition who now hold a day above its last day, lowest day first. */
+  holdersOutsideCalendar: Array<{ dayNumber: number; name: null | string }>;
+  /** The edition's last day once the participation is gone: its number of participants. */
+  lastDayNumber: number;
+  participation: ParticipationWithDayAndTeaAndUser;
+  /** Cloudinary assets of the deleted tea's story, for the caller to delete once this has committed. */
+  storyImagePublicIds: Array<string>;
+};
+
+/**
+ * Takes a participation out of its edition, with its tea when the caller has confirmed that. The Day row it
+ * held stays, held by nobody, and the edition has one day less: whoever holds a day above the new last one
+ * stays on it, outside the calendar, and is reported. Returns the participation as it was.
+ */
+export async function unenrolParticipant(
+  participationId: string,
+  options: { deleteTea: boolean },
+  now: Date = getNow(),
+): Promise<Unenrolment> {
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const participation = await tx.participation.findUnique({
+        include: { day: true, user: true },
+        where: { id: participationId },
+      });
+      if (!participation) {
+        throw new ConflictError(PARTICIPATION_GONE);
+      }
+      // The tea is read apart: with three relations in one include, Prisma queries them at once on the
+      // transaction's single connection, which pg deprecates and will refuse in pg@9.
+      const tea = await tx.tea.findUnique({ where: { participationId: participation.id } });
+      const { day, year } = participation;
+      const edition = await getEditionInfo(year);
+      if (edition.status === EditionStatus.ARCHIVED) {
+        throw new ConflictError(`La edición ${year} está archivada.`);
+      }
+      const name = toParticipantName(participation) ?? "Esa persona";
+      if (day) {
+        const lock = await getDayLock(tx, day.dayNumber, edition, now);
+        if (lock === "opened") {
+          throw new ConflictError(
+            `${name} tiene el día ${day.dayNumber}, que ya ha pasado o es hoy: su inscripción no se puede quitar.`,
+          );
+        }
+        if (lock === "guesses") {
+          throw new ConflictError(
+            `${name} tiene el día ${day.dayNumber}, que ya tiene apuestas: su inscripción no se puede quitar.`,
+          );
+        }
+      }
+      // A tea is only deleted after an explicit confirmation: without it, the manager's page was stale.
+      if (tea && !options.deleteTea) {
+        throw new ConflictError(`${name} ya ha subido su té. Recarga la página y vuelve a intentarlo.`);
+      }
+
+      let storyImagePublicIds: Array<string> = [];
+      if (tea) {
+        const images = await tx.storyImage.findMany({
+          orderBy: { order: "asc" },
+          select: { publicId: true },
+          where: { story: { teaId: tea.id } },
+        });
+        storyImagePublicIds = images.map((image) => image.publicId);
+        await tx.tea.delete({ where: { id: tea.id } });
+      }
+      await tx.participation.delete({ where: { id: participation.id } });
+
+      const lastDayNumber = await tx.participation.count({ where: { year } });
+      const daysOutsideCalendar = await tx.day.findMany({
+        orderBy: { dayNumber: "asc" },
+        select: {
+          dayNumber: true,
+          participation: { select: { guestName: true, user: { select: { username: true } } } },
+        },
+        where: { dayNumber: { gt: lastDayNumber }, participation: { isNot: null }, year },
+      });
+      const holdersOutsideCalendar = daysOutsideCalendar.flatMap((dayOutside) =>
+        dayOutside.participation
+          ? [{ dayNumber: dayOutside.dayNumber, name: toParticipantName(dayOutside.participation) }]
+          : [],
+      );
+      return { holdersOutsideCalendar, lastDayNumber, participation: { ...participation, tea }, storyImagePublicIds };
+    });
+  } catch (error) {
+    if (!(error instanceof Prisma.PrismaClientKnownRequestError)) {
+      throw error;
+    }
+    // Someone else deleted it between the checks and the write.
+    if (error.code === "P2025") {
+      throw new ConflictError(PARTICIPATION_GONE);
+    }
+    // A tea created for it between the checks and the write: Tea.participationId restricts the deletion.
+    if (error.code === "P2003") {
+      throw new ConflictError("Esa inscripción acaba de cambiar. Recarga la página y vuelve a intentarlo.");
     }
     throw error;
   }
