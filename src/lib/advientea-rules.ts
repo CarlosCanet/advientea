@@ -17,13 +17,18 @@ export type EditionInfo = {
   year: number;
 };
 
-const HOURS = {
+export const HOURS = {
   NAME: 20,
   PART1: 7,
   PART2: 13,
   PART3: 18,
   TEA: 20,
-};
+} as const;
+
+/** A reveal hour as the calendar shows it: 7 is "07:00". */
+export function toHourLabel(hour: number): string {
+  return `${String(hour).padStart(2, "0")}:00`;
+}
 
 function allFlags(value: boolean): AdvienteaDayState {
   return {

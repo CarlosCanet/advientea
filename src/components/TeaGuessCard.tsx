@@ -1,7 +1,9 @@
+import { BadgeQuestionMark, Trophy } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { BsFillPatchQuestionFill } from "react-icons/bs";
 
+import { buttonVariants } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { TeaType } from "@/generated/prisma/enums";
 import { getAdvienteaDayState } from "@/lib/advientea-rules";
 import { getAllIngredients, getAssignees, getDayById, getDayForGuessing, getEditionInfo, getSession } from "@/lib/dal";
@@ -55,43 +57,42 @@ export default async function TeaGuessCard({ dayId }: TeaGuessCardProps) {
   const isAssignee = dayForGuessing?.participation?.user?.id === session.user.id;
 
   return (
-    <div className="card w-full max-w-xl bg-base-200 card-xl shadow-md border border-primary/20 mb-5">
-      <div className="card-body items-center">
-        <h2 className="card-title font-semibold gap-4 text-4xl items">
-          <BsFillPatchQuestionFill />
-          <div className="flex gap-0">
-            Adivina<span className="italic">Té</span>
-          </div>
-          <BsFillPatchQuestionFill />
-        </h2>
+    <Card className="w-full items-center gap-5 px-5 shadow-sm">
+      <h2 className="flex items-center gap-3">
+        <BadgeQuestionMark aria-hidden="true" className="size-7" />
+        <span className="font-display text-3xl">
+          Adivina<span className="italic">Té</span>
+        </span>
+        <BadgeQuestionMark aria-hidden="true" className="size-7" />
+      </h2>
 
-        {isAssignee ? (
-          <div className="text-center p-4">
-            <div className="text-xl font-bold mb-2">¡Gracias por aportar tu granito de té!</div>
-            <p className="text-md">
-              Como eres le proponen<span className="italic">Té</span> de hoy, no puedes participar en el juego.
-            </p>
-          </div>
-        ) : (
-          <>
-            <div className="font-display text-lg">¡ Vamos a jugar !</div>
-            <TeaGuessForm
-              canUserGuessPerson={canGuessPerson}
-              canUserGuessTea={canGuessTea}
-              dayId={dayId}
-              ingredients={ingredientList}
-              teaHasIngredients={teaHasIngredients}
-              teaTypeOptions={teaTypeOptions}
-              users={userList}
-            />
-          </>
-        )}
-        {advienteaDayState.isTeaReleased && (
-          <Link className="mt-6" href={`/ranking/${dayId}`}>
-            <button className="btn btn-success">Ranking de hoy</button>
-          </Link>
-        )}
-      </div>
-    </div>
+      {isAssignee ? (
+        <div className="text-center">
+          <p className="mb-2 text-lg font-semibold">¡Gracias por aportar tu granito de té!</p>
+          <p className="text-base">
+            Como eres le proponen<span className="italic">Té</span> de hoy, no puedes participar en el juego.
+          </p>
+        </div>
+      ) : (
+        <>
+          <p className="text-lg font-medium">¡ Vamos a jugar !</p>
+          <TeaGuessForm
+            canUserGuessPerson={canGuessPerson}
+            canUserGuessTea={canGuessTea}
+            dayId={dayId}
+            ingredients={ingredientList}
+            teaHasIngredients={teaHasIngredients}
+            teaTypeOptions={teaTypeOptions}
+            users={userList}
+          />
+        </>
+      )}
+      {advienteaDayState.isTeaReleased && (
+        <Link className={buttonVariants({ className: "mt-2", variant: "outline" })} href={`/ranking/${dayId}`}>
+          <Trophy data-icon="inline-start" />
+          Ranking de hoy
+        </Link>
+      )}
+    </Card>
   );
 }

@@ -1,10 +1,10 @@
-import { Suspense } from "react";
-
 import type { StoryTeaWithImages } from "@/lib/dal";
 
 import CarouselComponent from "@/components/tea/CarouselComponent";
+import RevealLock from "@/components/tea/RevealLock";
 import TimelineIcon from "@/components/tea/TimelineIcon";
-import { Spinner } from "@/components/ui/spinner";
+import { Card } from "@/components/ui/card";
+import { HOURS, toHourLabel } from "@/lib/advientea-rules";
 import { getYouTubeId } from "@/lib/utils";
 
 import YoutubeComponent from "./YoutubeComponent";
@@ -23,65 +23,42 @@ export default function StoryTeaComponent({
 }: StoryTeaComponentProps) {
   // const videoId = "GFfn8L2saYI";
   const videoId = story.youtubeURL ? getYouTubeId(story.youtubeURL) : null;
+  const parts = [
+    { hour: HOURS.PART1, isReleased: isPart1Released, text: story.storyPart1 },
+    { hour: HOURS.PART2, isReleased: isPart2Released, text: story.storyPart2 },
+    { hour: HOURS.PART3, isReleased: isPart3Released, text: story.storyPart3 },
+  ].filter((part) => part.text && part.isReleased);
   return (
-    <div className="card bg-base-100 w-full max-w-xl card-lg shadow-md">
-      <div className="card-body items-center">
-        <h2 className="card-title self-start font-semibold text-4xl">Ambientación</h2>
-        {!isPart1Released && (
-          <div className="skeleton skeleton-text font-display text-2xl">No es la hora todavía...</div>
-        )}
-        {isPart1Released && <CarouselComponent images={story.images} />}
-        <ul className="timeline timeline-snap-icon max-md:timeline-compact timeline-vertical">
-          {story.storyPart1 && isPart1Released && (
-            <li>
-              <div className="timeline-middle">
+    <Card className="w-full gap-5 px-5 shadow-sm">
+      <h2 className="text-2xl font-semibold tracking-tight">Ambientación</h2>
+      {!isPart1Released && (
+        <RevealLock
+          className="text-base"
+          detail={`Se revela a las ${toHourLabel(HOURS.PART1)}`}
+          label="No es la hora todavía..."
+        />
+      )}
+      {isPart1Released && <CarouselComponent images={story.images} />}
+      {parts.length > 0 && (
+        <ol className="ms-3 border-s-2 border-brand/40">
+          {parts.map((part) => (
+            <li className="relative ps-7 pb-8 last:pb-1" key={part.hour}>
+              <span className="absolute -start-[13px] top-0 flex size-6 items-center justify-center rounded-full bg-card text-brand">
                 <TimelineIcon />
-              </div>
-              <div className="timeline-start mb-10 md:text-end">
-                <time className="font-mono italic">08:00 h</time>
-                {<div className="font-display text-justify whitespace-pre-wrap mt-1">{story.storyPart1}</div>}
-              </div>
-              <hr />
+              </span>
+              <time className="text-sm font-semibold" dateTime={toHourLabel(part.hour)}>
+                {toHourLabel(part.hour)} h
+              </time>
+              <div className="mt-1 text-base leading-relaxed whitespace-pre-wrap">{part.text}</div>
             </li>
-          )}
-          {story.storyPart2 && isPart2Released && (
-            <li>
-              {story.storyPart1 && <hr />}
-              <div className="timeline-middle">
-                <TimelineIcon />
-              </div>
-              <div className="timeline-end md:mb-10">
-                <time className="font-mono italic">13:00 h</time>
-                {<div className="font-display text-justify whitespace-pre-wrap mt-1">{story.storyPart2}</div>}
-              </div>
-              <hr />
-            </li>
-          )}
-          {story.storyPart3 && isPart3Released && (
-            <li>
-              {story.storyPart3 && <hr />}
-              <div className="timeline-middle">
-                <TimelineIcon />
-              </div>
-              <div className="timeline-start mb-10 md:text-end">
-                <time className="font-mono italic">18:00 h</time>
-                {<div className="font-display text-justify whitespace-pre-wrap mt-1">{story.storyPart3}</div>}
-              </div>
-              <hr />
-            </li>
-          )}
-        </ul>
-        {isPart1Released && story.youtubeURL && (
-          <div className="w-full mt-2 border-neutral border-8 rounded-box">
-            <Suspense fallback={<Spinner className="size-8" />}>
-              <YoutubeComponent
-                youtubeURL={`https://www.youtube.com/embed/${videoId}?autoplay=0&loop=1&playlist=${videoId}&iv_load_policy=3`}
-              />
-            </Suspense>
-          </div>
-        )}
-        <div className="justify-end card-actions"></div>
-      </div>
-    </div>
+          ))}
+        </ol>
+      )}
+      {isPart1Released && story.youtubeURL && (
+        <YoutubeComponent
+          youtubeURL={`https://www.youtube.com/embed/${videoId}?autoplay=0&loop=1&playlist=${videoId}&iv_load_policy=3`}
+        />
+      )}
+    </Card>
   );
 }

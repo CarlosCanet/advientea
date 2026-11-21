@@ -1,9 +1,14 @@
 "use client";
 import Form from "next/form";
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useId, useState } from "react";
 
 import { submitTeaGuess } from "@/app/actions/teaGuessActions";
+import { Button } from "@/components/ui/button";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
+import { showActionToast } from "@/lib/action-toast";
 import { initialTeaGuessActionResponse, SelectOption } from "@/lib/types";
 
 interface TeaGuessFormProps {
@@ -27,73 +32,108 @@ export default function TeaGuessForm({
 }: TeaGuessFormProps) {
   const [state, action, isPending] = useActionState(submitTeaGuess.bind(null, dayId), initialTeaGuessActionResponse);
   const [ingredientsFormdata, setIngredientsFormdata] = useState<Array<SelectOption>>([]);
+  const fieldId = useId();
+  // Controlled, because React resets the form after the action and a failed guess must keep what was typed.
+  const [personName, setPersonName] = useState<null | string>(state.inputs?.personName || null);
+  const [teaName, setTeaName] = useState(state.inputs?.teaName ?? "");
+  const [teaType, setTeaType] = useState<null | string>(state.inputs?.teaType || null);
+  const [lastState, setLastState] = useState(state);
+  if (state !== lastState) {
+    setLastState(state);
+    if (state.success) {
+      setPersonName(null);
+      setTeaName("");
+      setTeaType(null);
+    }
+  }
+  useEffect(() => {
+    if (state.message) {
+      showActionToast(state);
+    }
+  }, [state]);
+
+  const personNameErrors = state?.errors?.properties?.personName?.errors;
+  const teaNameErrors = state?.errors?.properties?.teaName?.errors;
+  const teaTypeErrors = state?.errors?.properties?.teaType?.errors;
+  const formErrors = state?.errors?.errors;
 
   return (
-    <Form action={action} className="w-full flex flex-col gap-2">
+    <Form action={action} className="flex w-full flex-col gap-4">
       {/* personName */}
       {canUserGuessPerson && (
-        <>
-          <label className="floating-label flex items-center gap-2 mb-2 w-full">
-            <span className="floating-label bg-base-200">Persona proponenTé</span>
-            {/* <FaUser /> */}
-            <select className="select select-bordered bg-base-200 w-full" defaultValue="" name="personName">
-              <option disabled={true} value="">
-                Elige un nombre
-              </option>
+        <Field data-invalid={personNameErrors ? true : undefined}>
+          <FieldLabel htmlFor={`${fieldId}-personName`}>Persona proponenTé</FieldLabel>
+          <Select
+            items={users.map((user) => ({ label: user.name, value: user.name }))}
+            name="personName"
+            onValueChange={(value) => setPersonName(value)}
+            value={personName}
+          >
+            <SelectTrigger
+              aria-describedby={personNameErrors ? `${fieldId}-personName-error` : undefined}
+              aria-invalid={personNameErrors ? true : undefined}
+              className="w-full bg-popover"
+              id={`${fieldId}-personName`}
+            >
+              <SelectValue placeholder="Elige un nombre" />
+            </SelectTrigger>
+            <SelectContent>
               {users.map((user, index) => (
-                <option key={index} value={user.name}>
+                <SelectItem key={index} value={user.name}>
                   {user.name}
-                </option>
+                </SelectItem>
               ))}
-            </select>
-          </label>
-          {state?.errors?.properties?.personName && (
-            <p className="text-xs text-error font-bold -mt-2 mb-2">
-              {state.errors.properties.personName.errors.join(" ")}
-            </p>
-          )}
-        </>
+            </SelectContent>
+          </Select>
+          <FieldError id={`${fieldId}-personName-error`}>{personNameErrors?.join(" ")}</FieldError>
+        </Field>
       )}
       {/* teaName */}
       {canUserGuessTea && (
         <>
-          <label className="input input-bordered bg-base-200 floating-label flex items-center gap-2 mb-2 w-full">
-            <span className="floating-label bg-base-200">Nombre del té</span>
-            {/* <FaUser /> */}
-            <input
-              autoComplete="additional-name"
-              className="w-full"
-              defaultValue={state.inputs?.teaName ?? ""}
+          <Field data-invalid={teaNameErrors ? true : undefined}>
+            <FieldLabel htmlFor={`${fieldId}-teaName`}>Nombre del té</FieldLabel>
+            <Input
+              aria-describedby={teaNameErrors ? `${fieldId}-teaName-error` : undefined}
+              aria-invalid={teaNameErrors ? true : undefined}
+              autoComplete="off"
+              className="bg-popover"
+              id={`${fieldId}-teaName`}
               name="teaName"
+              onChange={(event) => setTeaName(event.target.value)}
               placeholder="Nombre del té"
               type="text"
+              value={teaName}
             />
-          </label>
-          {state?.errors?.properties?.teaName && (
-            <p className="text-xs text-error font-bold -mt-2 mb-2">
-              {state.errors.properties.teaName.errors.join(" ")}
-            </p>
-          )}
+            <FieldError id={`${fieldId}-teaName-error`}>{teaNameErrors?.join(" ")}</FieldError>
+          </Field>
           {/* teaType */}
-          <label className="floating-label flex items-center gap-2 mb-2 w-full">
-            <span className="floating-label bg-base-200">Tipo de Té</span>
-            {/* <FaUser /> */}
-            <select className="select select-bordered bg-base-200 w-full" defaultValue="" name="teaType">
-              <option disabled={true} value="">
-                Elige un tipo
-              </option>
-              {teaTypeOptions.map((type) => (
-                <option key={type.id} value={type.id}>
-                  {type.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          {state?.errors?.properties?.teaType && (
-            <p className="text-xs text-error font-bold -mt-2 mb-2">
-              {state.errors.properties.teaType.errors.join(" ")}
-            </p>
-          )}
+          <Field data-invalid={teaTypeErrors ? true : undefined}>
+            <FieldLabel htmlFor={`${fieldId}-teaType`}>Tipo de Té</FieldLabel>
+            <Select
+              items={teaTypeOptions.map((type) => ({ label: type.name, value: type.id }))}
+              name="teaType"
+              onValueChange={(value) => setTeaType(value)}
+              value={teaType}
+            >
+              <SelectTrigger
+                aria-describedby={teaTypeErrors ? `${fieldId}-teaType-error` : undefined}
+                aria-invalid={teaTypeErrors ? true : undefined}
+                className="w-full bg-popover"
+                id={`${fieldId}-teaType`}
+              >
+                <SelectValue placeholder="Elige un tipo" />
+              </SelectTrigger>
+              <SelectContent>
+                {teaTypeOptions.map((type) => (
+                  <SelectItem key={type.id} value={type.id}>
+                    {type.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <FieldError id={`${fieldId}-teaType-error`}>{teaTypeErrors?.join(" ")}</FieldError>
+          </Field>
           {/* ingredients */}
           {/* {!teaHasIngredients && (
             <>
@@ -113,13 +153,16 @@ export default function TeaGuessForm({
           )} */}
         </>
       )}
-      {!state.success && state.message && (
-        <p className="text-xs text-error font-bold text-center mb-2">{state.message}</p>
+      {formErrors && formErrors.length > 0 && (
+        <p className="text-center text-sm text-destructive" role="alert">
+          {formErrors.join(" ")}
+        </p>
       )}
-      <div className="card-actions justify-center mt-4 gap-2">
-        <button className="btn btn-primary" disabled={isPending} type="submit">
-          {isPending ? <Spinner /> : "AdivinaTé"}
-        </button>
+      <div className="mt-2 flex justify-center">
+        <Button className="min-w-36" disabled={isPending} size="lg" type="submit">
+          {isPending && <Spinner data-icon="inline-start" />}
+          AdivinaTé
+        </Button>
       </div>
     </Form>
   );

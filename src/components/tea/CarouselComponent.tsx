@@ -1,7 +1,16 @@
 "use client";
 import { CldImage } from "next-cloudinary";
-import { useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
+import {
+  Carousel,
+  type CarouselApi,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { StoryImage } from "@/generated/prisma/client";
 
 interface CarouselComponentProps {
@@ -9,69 +18,81 @@ interface CarouselComponentProps {
 }
 
 export default function CarouselComponent({ images }: CarouselComponentProps) {
-  const [selectedImageId, setSelectedImageId] = useState<null | string>(null);
-  const modalRef = useRef<HTMLDialogElement>(null);
-  const nextImageId = (actIndex: number): string => {
-    return images[(actIndex + 1) % images.length].id;
-  };
+  const [api, setApi] = useState<CarouselApi>();
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
 
-  const prevImageId = (actIndex: number): string => {
-    return images[(actIndex - 1 + images.length) % images.length].id;
-  };
+  useEffect(() => {
+    if (!api) {
+      return;
+    }
+    const onSelect = () => setCurrentIndex(api.selectedScrollSnap());
+    api.on("select", onSelect);
+    return () => {
+      api.off("select", onSelect);
+    };
+  }, [api]);
 
-  const openModal = (publicId: string) => {
-    setSelectedImageId(publicId);
-    modalRef.current?.showModal();
+  if (images.length === 0) {
+    return null;
+  }
+
+  const openLightbox = (index: number) => {
+    setLightboxIndex(index);
+    setIsLightboxOpen(true);
   };
+  const lightboxImage = images[lightboxIndex];
+
   return (
     <>
-      <div className="carousel w-full">
-        {images.map((image, index) => {
-          return (
-            <div
-              className="carousel-item relative w-full h-56 items-center justify-center"
-              id={image.id}
-              key={image.id}
-            >
-              <div className="cursor-zoom-in" onClick={() => openModal(image.publicId)}>
+      <Carousel aria-label="Imágenes de la historia" className="w-full" opts={{ loop: true }} setApi={setApi}>
+        <CarouselContent>
+          {images.map((image, index) => (
+            <CarouselItem aria-label={`Imagen ${index + 1} de ${images.length}`} key={image.id}>
+              <button
+                aria-label={`Ampliar imagen ${index + 1}`}
+                className="relative block h-56 w-full cursor-zoom-in rounded-xl outline-none focus-visible:focus-ring"
+                onClick={() => openLightbox(index)}
+                type="button"
+              >
                 <CldImage
-                  alt={`Image ${image.order + 1} de la historia`}
+                  alt={`Imagen ${image.order + 1} de la historia`}
                   className="object-contain px-1"
                   fill={true}
+                  sizes="(min-width: 640px) 36rem, 100vw"
                   src={image.publicId}
                 />
-              </div>
-              <div className="absolute left-5 right-5 top-1/2 flex -translate-y-1/2 transform justify-between pointer-events-none">
-                <a className="btn btn-circle pointer-events-auto" href={`#${prevImageId(index)}`}>
-                  ❮
-                </a>
-                <a className="btn btn-circle pointer-events-auto" href={`#${nextImageId(index)}`}>
-                  ❯
-                </a>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      <dialog className="modal" ref={modalRef}>
-        <div className="modal-box w-screen max-w-11/12 max-h-11/12 bg-transparent! shadow-none overflow-hidden flex flex-col items-center justify-start p-0">
-          <form className="self-end z-50 p-2" method="dialog">
-            <button className="btn btn-sm btn-circle btn-primary text-white">✕</button>
-          </form>
-          {selectedImageId && (
+              </button>
+            </CarouselItem>
+          ))}
+        </CarouselContent>
+        {images.length > 1 && (
+          <div className="mt-3 flex items-center justify-center gap-4">
+            <CarouselPrevious aria-label="Imagen anterior" className="static inset-auto my-0" />
+            <p aria-live="polite" className="min-w-12 text-center text-sm font-medium tabular-nums">
+              {currentIndex + 1} / {images.length}
+            </p>
+            <CarouselNext aria-label="Imagen siguiente" className="static inset-auto my-0" />
+          </div>
+        )}
+      </Carousel>
+      <Dialog onOpenChange={setIsLightboxOpen} open={isLightboxOpen}>
+        <DialogContent className="gap-3 p-3 pt-4 sm:max-w-4xl">
+          <DialogTitle className="ps-2 pe-12 leading-8">
+            Imagen {lightboxIndex + 1} / {images.length}
+          </DialogTitle>
+          {lightboxImage && (
             <CldImage
-              alt="Imagen a pantalla completa"
-              className="object-contain w-full h-full"
+              alt={`Imagen ${lightboxImage.order + 1} de la historia`}
+              className="h-auto max-h-[80svh] w-full rounded-2xl object-contain"
               height={1080}
-              src={selectedImageId}
+              src={lightboxImage.publicId}
               width={1920}
             />
           )}
-        </div>
-      </dialog>
-      <form className="modal-backdrop" method="dialog">
-        <button onClick={() => setSelectedImageId(null)}>close</button>
-      </form>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
