@@ -13,6 +13,7 @@ import { storyTeaWithImagesInclude } from "./includes";
 const participationForTeaEditingSelect = {
   day: true,
   edition: { select: { name: true, status: true, year: true } },
+  guestName: true,
   id: true,
   tea: { include: { story: { include: storyTeaWithImagesInclude } } },
   userId: true,
@@ -37,6 +38,29 @@ export async function getOpenParticipationByUserId(userId: string): Promise<null
     participations[0] ??
     null
   );
+}
+
+// enrolGuest generates 32 random bytes in base64url (43 characters): anything outside that alphabet, or far
+// longer, cannot be a token and is not worth a query.
+const GUEST_TOKEN_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
+
+/**
+ * The guest participation a secret link opens, while its edition is open. Anything else, an account's
+ * participation or an archived edition included, is no match.
+ */
+export async function getGuestParticipationByToken(token: string): Promise<null | ParticipationForTeaEditing> {
+  if (!GUEST_TOKEN_PATTERN.test(token)) {
+    return null;
+  }
+  return prisma.participation.findFirst({
+    select: participationForTeaEditingSelect,
+    where: {
+      edition: { status: { in: [EditionStatus.ACTIVE, EditionStatus.PREPARING] } },
+      guestName: { not: null },
+      guestToken: token,
+      userId: null,
+    },
+  });
 }
 
 /** Whether the participation's day has opened or has guesses. A participation without a day has played nothing. */

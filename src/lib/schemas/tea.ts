@@ -2,7 +2,6 @@ import { z } from "zod";
 
 import { ALLOWED_IMAGE_TYPES } from "@/lib/types";
 
-// The tea form's own fields. The public form adds who brings the tea and on which day.
 const teaFields = {
   addMilk: z.boolean(),
   canReinfuse: z.boolean(),
@@ -52,15 +51,5 @@ function isReinfuseNumberConsistent(data: { canReinfuse: boolean; reinfuseNumber
 }
 const reinfuseNumberIssue = { error: "Si reinfusiona 0 veces, no reinfusiona.", path: ["reinfuseNumber"] };
 
-/** The tea form of a participation that already exists: /my-tea and the managers' editor. */
+/** The tea form of a participation that already exists: /my-tea, /invitado and the managers' editor. */
 export const teaFormSchema = z.object(teaFields).refine(isReinfuseNumberConsistent, reinfuseNumberIssue);
-
-/** The public form, which also says who brings the tea and on which day. */
-export const teaInfoFormSchema = z
-  .object({
-    ...teaFields,
-    dayNumber: z.number().min(0, "Día mínimo: 0"),
-    personName: z.string().trim().min(1, "El nombre es requerido"),
-    teaId: z.string().optional(),
-  })
-  .refine(isReinfuseNumberConsistent, reinfuseNumberIssue);

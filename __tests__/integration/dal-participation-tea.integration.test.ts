@@ -7,6 +7,7 @@ import {
   addTea,
   enrolGuest,
   enrolUser,
+  getGuestParticipationByToken,
   getOpenParticipationByUserId,
   isParticipationDayPlayed,
   type ParticipationTeaInput,
@@ -278,6 +279,84 @@ describe("dal participation tea", () => {
       expect(result).not.toHaveProperty("guestToken");
       const payload = JSON.stringify(result);
       expect(payload).not.toContain("token-of-ana");
+      expect(payload).not.toContain("guestToken");
+    });
+  });
+
+  describe("getGuestParticipationByToken", () => {
+    async function tokenOf(participationId: string) {
+      const { guestToken } = await prisma.participation.findUniqueOrThrow({
+        select: { guestToken: true },
+        where: { id: participationId },
+      });
+      return guestToken!;
+    }
+
+    it("returns the guest of an active edition with their name, day, tea and edition", async () => {
+      const guest = await participationOn(2);
+      const tea = (await teaWithStoryOf(guest.id))!;
+      const edition = await prisma.edition.findUniqueOrThrow({ where: { year: 2025 } });
+
+      const result = await getGuestParticipationByToken(await tokenOf(guest.id));
+
+      expect(result).toMatchObject({
+        day: { dayNumber: 2, id: guest.dayId },
+        edition: { name: edition.name, status: EditionStatus.ACTIVE, year: 2025 },
+        guestName: "Anónimo",
+        id: guest.id,
+        tea: { id: tea.id, name: "Pakistaní", story: { id: tea.story!.id } },
+        userId: null,
+        year: 2025,
+      });
+      expect(result?.tea?.story?.images.map((image) => image.publicId)).toEqual(
+        tea.story!.images.map((image) => image.publicId),
+      );
+    });
+
+    it("returns a guest of an edition in preparation, without a day or a tea yet", async () => {
+      await upsertEdition(2030, EditionStatus.PREPARING);
+      const enrolled = await enrolGuest(2030, "Prima Lejana");
+
+      const result = await getGuestParticipationByToken(enrolled.guestToken!);
+
+      expect(result).toMatchObject({
+        day: null,
+        edition: { status: EditionStatus.PREPARING, year: 2030 },
+        guestName: "Prima Lejana",
+        id: enrolled.id,
+        tea: null,
+      });
+    });
+
+    it("never matches the participation of an account, even one that has a token", async () => {
+      const ana = await participationOn(3);
+      await prisma.participation.update({ data: { guestToken: "token-of-ana" }, where: { id: ana.id } });
+
+      expect(await getGuestParticipationByToken("token-of-ana")).toBeNull();
+    });
+
+    it("returns null for a guest of an archived edition", async () => {
+      const guest = await participationOn(2);
+      await setEditionStatus(EditionStatus.ARCHIVED);
+
+      expect(await getGuestParticipationByToken(await tokenOf(guest.id))).toBeNull();
+    });
+
+    it("returns null for an unknown token and for an empty one", async () => {
+      expect(await getGuestParticipationByToken("no-such-token")).toBeNull();
+      expect(await getGuestParticipationByToken("")).toBeNull();
+    });
+
+    it("never carries the guest token", async () => {
+      const guest = await participationOn(2);
+      const token = await tokenOf(guest.id);
+
+      const result = await getGuestParticipationByToken(token);
+
+      expect(result).not.toBeNull();
+      expect(result).not.toHaveProperty("guestToken");
+      const payload = JSON.stringify(result);
+      expect(payload).not.toContain(token);
       expect(payload).not.toContain("guestToken");
     });
   });

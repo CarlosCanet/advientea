@@ -1,37 +1,6 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 
-import { getStoryTeaById } from "./dal-story-tea";
-
-export type StoryImageWithStory = Prisma.StoryImageGetPayload<{ include: { story: true } }>;
-
-export async function addStoryImage(publicId: string, order: number, storyId: string): Promise<StoryImageWithStory> {
-  const storyRecord = await getStoryTeaById(storyId);
-  if (!storyRecord) throw new Error(`There is not story tea with id ${storyId}.`);
-  const result = await prisma.$transaction(async (tx) => {
-    const count = await tx.storyImage.count({ where: { storyTeaId: storyId } });
-    let finalOrder = order;
-    if (order > count) {
-      finalOrder = count;
-    } else {
-      await tx.storyImage.updateMany({
-        data: { order: { increment: 1 } },
-        where: { order: { gte: order }, storyTeaId: storyId },
-      });
-    }
-    const imageCreated = await tx.storyImage.create({
-      data: {
-        order: finalOrder,
-        publicId,
-        story: { connect: { id: storyId } },
-      },
-      include: { story: true },
-    });
-    return imageCreated;
-  });
-  return result;
-}
-
 export type StoryImageSlot = { id: string; kind: "existing" } | { kind: "new"; publicId: string };
 
 /**

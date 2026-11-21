@@ -1,156 +1,18 @@
 "use server";
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import { z } from "zod";
 
-import { uploadImage } from "@/lib/cloudinary";
-import {
-  addDay,
-  addStoryImage,
-  addStoryTea,
-  addTea,
-  assignDay,
-  getActiveEdition,
-  getDayByDayNumber,
-  getOpenParticipationByUserId,
-  getTeaById,
-  requireSession,
-  verifySession,
-} from "@/lib/dal";
+import { getGuestParticipationByToken, getOpenParticipationByUserId, getTeaById, requireSession } from "@/lib/dal";
 import { ConflictError, ForbiddenError, UnauthenticatedError } from "@/lib/errors";
-import { teaFormSchema, teaInfoFormSchema } from "@/lib/schemas/tea";
+import { GUEST_COOKIE } from "@/lib/guest-cookie";
+import { teaFormSchema } from "@/lib/schemas/tea";
 import { saveTeaForParticipation, TeaSubmission } from "@/lib/services/participation-tea-service";
-import { TeaFormData, TeaInfoActionResponse, TeaInfoFormData } from "@/lib/types";
+import { TeaFormData, TeaInfoActionResponse } from "@/lib/types";
 
 import { getFormBoolean, getFormFilesByPrefix, getFormNumber, getFormString } from "./commonActions";
 
-export async function addTeaInfo(
-  prevState: null | TeaInfoActionResponse,
-  formData: FormData,
-): Promise<TeaInfoActionResponse> {
-  try {
-    const { isAuth, userId } = await verifySession();
-    const edition = await getActiveEdition();
-    if (!edition) {
-      return {
-        errors: { errors: ["No active edition found"] },
-        message: "No active edition found",
-        success: false,
-      };
-    }
-    const rawData: TeaInfoFormData = {
-      addMilk: getFormBoolean(formData, "addMilk"),
-      canReinfuse: getFormBoolean(formData, "canReinfuse"),
-      dayNumber: getFormNumber(formData, "dayNumber"),
-      hasTheine: getFormBoolean(formData, "hasTheine"),
-      images: getFormFilesByPrefix(formData, "image"),
-      infusionTime: getFormNumber(formData, "infusionTime"),
-      moreIndications: getFormString(formData, "moreIndications") || undefined,
-      onlyMusic: getFormBoolean(formData, "onlyMusic"),
-      personName: getFormString(formData, "personName"),
-      reinfuseNumber: getFormNumber(formData, "reinfuseNumber") || undefined,
-      storeName: getFormString(formData, "storeName") || undefined,
-      storyPart1: getFormString(formData, "storyPart1"),
-      storyPart2: getFormString(formData, "storyPart2"),
-      storyPart3: getFormString(formData, "storyPart3"),
-      teaName: getFormString(formData, "teaName"),
-      temperature: getFormNumber(formData, "temperature"),
-      urlStore: getFormString(formData, "urlStore") || undefined,
-      youtubeURL: getFormString(formData, "youtubeURL") || undefined,
-    };
-    const validatedFields = teaInfoFormSchema.safeParse(rawData);
-
-    if (!validatedFields.success) {
-      return {
-        errors: z.treeifyError(validatedFields.error),
-        inputs: rawData,
-        message: "Hay errores en el formulario",
-        success: false,
-      };
-    }
-
-    const data = validatedFields.data;
-    let dayNumber = data.dayNumber;
-    if (data.dayNumber === 0) {
-      dayNumber = Math.floor(Math.random() * 50000) + 25;
-      await addDay({ dayNumber, year: edition.year });
-    }
-    const dayRecord = await getDayByDayNumber({ dayNumber, year: edition.year });
-    if (!dayRecord) {
-      throw new Error(`Day ${dayNumber}/${edition.year} does not exist`);
-    }
-    // The participation comes first: the tea hangs from it.
-    const participation = await assignDay(dayRecord.id, isAuth ? { userId } : { guestName: data.personName });
-    const teaCreated = await addTea(
-      {
-        addMilk: data.addMilk,
-        canReinfuse: data.canReinfuse,
-        hasTheine: data.hasTheine,
-        infusionTime: data.infusionTime,
-        moreIndications: data.moreIndications,
-        name: data.teaName,
-        reinfuseNumber: data.reinfuseNumber,
-        storeName: data.storeName,
-        temperature: data.temperature,
-        url: data.urlStore,
-      },
-      [],
-      participation.id,
-    );
-    if (
-      data.storyPart1 ||
-      data.storyPart2 ||
-      data.storyPart3 ||
-      data.youtubeURL ||
-      data.onlyMusic ||
-      (data.images && data.images.length > 0)
-    ) {
-      const storyCreated = await addStoryTea(
-        {
-          onlyMusic: data.onlyMusic,
-          storyPart1: data.storyPart1,
-          storyPart2: data.storyPart2,
-          storyPart3: data.storyPart3,
-          youtubeURL: data.youtubeURL,
-        },
-        teaCreated.id,
-      );
-      if (!storyCreated) {
-        throw new Error("Cannot create story tea");
-      }
-      if (data.images) {
-        const publicIds = await Promise.all(
-          data.images.map(async (image) => await uploadImage(image, { kind: "teaDay", year: edition.year })),
-        );
-        for (const [i, publicId] of publicIds.entries()) {
-          if (publicId) {
-            await addStoryImage(publicId, i, storyCreated.id);
-          }
-        }
-      }
-    }
-
-    return {
-      message: "Té guardado",
-      success: true,
-    };
-  } catch (error: unknown) {
-    // A conflict here would name the day's holder to whoever submitted, guests included: keep it generic.
-    const isGuardError = error instanceof UnauthenticatedError || error instanceof ForbiddenError;
-    if (isGuardError) {
-      console.warn(`[addTeaInfo] rejected: ${error.name} — ${error.message}`);
-    } else {
-      console.error("[addTeaInfo] unexpected error", error);
-    }
-    const message = isGuardError ? error.message : "No se pudo guardar el té. Inténtalo de nuevo.";
-    return {
-      errors: { errors: [message] },
-      message,
-      success: false,
-    };
-  }
-}
-
-// Shared by the two forms that save a tea through its participation: no person name and no day here.
+// Shared by the forms that save a tea through its participation: no person name and no day here.
 function toTeaFormData(formData: FormData): TeaFormData {
   return {
     addMilk: getFormBoolean(formData, "addMilk"),
@@ -258,7 +120,11 @@ export async function saveMyTeaAction(
     if (!participation) {
       return { message: "No estás inscrito en ninguna edición abierta.", success: false };
     }
-    const { created } = await saveTeaForParticipation({ id: userId, role }, participation.id, parsed.submission);
+    const { created } = await saveTeaForParticipation(
+      { id: userId, kind: "user", role },
+      participation.id,
+      parsed.submission,
+    );
     revalidatePath("/my-tea");
     return { message: created ? "Té guardado." : "Té actualizado.", success: true };
   } catch (error: unknown) {
@@ -285,11 +151,48 @@ export async function editTeaInfoAction(
     if (!tea) {
       return { message: "Ese té ya no existe.", success: false };
     }
-    const { created } = await saveTeaForParticipation({ id: userId, role }, tea.participation.id, parsed.submission);
+    const { created } = await saveTeaForParticipation(
+      { id: userId, kind: "user", role },
+      tea.participation.id,
+      parsed.submission,
+    );
     revalidatePath("/my-tea");
     revalidatePath(`/editions/${tea.participation.year}`);
     return { message: created ? "Té guardado." : "Té actualizado.", success: true };
   } catch (error: unknown) {
     return toTeaFailure("editTeaInfoAction", error, "No se pudo actualizar el té. Inténtalo de nuevo.", inputs);
+  }
+}
+
+/**
+ * Saves a guest's tea. Public on purpose: the guest has no account, and the secret token of their link, read
+ * only from its cookie, is what names their participation. Nothing in the form can point at another one.
+ */
+export async function saveGuestTeaAction(
+  prevState: null | TeaInfoActionResponse,
+  formData: FormData,
+): Promise<TeaInfoActionResponse> {
+  let inputs: TeaFormData | undefined;
+  try {
+    const token = (await cookies()).get(GUEST_COOKIE)?.value;
+    const participation = token ? await getGuestParticipationByToken(token) : null;
+    if (!participation) {
+      return { message: "Este enlace no es válido o ha caducado. Pide uno nuevo al GerenTé.", success: false };
+    }
+    const parsed = parseTeaForm(formData);
+    if ("response" in parsed) {
+      return parsed.response;
+    }
+    inputs = parsed.inputs;
+
+    const { created } = await saveTeaForParticipation(
+      { kind: "guest", participationId: participation.id },
+      participation.id,
+      parsed.submission,
+    );
+    revalidatePath("/invitado");
+    return { message: created ? "Té guardado." : "Té actualizado.", success: true };
+  } catch (error: unknown) {
+    return toTeaFailure("saveGuestTeaAction", error, "No se pudo guardar el té. Inténtalo de nuevo.", inputs);
   }
 }
