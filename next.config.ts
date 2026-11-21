@@ -65,11 +65,10 @@ export default withSentryConfig(nextConfig, {
   // Upload a larger set of source maps for prettier stack traces (increases build time)
   widenClientFileUpload: true,
 
-  // Route browser requests to Sentry through a Next.js rewrite to circumvent ad-blockers.
-  // This can increase your server load as well as your hosting bill.
-  // Note: Check that the configured route will not match with your Next.js middleware, otherwise reporting of client-
-  // side errors will fail.
-  tunnelRoute: "/monitoring",
+  // The tunnel is set in both Sentry.init calls and served by src/app/monitoring/route.ts. false, not omitted:
+  // left undefined, Vercel builds generate a second /sentry-tunnel route and a catch-all rewrite to it. The
+  // option is deprecated in @sentry/nextjs 11, so the build prints a deprecation notice; that is expected.
+  tunnelRoute: false,
 
   // disableLogger and automaticVercelMonitors were removed: deprecated in @sentry/nextjs 10.x and
   // their replacements are webpack-only, so they never applied to this Turbopack build.
