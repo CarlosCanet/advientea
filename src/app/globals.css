@@ -1,37 +1,46 @@
-@import url("https://fonts.googleapis.com/css2?family=Griffy&display=swap");
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/* No dark mode: without this, Tailwind's default `dark:` follows the system theme. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* `join` is unused, and its `@scope` rules break `next dev` since Tailwind 4.3.5. */
 @plugin "daisyui" {
-  themes:
-    advientea-light --default,
-    advientea-dark --prefersdark;
+  themes: advientea-light --default;
+  exclude: join;
 }
 
-/* Tema claro */
+/*
+ * Coexistence bridge, removed in P1.12: daisyUI reads the shadcn tokens, so the
+ * screens not migrated yet already use the new palette. `--border` stays a width
+ * here because daisyUI reads it as one; shadcn's border colour is `--sh-border`.
+ */
 @plugin "daisyui/theme" {
   name: "advientea-light";
   default: true;
   prefersdark: false;
   color-scheme: "light";
-  --color-base-100: oklch(0.826 0.093 146);
-  --color-base-200: oklch(0.924 0.071 135.5);
-  --color-base-300: oklch(0.98 0.04 130.29);
-  --color-base-content: oklch(0.502 0.178 165.5);
-  --color-primary: oklch(0.635 0.132 165.5);
-  --color-primary-content: oklch(1 0.094 146);
-  --color-secondary: oklch(0.349 0.369 175.5);
-  --color-secondary-content: oklch(1 0.143 143);
-  --color-accent: oklch(0.533 0.06 131.6);
-  --color-accent-content: #f0ffe9;
-  --color-neutral: oklch(0.657 0.093 146);
-  --color-neutral-content: oklch(1 0.127 143.8);
+  --color-base-100: var(--card);
+  --color-base-200: var(--muted);
+  --color-base-300: var(--accent);
+  --color-base-content: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-content: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-content: var(--secondary-foreground);
+  --color-accent: var(--honey);
+  --color-accent-content: var(--honey-foreground);
+  --color-neutral: var(--brand);
+  --color-neutral-content: var(--brand-foreground);
+  --color-error: var(--destructive);
+  --color-error-content: var(--primary-foreground);
   --color-info: oklch(0.74 0.16 181.4);
   --color-info-content: oklch(29% 0.066 243.157);
   --color-success: oklch(0.821 0.122 163.2);
   --color-success-content: oklch(37% 0.077 168.94);
   --color-warning: oklch(0.82 0.189 99.9);
   --color-warning-content: oklch(41% 0.112 45.904);
-  --color-error: oklch(0.6187 0.128 20);
-  --color-error-content: oklch(0.27 0.105 12.094);
   --radius-selector: 0.5rem;
   --radius-field: 0.25rem;
   --radius-box: 0.5rem;
@@ -40,66 +49,92 @@
   --border: 1px;
   --depth: 1;
   --noise: 0;
-}
-
-/* Tema oscuro */
-@plugin "daisyui/theme" {
-  name: "advientea-dark";
-  default: false;
-  prefersdark: true;
-  color-scheme: "dark";
-  --color-base-100: oklch(0.826 0.093 146);
-  --color-base-200: oklch(0.924 0.071 135.5);
-  --color-base-300: oklch(0.98 0.04 130.29);
-  --color-base-content: oklch(0.502 0.178 165.5);
-  --color-primary: oklch(0.635 0.132 165.5);
-  --color-primary-content: oklch(1 0.094 146);
-  --color-secondary: oklch(0.349 0.369 175.5);
-  --color-secondary-content: oklch(1 0.143 143);
-  --color-accent: oklch(0.533 0.06 131.6);
-  --color-accent-content: #f0ffe9;
-  --color-neutral: oklch(0.657 0.093 146);
-  --color-neutral-content: oklch(1 0.127 143.8);
-  --color-info: oklch(0.74 0.16 181.4);
-  --color-info-content: oklch(29% 0.066 243.157);
-  --color-success: oklch(0.821 0.122 163.2);
-  --color-success-content: oklch(37% 0.077 168.94);
-  --color-warning: oklch(0.82 0.189 99.9);
-  --color-warning-content: oklch(41% 0.112 45.904);
-  --color-error: oklch(0.6187 0.128 20);
-  --color-error-content: oklch(0.27 0.105 12.094);
-  --radius-selector: 0.5rem;
-  --radius-field: 0.25rem;
-  --radius-box: 0.5rem;
-  --size-selector: 0.25rem;
-  --size-field: 0.25rem;
-  --border: 1px;
-  --depth: 1;
-  --noise: 0;
-}
-
-/* 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
 }
 
 @theme inline {
+  --font-sans: var(--font-figtree);
+  --font-heading: var(--font-figtree);
+  --font-display: var(--font-griffy);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-honey: var(--honey);
+  --color-honey-foreground: var(--honey-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--sh-border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-} */
+/* Radix Colors 3.0.0, light: grass (grass 7 is the background the app always had) and amber as honey. */
+:root {
+  --background: #94ce9a; /* grass 7 */
+  --foreground: #203c25; /* grass 12 */
+  --card: #c9e8ca; /* grass 5 */
+  --card-foreground: #203c25;
+  --popover: #daf1db; /* grass 4 */
+  --popover-foreground: #203c25;
+  /* grass 11 is a fill only: as text on a card it is 3.8:1. */
+  --brand: #2a7e3b; /* grass 11 */
+  --brand-foreground: #ffffff;
+  --honey: #f3d673; /* amber 6 */
+  --honey-foreground: #4f3422; /* amber 12 */
+  --primary: #2a7e3b;
+  --primary-foreground: #ffffff;
+  --secondary: #b2ddb5; /* grass 6 */
+  --secondary-foreground: #203c25;
+  --muted: #b2ddb5;
+  --muted-foreground: #4d564c;
+  --accent: #b2ddb5;
+  --accent-foreground: #203c25;
+  --destructive: oklch(0.5 0.2 27); /* shadcn red is 3.6:1 on the card; this is 5.0:1 */
+  --sh-border: #94ce9a;
+  --input: #203c25;
+  --ring: #ffba18; /* amber 10 */
+  --radius: 0.625rem;
+}
 
-/* body {
-  /* background: var(--background); 
-  /* color: var(--foreground);
-  /* font-family: Arial, Helvetica, sans-serif;
-} */
+/* Amber 10 alone is invisible on grass surfaces; the grass 12 outline carries it on light ones. */
+@utility focus-ring {
+  outline: 2px solid var(--foreground);
+  outline-offset: 0;
+  box-shadow: 0 0 0 5px var(--ring);
+}
+
+@utility bg-leaves {
+  background-image: url("/BackgroundLeaves.svg");
+  background-position: top left;
+  background-size: cover;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+}
