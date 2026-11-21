@@ -111,15 +111,15 @@
   --destructive: oklch(0.5 0.2 27); /* shadcn red is 3.6:1 on the card; this is 5.0:1 */
   --sh-border: #94ce9a;
   --input: #203c25;
-  --ring: #ffba18; /* amber 10 */
+  --ring: #203c25; /* grass 12 */
+  --focus: #203c25;
   --radius: 0.625rem;
 }
 
-/* Amber 10 alone is invisible on grass surfaces; the grass 12 outline carries it on light ones. */
+/* One 2px outline set 2px apart; green surfaces switch it to white so it keeps 3:1 (WCAG 1.4.11). */
 @utility focus-ring {
-  outline: 2px solid var(--foreground);
-  outline-offset: 0;
-  box-shadow: 0 0 0 5px var(--ring);
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
 }
 
 @utility leaf-background {
@@ -130,12 +130,16 @@
 
 @layer base {
   * {
-    @apply border-border outline-foreground;
+    @apply border-border;
+    outline-color: var(--focus);
   }
   body {
     @apply bg-background text-foreground;
   }
   html {
     @apply font-sans;
+  }
+  :where(.bg-brand, .bg-neutral) {
+    --focus: var(--brand-foreground);
   }
 }
