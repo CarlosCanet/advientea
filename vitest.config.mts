@@ -12,6 +12,7 @@ export default defineConfig({
         test: {
           include: ["__tests__/unit/**/*.test.{ts,tsx}"],
           name: "unit",
+          setupFiles: ["src/lib/tests/unit-setup.ts"],
         },
       },
       {

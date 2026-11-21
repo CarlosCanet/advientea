@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { regenerateGuestLinkAction } from "@/app/actions/editionActions";
@@ -16,7 +16,7 @@ interface GuestLinkButtonsProps {
 
 /** The managers' handle on a guest's secret link: copy it to send it, or replace it when it has leaked. */
 export default function GuestLinkButtons({ name, participationId, token }: GuestLinkButtonsProps) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [manualLink, setManualLink] = useState<null | string>(null);
 
@@ -51,7 +51,7 @@ export default function GuestLinkButtons({ name, participationId, token }: Guest
       regenerate();
       return;
     }
-    dialogRef.current?.showModal();
+    setIsConfirmOpen(true);
   };
 
   return (
@@ -84,12 +84,13 @@ export default function GuestLinkButtons({ name, participationId, token }: Guest
       )}
       {token !== null && (
         <ConfirmDialog
-          confirmClassName="btn-warning"
           confirmLabel="Crear enlace nuevo"
-          message={`El enlace actual de ${name} dejará de funcionar. ¿Crear uno nuevo?`}
+          description={`El enlace actual de ${name} dejará de funcionar. ¿Crear uno nuevo?`}
           onConfirm={regenerate}
-          ref={dialogRef}
+          onOpenChange={setIsConfirmOpen}
+          open={isConfirmOpen}
           title={`Nuevo enlace para ${name}`}
+          variant="destructive"
         />
       )}
     </div>

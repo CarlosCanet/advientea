@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useTransition } from "react";
+import { useState, useTransition } from "react";
 
 import { deleteDayAction } from "@/app/actions/editionActions";
 import ConfirmDialog from "@/components/ConfirmDialog";
@@ -25,7 +25,7 @@ function toConfirmMessage(dayNumber: number, guessCount: number): string {
 }
 
 export default function DeleteDayButton({ dayId, dayNumber, guessCount, isReleased }: DeleteDayButtonProps) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   // A day nobody has seen or guessed on takes nothing with it, so it goes without asking.
@@ -39,7 +39,7 @@ export default function DeleteDayButton({ dayId, dayNumber, guessCount, isReleas
 
   const onClick = () => {
     if (needsConfirmation) {
-      dialogRef.current?.showModal();
+      setIsConfirmOpen(true);
       return;
     }
     deleteDay();
@@ -58,12 +58,13 @@ export default function DeleteDayButton({ dayId, dayNumber, guessCount, isReleas
       </button>
       {needsConfirmation && (
         <ConfirmDialog
-          confirmClassName="btn-error"
           confirmLabel="Borrar"
-          message={toConfirmMessage(dayNumber, guessCount)}
+          description={toConfirmMessage(dayNumber, guessCount)}
           onConfirm={deleteDay}
-          ref={dialogRef}
+          onOpenChange={setIsConfirmOpen}
+          open={isConfirmOpen}
           title={`¿Borrar el día ${dayNumber}?`}
+          variant="destructive"
         />
       )}
     </>

@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, useRef, useState, useTransition } from "react";
+import { ChangeEvent, useState, useTransition } from "react";
 
 import { changeEditionStatusAction } from "@/app/actions/editionActions";
 import ConfirmDialog from "@/components/ConfirmDialog";
@@ -25,13 +25,13 @@ const CONSEQUENCES: Record<EditionStatus, (year: number) => string> = {
 };
 
 export default function EditionStatusSelect({ status, year }: EditionStatusSelectProps) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [target, setTarget] = useState<EditionStatus>(status);
   const [isPending, startTransition] = useTransition();
 
   const onChange = (event: ChangeEvent<HTMLSelectElement>) => {
     setTarget(event.target.value as EditionStatus);
-    dialogRef.current?.showModal();
+    setIsConfirmOpen(true);
   };
 
   const onConfirm = () => {
@@ -56,12 +56,13 @@ export default function EditionStatusSelect({ status, year }: EditionStatusSelec
         ))}
       </select>
       <ConfirmDialog
-        confirmClassName={target === EditionStatus.ARCHIVED ? "btn-error" : "btn-primary"}
         confirmLabel="Cambiar"
-        message={CONSEQUENCES[target](year)}
+        description={CONSEQUENCES[target](year)}
         onConfirm={onConfirm}
-        ref={dialogRef}
+        onOpenChange={setIsConfirmOpen}
+        open={isConfirmOpen}
         title={`¿Pasar la edición ${year} a «${EDITION_STATUS_LABELS[target]}»?`}
+        variant={target === EditionStatus.ARCHIVED ? "destructive" : "default"}
       />
     </>
   );
