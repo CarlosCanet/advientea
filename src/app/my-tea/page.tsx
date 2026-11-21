@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 
 import { saveMyTeaAction } from "@/app/actions/teaInfoActions";
 import TeaInfoForm from "@/components/TeaInfoForm";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { canEditTea } from "@/lib/advientea-rules";
 import { getOpenParticipationByUserId, getSession, isParticipationDayPlayed } from "@/lib/dal";
@@ -59,9 +59,9 @@ export default async function MyTeaPage() {
       <MyTeaNotice
         action={
           participation.day && (
-            <Button nativeButton={false} render={<Link href={`/teaDay/${participation.day.id}`} />}>
+            <Link className={buttonVariants()} href={`/teaDay/${participation.day.id}`}>
               Ver tu día
-            </Button>
+            </Link>
           )
         }
         icon={<Lock />}
