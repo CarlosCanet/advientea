@@ -1,3 +1,5 @@
+import { cache } from "react";
+
 import { Day, Prisma } from "@/generated/prisma/client";
 import { ConflictError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
@@ -40,14 +42,16 @@ export type DayYear = {
   year: number;
 };
 
-export async function getDayById(id: string): Promise<DayWithParticipationTeaStoryImages | null> {
+export const getDayById = cache(async function getDayById(
+  id: string,
+): Promise<DayWithParticipationTeaStoryImages | null> {
   const dayResponse = await prisma.day.findUnique({
     include: dayWithParticipationTeaStoryImagesInclude,
     where: { id },
   });
   if (!dayResponse) return null;
   return dayResponse;
-}
+});
 
 export async function getDayByDayNumber(dayYear: DayYear): Promise<DayWithParticipationTeaStoryImages | null> {
   const dayResponse = await prisma.day.findUnique({
@@ -58,7 +62,7 @@ export async function getDayByDayNumber(dayYear: DayYear): Promise<DayWithPartic
   return dayResponse;
 }
 
-export async function getDayForGuessing(id: string): Promise<DayForGuessing | null> {
+export const getDayForGuessing = cache(async function getDayForGuessing(id: string): Promise<DayForGuessing | null> {
   const dayResponse = await prisma.day.findUnique({
     select: {
       dayNumber: true,
@@ -74,7 +78,7 @@ export async function getDayForGuessing(id: string): Promise<DayForGuessing | nu
     where: { id },
   });
   return dayResponse;
-}
+});
 
 export async function getAllDays(year: number): Promise<Array<DayWithParticipationTeaStoryImagesAndUser>> {
   const allDays = await prisma.day.findMany({
