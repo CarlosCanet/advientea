@@ -68,6 +68,9 @@ function DropdownMenuLabel({
   );
 }
 
+const ITEM_CLASSES =
+  "group/dropdown-menu-item relative flex cursor-default items-center gap-2.5 rounded-xl px-3 py-2 text-sm pointer-coarse:min-h-11 outline-hidden select-none focus:bg-primary focus:text-primary-foreground not-data-[variant=destructive]:focus:**:text-primary-foreground data-inset:pl-9.5 data-[variant=destructive]:text-destructive data-[variant=destructive]:focus:bg-destructive/10 data-[variant=destructive]:focus:text-destructive dark:data-[variant=destructive]:focus:bg-destructive/20 data-disabled:pointer-events-none data-disabled:opacity-50 data-disabled:focus:bg-transparent data-disabled:focus:text-foreground data-disabled:focus:**:text-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 data-[variant=destructive]:*:[svg]:text-destructive";
+
 function DropdownMenuItem({
   className,
   inset,
@@ -79,13 +82,22 @@ function DropdownMenuItem({
 }) {
   return (
     <MenuPrimitive.Item
-      className={cn(
-        "group/dropdown-menu-item relative flex cursor-default items-center gap-2.5 rounded-xl px-3 py-2 text-sm pointer-coarse:min-h-11 outline-hidden select-none focus:bg-primary focus:text-primary-foreground not-data-[variant=destructive]:focus:**:text-primary-foreground data-inset:pl-9.5 data-[variant=destructive]:text-destructive data-[variant=destructive]:focus:bg-destructive/10 data-[variant=destructive]:focus:text-destructive dark:data-[variant=destructive]:focus:bg-destructive/20 data-disabled:pointer-events-none data-disabled:opacity-50 data-disabled:focus:bg-transparent data-disabled:focus:text-foreground data-disabled:focus:**:text-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 data-[variant=destructive]:*:[svg]:text-destructive",
-        className,
-      )}
+      className={cn(ITEM_CLASSES, className)}
       data-inset={inset}
       data-slot="dropdown-menu-item"
       data-variant={variant}
+      {...props}
+    />
+  );
+}
+
+/** A menu entry that navigates: Base UI renders an `<a>`, so pass `render={<Link href="…" />}` for client navigation. */
+function DropdownMenuLinkItem({ className, ...props }: MenuPrimitive.LinkItem.Props) {
+  return (
+    <MenuPrimitive.LinkItem
+      className={cn(ITEM_CLASSES, className)}
+      data-slot="dropdown-menu-item"
+      data-variant="default"
       {...props}
     />
   );
@@ -241,6 +253,7 @@ export {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuLinkItem,
   DropdownMenuPortal,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
