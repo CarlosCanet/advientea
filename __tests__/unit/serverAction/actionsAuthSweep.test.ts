@@ -19,7 +19,8 @@ import { ForbiddenError, UnauthenticatedError } from "@/lib/errors";
 
 // Public by design. Adding a name here is a reviewable decision.
 const PUBLIC_ACTIONS: Record<string, string> = {
-  addTeaInfo: "guest submissions are allowed by product decision (2026-10-19); the only unauthenticated write path",
+  saveGuestTeaAction:
+    "a guest has no account: the secret link's cookie names their participation, never the form; the only unauthenticated write path",
   signin: "authenticates; there is no session yet",
   signout: "ends the session; harmless without one",
   signup: "creates the account itself",
@@ -44,6 +45,7 @@ const PRIVILEGED_ACTIONS: Record<string, AllowedRoles> = {
   enrolGuestAction: "ADMIN or EXECUTEAVE",
   enrolUserAction: "ADMIN or EXECUTEAVE",
   placeParticipantAction: "ADMIN or EXECUTEAVE",
+  regenerateGuestLinkAction: "ADMIN or EXECUTEAVE",
   swapParticipantsAction: "ADMIN or EXECUTEAVE",
   unenrolParticipantAction: "ADMIN or EXECUTEAVE",
 };
@@ -58,9 +60,6 @@ const { DAL_FUNCTIONS, GUARDS, prismaTouched } = vi.hoisted(() => ({
   // Every DAL export the action modules import, directly or through the services they call (left real here, so
   // that what a service reaches is seen too). Keep in sync with their `@/lib/dal` imports.
   DAL_FUNCTIONS: [
-    "addDay",
-    "assignDay",
-    "addStoryImage",
     "addStoryTea",
     "addTea",
     "changeEditionStatus",
@@ -74,12 +73,14 @@ const { DAL_FUNCTIONS, GUARDS, prismaTouched } = vi.hoisted(() => ({
     "enrolUser",
     "getActiveEdition",
     "getEdition",
+    "getGuestParticipationByToken",
     "getOpenParticipationByUserId",
     "getParticipationById",
     "getParticipationByUserId",
     "getTeaById",
     "isParticipationDayPlayed",
     "placeParticipant",
+    "regenerateGuestToken",
     "replaceStoryImages",
     "saveParticipationTea",
     "swapParticipants",
@@ -107,7 +108,10 @@ vi.mock("@/lib/prisma", () => ({
     },
   ),
 }));
-vi.mock("next/headers", () => ({ headers: vi.fn().mockResolvedValue(new Headers()) }));
+vi.mock("next/headers", () => ({
+  cookies: vi.fn().mockResolvedValue({ get: () => undefined, getAll: () => [], has: () => false }),
+  headers: vi.fn().mockResolvedValue(new Headers()),
+}));
 vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/auth", () => ({

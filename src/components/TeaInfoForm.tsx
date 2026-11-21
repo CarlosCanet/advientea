@@ -19,6 +19,8 @@ type TeaWithStoryImages = Prisma.TeaGetPayload<{ include: { story: { include: { 
 
 interface TeaInfoFormProps {
   action: (prevState: null | TeaInfoActionResponse, formData: FormData) => Promise<TeaInfoActionResponse>;
+  /** A line above the day, such as the guest's greeting. */
+  greeting?: string;
   heading: string;
   subheading?: string;
   /** The tea as saved, to prefill the form; none when the participant has not uploaded it yet. */
@@ -64,7 +66,16 @@ function TeaInfoForm({ action: saveAction, ...props }: TeaInfoFormProps) {
   );
 }
 
-function TeaInfoFormFields({ action, heading, isPending, state, subheading, tea, teaId }: TeaInfoFormFieldsProps) {
+function TeaInfoFormFields({
+  action,
+  greeting,
+  heading,
+  isPending,
+  state,
+  subheading,
+  tea,
+  teaId,
+}: TeaInfoFormFieldsProps) {
   const [images, setImages] = useState<Array<ImageStoryForm>>(() => initImages(tea));
   const [imageSizeError, setImageSizeError] = useState<string>("");
   const router = useRouter();
@@ -107,6 +118,7 @@ function TeaInfoFormFields({ action, heading, isPending, state, subheading, tea,
     <div className="card w-full mx-10 bg-base-100 shadow-xl mt-10 mb-10 before:content-[''] before:absolute before:inset-0 before:bg-[url('/BackgroundSemiCircleLeaves.svg')] before:bg-no-repeat before:opacity-10 before:pointer-events-none">
       <Form action={onSubmit} className="card-body">
         <h2 className="card-title">{heading}</h2>
+        {greeting && <p>{greeting}</p>}
         {subheading && <p className="text-sm">{subheading}</p>}
         <div className="items-center mt-2">
           <div className="divider divider-neutral">Info del té</div>

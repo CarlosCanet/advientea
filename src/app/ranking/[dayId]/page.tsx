@@ -1,11 +1,9 @@
-import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { FaAward } from "react-icons/fa6";
 
 import RankingList from "@/components/RankingList";
 import { getAdvienteaDayState } from "@/lib/advientea-rules";
-import { auth } from "@/lib/auth";
-import { getDayById, getEditionInfo } from "@/lib/dal";
+import { getDayById, getEditionInfo, getSession } from "@/lib/dal";
 import { getDailyRanking } from "@/lib/services/ranking-service";
 
 interface RankingPageProps {
@@ -15,7 +13,7 @@ interface RankingPageProps {
 export default async function RankingPage({ params }: RankingPageProps) {
   const { dayId } = await params;
   const day = await getDayById(dayId);
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getSession();
   if (!day || !session) {
     notFound();
   }

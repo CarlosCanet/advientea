@@ -1,14 +1,20 @@
-import { Role } from "@/generated/prisma/enums";
+import { EditionStatus, Role } from "@/generated/prisma/enums";
 import { canEditTea } from "@/lib/advientea-rules";
 import { deleteAsset, uploadImage } from "@/lib/cloudinary";
 import {
   getEdition,
   getParticipationById,
+  isParticipationDayPlayed,
   ParticipationTeaInput,
   saveParticipationTea,
   StoryImageSlot,
 } from "@/lib/dal";
 import { ConflictError, ForbiddenError } from "@/lib/errors";
+
+/** Who saves: a signed-in account, or a guest through their secret link, who can only reach their own participation. */
+export type TeaActor = { id: string; kind: "user"; role: Role } | { kind: "guest"; participationId: string };
+
+const DAY_PLAYED = "Tu día ya ha abierto y tu té ya no se puede cambiar. Si hay un error, avisa al GerenTé.";
 
 export type TeaSubmission = {
   content: ParticipationTeaInput["content"];
@@ -48,10 +54,11 @@ function toImageSlots(
 
 /**
  * The only way the app creates or edits a tea: on behalf of `actor`, for the tea of a participation.
- * A user whose day has been played is refused by the DAL, atomically with the write.
+ * A user or a guest whose day has been played is refused before anything is uploaded, and again by the DAL,
+ * atomically with the write.
  */
 export async function saveTeaForParticipation(
-  actor: { id: string; role: Role },
+  actor: TeaActor,
   participationId: string,
   submission: TeaSubmission,
 ): Promise<{ created: boolean }> {
@@ -63,13 +70,26 @@ export async function saveTeaForParticipation(
   if (!edition) {
     throw new ConflictError("Esa inscripción ya no existe.");
   }
-  const mayEdit = canEditTea(actor.role, {
-    editionStatus: edition.status,
-    isDayPlayed: false,
-    isOwn: participation.userId === actor.id,
-  });
+  const mayEdit =
+    actor.kind === "guest"
+      ? actor.participationId === participationId && edition.status !== EditionStatus.ARCHIVED
+      : canEditTea(actor.role, {
+          editionStatus: edition.status,
+          isDayPlayed: false,
+          isOwn: participation.userId === actor.id,
+        });
   if (!mayEdit) {
     throw new ForbiddenError("No puedes editar este té.");
+  }
+  // A guest is held to the same rules as a USER.
+  const isRestricted = actor.kind === "guest" || actor.role === Role.USER;
+  const options = {
+    refuseArchivedEdition: actor.kind === "guest" || actor.role !== Role.ADMIN,
+    refusePlayedDay: isRestricted,
+  };
+  // Checked here as well as in the DAL so that a refused save uploads nothing.
+  if (isRestricted && participation.tea && (await isParticipationDayPlayed(participationId))) {
+    throw new ConflictError(DAY_PLAYED);
   }
 
   const uploadedPublicIds = await uploadStoryImages(
@@ -83,7 +103,7 @@ export async function saveTeaForParticipation(
     saved = await saveParticipationTea(
       participationId,
       { content: submission.content, images, story: submission.story },
-      { refuseArchivedEdition: actor.role !== Role.ADMIN, refusePlayedDay: actor.role === Role.USER },
+      options,
     );
   } catch (error) {
     await Promise.allSettled(uploadedPublicIds.map((publicId) => deleteAsset(publicId)));

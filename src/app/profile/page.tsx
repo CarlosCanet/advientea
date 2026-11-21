@@ -1,12 +1,11 @@
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import ProfileForm from "@/components/ui/ProfileForm";
-import { auth } from "@/lib/auth";
+import { getSession } from "@/lib/dal";
 import { DEFAULT_IMAGE_PROFILE } from "@/lib/types";
 
 export default async function ProfilePage() {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getSession();
   if (!session) {
     redirect("/");
   }

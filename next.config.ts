@@ -39,7 +39,12 @@ const nextConfig: NextConfig = {
     },
   },
   async headers() {
-    return [{ headers: securityHeaders, source: "/:path*" }];
+    return [
+      { headers: securityHeaders, source: "/:path*" },
+      // The guest's secret link is in this URL: no Referer may carry it anywhere. A later entry overrides the
+      // same key of an earlier one, and the other security headers stay.
+      { headers: [{ key: "Referrer-Policy", value: "no-referrer" }], source: "/invitado/:token" },
+    ];
   },
 };
 

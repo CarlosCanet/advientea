@@ -1,4 +1,3 @@
-import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { BsCupFill } from "react-icons/bs";
 import { FaAward, FaTrophy } from "react-icons/fa6";
@@ -6,12 +5,11 @@ import { FaAward, FaTrophy } from "react-icons/fa6";
 import RankingList from "@/components/RankingList";
 import NoActiveEdition from "@/components/ui/NoActiveEdition";
 import { getAdvienteaDayState } from "@/lib/advientea-rules";
-import { auth } from "@/lib/auth";
-import { getActiveEdition, getEditionInfo } from "@/lib/dal";
+import { getActiveEdition, getEditionInfo, getSession } from "@/lib/dal";
 import { getOverallRanking } from "@/lib/services/ranking-service";
 
 export default async function OverallRankingPage() {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getSession();
   if (!session) {
     notFound();
   }

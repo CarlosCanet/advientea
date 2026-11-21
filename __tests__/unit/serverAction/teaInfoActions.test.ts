@@ -1,21 +1,20 @@
 import { revalidatePath } from "next/cache";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { editTeaInfoAction, saveMyTeaAction } from "@/app/actions/teaInfoActions";
+import { editTeaInfoAction, saveGuestTeaAction, saveMyTeaAction } from "@/app/actions/teaInfoActions";
 import { EditionStatus, Role } from "@/generated/prisma/enums";
 import { deleteAsset, uploadImage } from "@/lib/cloudinary";
-import { getOpenParticipationByUserId, getTeaById, requireSession } from "@/lib/dal";
+import { getGuestParticipationByToken, getOpenParticipationByUserId, getTeaById, requireSession } from "@/lib/dal";
 import { ConflictError, ForbiddenError, UnauthenticatedError } from "@/lib/errors";
 import { saveTeaForParticipation } from "@/lib/services/participation-tea-service";
 
-const { DAL_EXPORTS } = vi.hoisted(() => ({
+const { cookieJar, DAL_EXPORTS } = vi.hoisted(() => ({
+  // The cookies of the request, by name.
+  cookieJar: new Map<string, string>(),
   // Every DAL export the action modules import, as the authorization sweep lists them, plus the guards.
   DAL_EXPORTS: [
-    "addDay",
-    "addStoryImage",
     "addStoryTea",
     "addTea",
-    "assignDay",
     "changeEditionStatus",
     "changeUserRole",
     "createEdition",
@@ -26,10 +25,12 @@ const { DAL_EXPORTS } = vi.hoisted(() => ({
     "enrolGuest",
     "enrolUser",
     "getActiveEdition",
+    "getGuestParticipationByToken",
     "getOpenParticipationByUserId",
     "getParticipationByUserId",
     "getTeaById",
     "placeParticipant",
+    "regenerateGuestToken",
     "replaceStoryImages",
     "requireRole",
     "requireSession",
@@ -53,11 +54,19 @@ vi.mock("@/lib/cloudinary", () => ({ deleteAsset: vi.fn(), uploadImage: vi.fn() 
 vi.mock("@/lib/prisma", () => ({ prisma: {} }));
 vi.mock("@/lib/auth", () => ({ auth: { api: { getSession: vi.fn().mockResolvedValue(null) } } }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-vi.mock("next/headers", () => ({ headers: vi.fn().mockResolvedValue(new Headers()) }));
+vi.mock("next/headers", () => ({
+  cookies: vi.fn(async () => ({
+    get: (name: string) => (cookieJar.has(name) ? { name, value: cookieJar.get(name)! } : undefined),
+    getAll: () => [...cookieJar].map(([name, value]) => ({ name, value })),
+    has: (name: string) => cookieJar.has(name),
+  })),
+  headers: vi.fn().mockResolvedValue(new Headers()),
+}));
 vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
 
 type LoadedTea = NonNullable<Awaited<ReturnType<typeof getTeaById>>>;
 type OpenParticipation = NonNullable<Awaited<ReturnType<typeof getOpenParticipationByUserId>>>;
+type GuestParticipation = NonNullable<Awaited<ReturnType<typeof getGuestParticipationByToken>>>;
 
 const INVALID_FORM = "Hay errores en el formulario";
 const NOT_SIGNED_IN = new UnauthenticatedError().message;
@@ -100,6 +109,19 @@ const openParticipation = {
   userId: "ana-id",
   year: 2026,
 } as unknown as OpenParticipation;
+
+const GUEST_COOKIE = "advientea-guest";
+const INVALID_LINK = "Este enlace no es válido o ha caducado. Pide uno nuevo al GerenTé.";
+
+const guestParticipation = {
+  day: { dayNumber: 7, id: "day-id" },
+  edition: { name: "Advienté 2026", status: EditionStatus.ACTIVE, year: 2026 },
+  guestName: "Prima Lejana",
+  id: "guest-participation-id",
+  tea: null,
+  userId: null,
+  year: 2026,
+} as unknown as GuestParticipation;
 
 /** The tea form as the page sends it, with every text and number field filled in and no image. */
 function teaForm() {
@@ -193,7 +215,7 @@ describe("editTeaInfoAction", () => {
 
     expect(getTeaById).toHaveBeenCalledWith("tea-id");
     const { actor, participationId } = serviceCall();
-    expect(actor).toEqual({ id: "ana-id", role: Role.USER });
+    expect(actor).toEqual({ id: "ana-id", kind: "user", role: Role.USER });
     expect(participationId).toBe("participation-id");
   });
 
@@ -202,7 +224,7 @@ describe("editTeaInfoAction", () => {
 
     await editTeaInfoAction(null, editForm());
 
-    expect(serviceCall().actor).toEqual({ id: "boss-id", role: Role.EXECUTEAVE });
+    expect(serviceCall().actor).toEqual({ id: "boss-id", kind: "user", role: Role.EXECUTEAVE });
   });
 
   it("hands the service the tea, the story and the images of the form", async () => {
@@ -335,7 +357,7 @@ describe("saveMyTeaAction", () => {
 
     expect(getOpenParticipationByUserId).toHaveBeenCalledWith("ana-id");
     const { actor, participationId } = serviceCall();
-    expect(actor).toEqual({ id: "ana-id", role: Role.USER });
+    expect(actor).toEqual({ id: "ana-id", kind: "user", role: Role.USER });
     expect(participationId).toBe("open-participation-id");
   });
 
@@ -345,7 +367,7 @@ describe("saveMyTeaAction", () => {
     await saveMyTeaAction(null, teaForm());
 
     expect(getOpenParticipationByUserId).toHaveBeenCalledWith("boss-id");
-    expect(serviceCall().actor).toEqual({ id: "boss-id", role: Role.EXECUTEAVE });
+    expect(serviceCall().actor).toEqual({ id: "boss-id", kind: "user", role: Role.EXECUTEAVE });
   });
 
   it("takes the participation from the session, never from the form", async () => {
@@ -416,6 +438,108 @@ describe("saveMyTeaAction", () => {
     vi.mocked(saveTeaForParticipation).mockRejectedValue(new Error("connection lost to db.internal:5432"));
 
     const result = await saveMyTeaAction(null, teaForm());
+
+    expect(result).toMatchObject({ message: "No se pudo guardar el té. Inténtalo de nuevo.", success: false });
+  });
+});
+
+describe("saveGuestTeaAction", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    cookieJar.clear();
+    cookieJar.set(GUEST_COOKIE, "cookie-token");
+    // A guest has no account: asking for a session would turn them away.
+    vi.mocked(requireSession).mockRejectedValue(new UnauthenticatedError());
+    vi.mocked(getGuestParticipationByToken).mockResolvedValue(guestParticipation);
+    vi.mocked(saveTeaForParticipation).mockResolvedValue({ created: true });
+  });
+
+  it("refuses a visitor without the cookie, whatever token the form carries", async () => {
+    cookieJar.clear();
+    const form = teaForm();
+    form.set("token", "form-token");
+    form.set("guestToken", "form-token");
+
+    const result = await saveGuestTeaAction(null, form);
+
+    expect(result).toMatchObject({ message: INVALID_LINK, success: false });
+    expect(getGuestParticipationByToken).not.toHaveBeenCalledWith("form-token");
+    expectNoWrites("saveGuestTeaAction");
+  });
+
+  it("refuses a cookie whose token matches no guest", async () => {
+    vi.mocked(getGuestParticipationByToken).mockResolvedValue(null);
+
+    const result = await saveGuestTeaAction(null, teaForm());
+
+    expect(result).toMatchObject({ message: INVALID_LINK, success: false });
+    expectNoWrites("saveGuestTeaAction");
+  });
+
+  it("saves, without a session, as the guest of the cookie and for their participation only", async () => {
+    const form = teaForm();
+    form.set("token", "form-token");
+    form.set("participationId", "someone-elses-participation");
+    form.set("tea_id", "someone-elses-tea");
+
+    await saveGuestTeaAction(null, form);
+
+    expect(getGuestParticipationByToken).toHaveBeenCalledWith("cookie-token");
+    expect(getGuestParticipationByToken).not.toHaveBeenCalledWith("form-token");
+    const { actor, participationId } = serviceCall();
+    expect(actor).toEqual({ kind: "guest", participationId: "guest-participation-id" });
+    expect(participationId).toBe("guest-participation-id");
+    expect(getTeaById).not.toHaveBeenCalled();
+  });
+
+  it("hands the service the tea and the story of the form", async () => {
+    await saveGuestTeaAction(null, teaForm());
+
+    const { submission } = serviceCall();
+    expect(submission.content).toMatchObject({ infusionTime: 4, name: "Té editado", temperature: 85 });
+    expect(submission.story).toMatchObject({ storyPart1: "Érase una vez" });
+  });
+
+  it("answers an invalid form with its errors and what was typed, and never calls the service", async () => {
+    const result = await saveGuestTeaAction(null, invalid(teaForm()));
+
+    expect(result).toMatchObject({ message: INVALID_FORM, success: false });
+    expect(result.errors).toBeDefined();
+    expect(result.inputs).toBeDefined();
+    expectNoWrites("saveGuestTeaAction");
+  });
+
+  it("says the tea was saved when it was created, and refreshes the guest page", async () => {
+    const result = await saveGuestTeaAction(null, teaForm());
+
+    expect(result).toMatchObject({ message: "Té guardado.", success: true });
+    expect(revalidatePath).toHaveBeenCalledWith("/invitado");
+  });
+
+  it("says the tea was updated when it already existed", async () => {
+    vi.mocked(saveTeaForParticipation).mockResolvedValue({ created: false });
+
+    const result = await saveGuestTeaAction(null, teaForm());
+
+    expect(result).toMatchObject({ message: "Té actualizado.", success: true });
+  });
+
+  it("passes a conflict of the service on as it is", async () => {
+    const error = new ConflictError(
+      "Tu día ya ha abierto y tu té ya no se puede cambiar. Si hay un error, avisa al GerenTé.",
+    );
+    vi.mocked(saveTeaForParticipation).mockRejectedValue(error);
+
+    const result = await saveGuestTeaAction(null, teaForm());
+
+    expect(result).toMatchObject({ message: error.message, success: false });
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("answers an unexpected failure with a generic message", async () => {
+    vi.mocked(saveTeaForParticipation).mockRejectedValue(new Error("connection lost to db.internal:5432"));
+
+    const result = await saveGuestTeaAction(null, teaForm());
 
     expect(result).toMatchObject({ message: "No se pudo guardar el té. Inténtalo de nuevo.", success: false });
   });

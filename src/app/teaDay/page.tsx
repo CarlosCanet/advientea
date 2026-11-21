@@ -1,4 +1,3 @@
-import { headers } from "next/headers";
 import Link from "next/link";
 import { BsCupHot, BsCupHotFill } from "react-icons/bs";
 
@@ -7,12 +6,11 @@ import TeaInfusionInfo from "@/components/ui/TeaInfusionInfo";
 import { Role } from "@/generated/prisma/enums";
 import { getAdvienteaDayState, getDaySchedule } from "@/lib/advientea-rules";
 import { getNow } from "@/lib/advientea-time";
-import { auth } from "@/lib/auth";
-import { getActiveEdition, getAllDays, getEditionInfo } from "@/lib/dal";
+import { getActiveEdition, getAllDays, getEditionInfo, getSession } from "@/lib/dal";
 import { toParticipantName } from "@/lib/utils";
 
 export default async function DaysList() {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getSession();
 
   const edition = await getActiveEdition();
   if (!edition) {

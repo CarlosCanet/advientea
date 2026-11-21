@@ -2,11 +2,16 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { EditionStatus, Role } from "@/generated/prisma/enums";
 import { deleteAsset, uploadImage } from "@/lib/cloudinary";
-import { getEdition, getParticipationById, saveParticipationTea } from "@/lib/dal";
+import { getEdition, getParticipationById, isParticipationDayPlayed, saveParticipationTea } from "@/lib/dal";
 import { ConflictError, ForbiddenError } from "@/lib/errors";
-import { saveTeaForParticipation, type TeaSubmission } from "@/lib/services/participation-tea-service";
+import { saveTeaForParticipation, type TeaActor, type TeaSubmission } from "@/lib/services/participation-tea-service";
 
-vi.mock("@/lib/dal", () => ({ getEdition: vi.fn(), getParticipationById: vi.fn(), saveParticipationTea: vi.fn() }));
+vi.mock("@/lib/dal", () => ({
+  getEdition: vi.fn(),
+  getParticipationById: vi.fn(),
+  isParticipationDayPlayed: vi.fn(),
+  saveParticipationTea: vi.fn(),
+}));
 vi.mock("@/lib/cloudinary", () => ({ deleteAsset: vi.fn(), uploadImage: vi.fn() }));
 
 type LoadedParticipation = NonNullable<Awaited<ReturnType<typeof getParticipationById>>>;
@@ -14,18 +19,20 @@ type LoadedEdition = NonNullable<Awaited<ReturnType<typeof getEdition>>>;
 
 const NO_LONGER_ENROLLED = "Esa inscripción ya no existe.";
 const MAY_NOT_EDIT = "No puedes editar este té.";
+const DAY_PLAYED = "Tu día ya ha abierto y tu té ya no se puede cambiar. Si hay un error, avisa al GerenTé.";
 
-const ana = { id: "ana-id", role: Role.USER };
-const manager = { id: "boss-id", role: Role.EXECUTEAVE };
-const admin = { id: "root-id", role: Role.ADMIN };
+const ana = { id: "ana-id", kind: "user", role: Role.USER } satisfies TeaActor;
+const manager = { id: "boss-id", kind: "user", role: Role.EXECUTEAVE } satisfies TeaActor;
+const admin = { id: "root-id", kind: "user", role: Role.ADMIN } satisfies TeaActor;
+const guest = { kind: "guest", participationId: "participation-id" } satisfies TeaActor;
 
-function participationOf(userId: null | string, year = 2026) {
+function participationOf(userId: null | string, year = 2026, options: { hasTea?: boolean } = {}) {
   return {
     day: null,
     dayId: null,
-    guestName: null,
+    guestName: userId === null ? "Prima Lejana" : null,
     id: "participation-id",
-    tea: null,
+    tea: options.hasTea ? { id: "tea-id" } : null,
     userId,
     year,
   } as unknown as LoadedParticipation;
@@ -96,6 +103,7 @@ describe("saveTeaForParticipation", () => {
     editionIs(EditionStatus.PREPARING);
     uploadsByName();
     vi.mocked(deleteAsset).mockResolvedValue({ result: "ok" } as never);
+    vi.mocked(isParticipationDayPlayed).mockResolvedValue(false);
     vi.mocked(saveParticipationTea).mockResolvedValue({ created: true, removedPublicIds: [], teaId: "tea-id" });
   });
 
@@ -200,6 +208,84 @@ describe("saveTeaForParticipation", () => {
 
       expect(await saveTeaForParticipation(admin, "participation-id", submission())).toEqual({ created: false });
       expect(savedWith().options).toMatchObject({ refuseArchivedEdition: false });
+    });
+
+    it("lets a guest save their own participation, asking the DAL to refuse an archived edition and a played day", async () => {
+      vi.mocked(getParticipationById).mockResolvedValue(participationOf(null));
+
+      expect(await saveTeaForParticipation(guest, "participation-id", submission())).toEqual({ created: true });
+      expect(savedWith()).toMatchObject({
+        options: { refuseArchivedEdition: true, refusePlayedDay: true },
+        participationId: "participation-id",
+      });
+    });
+
+    it.each([
+      {
+        actor: { kind: "guest", participationId: "other-participation-id" } as const,
+        archived: false,
+        what: "another participation",
+      },
+      { actor: guest, archived: true, what: "their own participation in an archived edition" },
+    ])("refuses a guest $what before uploading anything", async ({ actor, archived }) => {
+      vi.mocked(getParticipationById).mockResolvedValue(participationOf(null));
+      if (archived) {
+        editionIs(EditionStatus.ARCHIVED);
+      }
+
+      const error = await rejectionOf(
+        saveTeaForParticipation(
+          actor,
+          "participation-id",
+          submission({ newImages: [{ file: imageFile("a.png"), order: 0 }] }),
+        ),
+      );
+
+      expect(error).toBeInstanceOf(ForbiddenError);
+      expect((error as Error).message).toBe(MAY_NOT_EDIT);
+      expect(uploadImage).not.toHaveBeenCalled();
+      expect(saveParticipationTea).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("the played day", () => {
+    const withImage = () => submission({ newImages: [{ file: imageFile("a.png"), order: 0 }] });
+
+    it("refuses a user and a guest whose tea exists and whose day is played, before uploading anything", async () => {
+      vi.mocked(isParticipationDayPlayed).mockResolvedValue(true);
+
+      vi.mocked(getParticipationById).mockResolvedValue(participationOf("ana-id", 2026, { hasTea: true }));
+      const userError = await rejectionOf(saveTeaForParticipation(ana, "participation-id", withImage()));
+      vi.mocked(getParticipationById).mockResolvedValue(participationOf(null, 2026, { hasTea: true }));
+      const guestError = await rejectionOf(saveTeaForParticipation(guest, "participation-id", withImage()));
+
+      for (const error of [userError, guestError]) {
+        expect(error).toBeInstanceOf(ConflictError);
+        expect((error as Error).message).toBe(DAY_PLAYED);
+      }
+      expect(isParticipationDayPlayed).toHaveBeenCalledWith("participation-id");
+      expect(uploadImage).not.toHaveBeenCalled();
+      expect(saveParticipationTea).not.toHaveBeenCalled();
+    });
+
+    it("lets a user create the missing tea of a played day", async () => {
+      vi.mocked(isParticipationDayPlayed).mockResolvedValue(true);
+
+      await saveTeaForParticipation(ana, "participation-id", withImage());
+
+      expect(uploadImage).toHaveBeenCalledTimes(1);
+      expect(saveParticipationTea).toHaveBeenCalledTimes(1);
+    });
+
+    it("lets a calendar manager and an admin change the tea of a played day", async () => {
+      vi.mocked(isParticipationDayPlayed).mockResolvedValue(true);
+      vi.mocked(getParticipationById).mockResolvedValue(participationOf("sony-id", 2026, { hasTea: true }));
+
+      await saveTeaForParticipation(manager, "participation-id", withImage());
+      await saveTeaForParticipation(admin, "participation-id", withImage());
+
+      expect(uploadImage).toHaveBeenCalledTimes(2);
+      expect(saveParticipationTea).toHaveBeenCalledTimes(2);
     });
   });
 

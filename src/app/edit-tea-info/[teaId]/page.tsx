@@ -1,17 +1,15 @@
-import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 
 import { editTeaInfoAction } from "@/app/actions/teaInfoActions";
 import TeaInfoForm from "@/components/TeaInfoForm";
 import { Role } from "@/generated/prisma/enums";
-import { auth } from "@/lib/auth";
-import { getTeaById, getUsernameAssignedToTea } from "@/lib/dal";
+import { getSession, getTeaById, getUsernameAssignedToTea } from "@/lib/dal";
 import { userCanEditTea } from "@/lib/services/tea-edit-service";
 
 /** The managers' editor for any tea. A participant edits their own on /my-tea. */
 async function EditTeaInfoDayPage({ params }: { params: Promise<{ teaId: string }> }) {
   const { teaId } = await params;
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getSession();
   if (!session) {
     redirect("/");
   }

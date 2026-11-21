@@ -72,23 +72,16 @@ export interface TeaFormData {
   keptImagesOrder?: Array<string>;
 }
 
-/** The public form: the tea form plus who brings the tea and on which day. */
-export interface TeaInfoFormData extends TeaFormData {
-  dayNumber: number;
-  personName: string;
-  teaId?: string;
-}
-
 export interface TeaInfoActionResponse {
   errors?: {
     errors: Array<string>;
     properties?: {
-      [K in keyof TeaInfoFormData]?: {
+      [K in keyof TeaFormData]?: {
         errors: Array<string>;
       };
     };
   };
-  inputs?: Partial<Pick<TeaInfoFormData, "dayNumber" | "personName">> & TeaFormData;
+  inputs?: TeaFormData;
   message: string;
   success: boolean;
 }

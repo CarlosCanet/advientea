@@ -1,4 +1,3 @@
-import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
@@ -7,8 +6,7 @@ import DeleteEditionButton from "@/components/ui/DeleteEditionButton";
 import EditionStatusSelect from "@/components/ui/EditionStatusSelect";
 import { EditionStatus, Role } from "@/generated/prisma/enums";
 import { getNow, toMadridDateTime } from "@/lib/advientea-time";
-import { auth } from "@/lib/auth";
-import { getAllEditions } from "@/lib/dal";
+import { getAllEditions, getSession } from "@/lib/dal";
 import { EDITION_STATUS_LABELS } from "@/lib/utils";
 
 const STATUS_BADGES: Record<EditionStatus, string> = {
@@ -18,7 +16,7 @@ const STATUS_BADGES: Record<EditionStatus, string> = {
 };
 
 export default async function EditionsPage() {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getSession();
   if (!session) {
     redirect("/");
   }

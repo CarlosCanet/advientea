@@ -5,6 +5,8 @@ import { Toaster } from "sonner";
 
 import "./globals.css";
 import Navbar from "@/components/Navbar";
+import SentryUser from "@/components/SentryUser";
+import { verifySession } from "@/lib/dal";
 
 const geistSans = Geist({
   subsets: ["latin"],
@@ -24,11 +26,12 @@ export const metadata: Metadata = {
   title: "Advienté",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const { user } = await verifySession();
   return (
     <html lang="es">
       <body
@@ -45,6 +48,7 @@ export default function RootLayout({
         <Navbar />
         <main className="pt-16">{children}</main>
         <Toaster richColors />
+        <SentryUser user={user ? { id: user.id, username: user.username } : null} />
       </body>
     </html>
   );

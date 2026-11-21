@@ -1,17 +1,23 @@
-import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import DeleteDayButton from "@/components/ui/DeleteDayButton";
 import EnrolGuestForm from "@/components/ui/EnrolGuestForm";
 import EnrolUserForm from "@/components/ui/EnrolUserForm";
+import GuestLinkButtons from "@/components/ui/GuestLinkButtons";
 import ParticipantDaySelect, { CalendarDayOption } from "@/components/ui/ParticipantDaySelect";
 import UnenrolParticipantButton from "@/components/ui/UnenrolParticipantButton";
 import { EditionStatus, Role } from "@/generated/prisma/enums";
 import { canEditTea, getDaySchedule } from "@/lib/advientea-rules";
 import { getNow } from "@/lib/advientea-time";
-import { auth } from "@/lib/auth";
-import { getDaysForEdition, getEdition, getEditionInfo, getParticipationsForEdition, getUsersBasic } from "@/lib/dal";
+import {
+  getDaysForEdition,
+  getEdition,
+  getEditionInfo,
+  getParticipationsForEdition,
+  getSession,
+  getUsersBasic,
+} from "@/lib/dal";
 import { EditionIssue, findEditionIssues } from "@/lib/edition-issues";
 import { toEditionYear } from "@/lib/schemas/edition";
 import { EDITION_STATUS_LABELS, toParticipantName } from "@/lib/utils";
@@ -58,7 +64,7 @@ function toIssueLines(issues: Array<EditionIssue>): Array<{ items: string; kind:
 }
 
 export default async function EditionPage({ params }: { params: Promise<{ year: string }> }) {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getSession();
   if (!session) {
     redirect("/");
   }
@@ -105,6 +111,7 @@ export default async function EditionPage({ params }: { params: Promise<{ year: 
     .map((participation) => {
       const dayNumber = participation.day?.dayNumber ?? null;
       const isOwnDayLocked = dayNumber !== null && isDayLocked(dayNumber);
+      const isGuest = participation.userId === null && participation.guestName !== null;
       return {
         canEditTea: canEditTea(session.user.role, {
           editionStatus: edition.status,
@@ -114,8 +121,11 @@ export default async function EditionPage({ params }: { params: Promise<{ year: 
         canUnenrol: acceptsEnrolments && !isOwnDayLocked,
         dayId: participation.day?.id ?? null,
         dayNumber,
+        guestToken: isGuest && acceptsEnrolments ? participation.guestToken : null,
+        // A guest's link opens their tea, so it is handed out only while that tea can still be saved.
+        hasGuestLink: isGuest && acceptsEnrolments,
         id: participation.id,
-        isGuest: participation.userId === null && participation.guestName !== null,
+        isGuest,
         isOwnDayLocked,
         name: toParticipantName(participation) ?? DELETED_ACCOUNT,
         tea: participation.tea,
@@ -228,6 +238,9 @@ export default async function EditionPage({ params }: { params: Promise<{ year: 
                       <td>
                         {row.name}
                         {row.isGuest && <span className="badge badge-ghost badge-sm ml-2">Invitado</span>}
+                        {row.hasGuestLink && (
+                          <GuestLinkButtons name={row.name} participationId={row.id} token={row.guestToken} />
+                        )}
                       </td>
                       <td>
                         {row.tea === null ? (
