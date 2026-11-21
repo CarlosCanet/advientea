@@ -1,3 +1,5 @@
+import * as Sentry from "@sentry/nextjs";
+
 import { prisma } from "@/lib/prisma";
 
 const PING_TIMEOUT_MS = 5_000;
@@ -20,6 +22,7 @@ export async function pingDatabase(): Promise<boolean> {
     return true;
   } catch (error) {
     console.error("Database ping failed:", error);
+    Sentry.captureException(error);
     return false;
   } finally {
     clearTimeout(timer);
