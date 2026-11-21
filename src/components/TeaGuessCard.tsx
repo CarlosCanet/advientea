@@ -9,7 +9,7 @@ import { auth } from "@/lib/auth";
 import { getAllIngredients, getAssignees, getDayById, getDayForGuessing, getEditionInfo } from "@/lib/dal";
 import { canUserGuessPerson, canUserGuessTea } from "@/lib/services/tea-guess-service";
 import { SelectOption } from "@/lib/types";
-import { TEA_TYPE_LABELS } from "@/lib/utils";
+import { TEA_TYPE_LABELS, toParticipantName } from "@/lib/utils";
 
 import TeaGuessForm from "./TeaGuessForm";
 
@@ -42,10 +42,9 @@ export default async function TeaGuessCard({ dayId }: TeaGuessCardProps) {
 
   const ingredientList: Array<SelectOption> =
     ingredients?.map((ingredient) => ({ id: ingredient.id, name: ingredient.name })) ?? [];
-  const teaHasIngredients: boolean =
-    Array.isArray(dayForGuessing?.tea?.ingredients) && dayForGuessing.tea.ingredients.length > 0;
+  const teaHasIngredients: boolean = (dayForGuessing?.participation?.tea?.ingredients.length ?? 0) > 0;
   const userList: Array<SelectOption> = users
-    .map((user) => ({ id: user.userId ?? "", name: user.user?.username ?? user.guestName ?? "" }))
+    .map((user) => ({ id: user.userId ?? "", name: toParticipantName(user) ?? "" }))
     .toSorted((user1, user2) => user1.name.localeCompare(user2.name));
   const canGuessTea = await canUserGuessTea(dayId, session.user.id);
   const canGuessPerson = await canUserGuessPerson(dayId, session.user.id);
@@ -55,7 +54,7 @@ export default async function TeaGuessCard({ dayId }: TeaGuessCardProps) {
     session.user.role,
     false,
   );
-  const isAssignee = dayForGuessing?.assignment?.user?.id === session.user.id;
+  const isAssignee = dayForGuessing?.participation?.user?.id === session.user.id;
 
   return (
     <div className="card w-full max-w-xl bg-base-200 card-xl shadow-md border border-primary/20 mb-5">

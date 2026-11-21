@@ -12,9 +12,8 @@ model Day {
   dayNumber Int
   year      Int
 
-  tea        Tea?
-  assignment DayAssignment?
-  edition    Edition        @relation(fields: [year], references: [year], onDelete: Restrict)
+  participation Participation?
+  edition       Edition        @relation(fields: [year], references: [year], onDelete: Restrict)
 
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
@@ -39,7 +38,7 @@ enum TeaType {
 
 model Tea {
   id              String    @id @default(cuid())
-  dayId           String?   @unique
+  participationId String    @unique
   name            String
   teaType         TeaType   @default(BLEND)
   infusionTime    Int
@@ -56,8 +55,8 @@ model Tea {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  day         Day?            @relation(fields: [dayId], references: [id], onDelete: Cascade)
-  ingredients TeaIngredient[] @relation("TeaIngredients")
+  participation Participation   @relation(fields: [participationId], references: [id], onDelete: Restrict)
+  ingredients   TeaIngredient[] @relation("TeaIngredients")
 }
 
 model TeaIngredient {
@@ -71,7 +70,7 @@ model TeaIngredient {
   guesses TeaGuess[] @relation("GuessedIngredients")
 }
 
-model DayAssignment {
+model Participation {
   id        String   @id @default(cuid())
   userId    String?
   guestName String?
@@ -84,9 +83,11 @@ model DayAssignment {
   day        Day?    @relation(fields: [dayId], references: [id], onDelete: SetNull)
   edition    Edition @relation(fields: [year], references: [year], onDelete: Restrict)
   guestToken String? @unique
+  tea        Tea?
 
   @@unique([userId, year])
   @@index([year])
+  @@map("DayAssignment")
 }
 
 model StoryImage {
@@ -135,13 +136,13 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  daysAssigned  DayAssignment[]
-  guesses       TeaGuess[]
+  participations Participation[]
+  guesses        TeaGuess[]
   // badges       UserBadge[]
-  name          String?
-  emailVerified Boolean         @default(false)
-  sessions      Session[]
-  accounts      Account[]
+  name           String?
+  emailVerified  Boolean         @default(false)
+  sessions       Session[]
+  accounts       Account[]
 
   @@map("user")
 }
@@ -250,6 +251,6 @@ model Edition {
   createdAt DateTime      @default(now())
   updatedAt DateTime      @default(now()) @updatedAt
 
-  days        Day[]
-  assignments DayAssignment[]
+  days           Day[]
+  participations Participation[]
 }

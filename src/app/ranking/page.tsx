@@ -7,7 +7,7 @@ import RankingList from "@/components/RankingList";
 import NoActiveEdition from "@/components/ui/NoActiveEdition";
 import { getAdvienteaDayState } from "@/lib/advientea-rules";
 import { auth } from "@/lib/auth";
-import { getActiveEdition, getEditionInfo, getUpcomingEdition } from "@/lib/dal";
+import { getActiveEdition, getEditionInfo } from "@/lib/dal";
 import { getOverallRanking } from "@/lib/services/ranking-service";
 
 export default async function OverallRankingPage() {
@@ -17,7 +17,7 @@ export default async function OverallRankingPage() {
   }
   const edition = await getActiveEdition();
   if (!edition) {
-    return <NoActiveEdition nextYear={(await getUpcomingEdition())?.year} />;
+    return <NoActiveEdition />;
   }
   const editionInfo = await getEditionInfo(edition.year);
   const advienteaDayState = getAdvienteaDayState(editionInfo.lastDayNumber, editionInfo, session.user.role, false);

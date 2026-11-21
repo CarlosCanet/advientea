@@ -10,7 +10,6 @@ import {
   getAllUsers,
   getUser,
   getUsersBasic,
-  UserForManagement,
 } from "@/lib/dal/dal-user";
 
 describe("DAL User", () => {
@@ -50,9 +49,8 @@ describe("DAL User", () => {
   });
 
   describe("getAllUsers", () => {
-    const mockUsersList: Array<UserForManagement> = [
+    const mockUsersList: Awaited<ReturnType<typeof getAllUsers>> = [
       {
-        daysAssigned: [],
         email: "a@a.com",
         id: "1",
         image: null,

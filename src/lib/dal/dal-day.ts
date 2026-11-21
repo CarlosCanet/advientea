@@ -1,26 +1,38 @@
 import { Day, Prisma } from "@/generated/prisma/client";
+import { ConflictError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
+import { toParticipantName } from "@/lib/utils";
 
 import { storyTeaWithImagesInclude } from "./includes";
 
-const dayWithTeaStoryImagesInclude = {
-  tea: { include: { story: { include: storyTeaWithImagesInclude } } },
+// Only the tea of whoever holds the day: the page of a day must not load who that is.
+const dayWithParticipationTeaStoryImagesInclude = {
+  participation: { select: { tea: { include: { story: { include: storyTeaWithImagesInclude } } } } },
 } satisfies Prisma.DayInclude;
-export type DayWithTeaStoryImages = Prisma.DayGetPayload<{ include: typeof dayWithTeaStoryImagesInclude }>;
-const dayWithAssignmentUserAndTeaStoryImagesInclude = {
-  assignment: { include: { user: true } },
-  ...dayWithTeaStoryImagesInclude,
+export type DayWithParticipationTeaStoryImages = Prisma.DayGetPayload<{
+  include: typeof dayWithParticipationTeaStoryImagesInclude;
+}>;
+const dayWithParticipationTeaStoryImagesAndUserInclude = {
+  participation: { include: { tea: { include: { story: { include: storyTeaWithImagesInclude } } }, user: true } },
 } satisfies Prisma.DayInclude;
-export type DayWithAssignmentUserAndTeaStoryImages = Prisma.DayGetPayload<{
-  include: typeof dayWithAssignmentUserAndTeaStoryImagesInclude;
+export type DayWithParticipationTeaStoryImagesAndUser = Prisma.DayGetPayload<{
+  include: typeof dayWithParticipationTeaStoryImagesAndUserInclude;
 }>;
 export type DayForGuessing = Prisma.DayGetPayload<{
   select: {
-    assignment: { select: { guestName: true; user: { select: { id: true; username: true } } } };
     dayNumber: true;
-    tea: { select: { ingredients: true; name: true; teaType: true } };
+    participation: {
+      select: {
+        guestName: true;
+        tea: { select: { ingredients: true; name: true; teaType: true } };
+        user: { select: { id: true; username: true } };
+      };
+    };
     year: true;
   };
+}>;
+export type DayForEdition = Prisma.DayGetPayload<{
+  select: { _count: { select: { guesses: true } }; dayNumber: true; id: true };
 }>;
 
 export type DayYear = {
@@ -28,18 +40,18 @@ export type DayYear = {
   year: number;
 };
 
-export async function getDayById(id: string): Promise<DayWithTeaStoryImages | null> {
+export async function getDayById(id: string): Promise<DayWithParticipationTeaStoryImages | null> {
   const dayResponse = await prisma.day.findUnique({
-    include: dayWithTeaStoryImagesInclude,
+    include: dayWithParticipationTeaStoryImagesInclude,
     where: { id },
   });
   if (!dayResponse) return null;
   return dayResponse;
 }
 
-export async function getDayByDayNumber(dayYear: DayYear): Promise<DayWithTeaStoryImages | null> {
+export async function getDayByDayNumber(dayYear: DayYear): Promise<DayWithParticipationTeaStoryImages | null> {
   const dayResponse = await prisma.day.findUnique({
-    include: dayWithTeaStoryImagesInclude,
+    include: dayWithParticipationTeaStoryImagesInclude,
     where: { dayNumber_year: { dayNumber: dayYear.dayNumber, year: dayYear.year } },
   });
   if (!dayResponse) return null;
@@ -49,23 +61,12 @@ export async function getDayByDayNumber(dayYear: DayYear): Promise<DayWithTeaSto
 export async function getDayForGuessing(id: string): Promise<DayForGuessing | null> {
   const dayResponse = await prisma.day.findUnique({
     select: {
-      assignment: {
+      dayNumber: true,
+      participation: {
         select: {
           guestName: true,
-          user: {
-            select: {
-              id: true,
-              username: true,
-            },
-          },
-        },
-      },
-      dayNumber: true,
-      tea: {
-        select: {
-          ingredients: true,
-          name: true,
-          teaType: true,
+          tea: { select: { ingredients: true, name: true, teaType: true } },
+          user: { select: { id: true, username: true } },
         },
       },
       year: true,
@@ -75,13 +76,21 @@ export async function getDayForGuessing(id: string): Promise<DayForGuessing | nu
   return dayResponse;
 }
 
-export async function getAllDays(year: number): Promise<Array<DayWithAssignmentUserAndTeaStoryImages>> {
+export async function getAllDays(year: number): Promise<Array<DayWithParticipationTeaStoryImagesAndUser>> {
   const allDays = await prisma.day.findMany({
-    include: dayWithAssignmentUserAndTeaStoryImagesInclude,
+    include: dayWithParticipationTeaStoryImagesAndUserInclude,
     orderBy: { dayNumber: "asc" },
     where: { year },
   });
   return allDays;
+}
+
+export async function getDaysForEdition(year: number): Promise<Array<DayForEdition>> {
+  return prisma.day.findMany({
+    orderBy: { dayNumber: "asc" },
+    select: { _count: { select: { guesses: true } }, dayNumber: true, id: true },
+    where: { year },
+  });
 }
 
 export async function addDay(dayYear: DayYear): Promise<Day | null> {
@@ -98,39 +107,6 @@ export async function addDay(dayYear: DayYear): Promise<Day | null> {
   }
 }
 
-export async function addNextDay(year: number): Promise<Day | null> {
-  let nextDayNumber;
-  try {
-    const days = await prisma.day.aggregate({
-      _max: { dayNumber: true },
-      where: { year },
-    });
-    const maxDay = days._max?.dayNumber ?? 0;
-    nextDayNumber = maxDay + 1;
-    const created = await prisma.day.create({ data: { dayNumber: nextDayNumber, year } });
-    return created;
-  } catch (error) {
-    console.error(error);
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      console.error(`Day ${nextDayNumber}/${year} already exists`);
-      return null;
-    }
-    throw error;
-  }
-}
-
-export async function add25Days(year: number): Promise<number> {
-  const days = Array.from({ length: 25 }, (_, i) => ({
-    dayNumber: i + 1,
-    year,
-  }));
-  const result = await prisma.day.createMany({
-    data: days,
-    skipDuplicates: true,
-  });
-  return result.count;
-}
-
 export async function editDay(data: Prisma.DayUncheckedUpdateInput, id: string): Promise<Day> {
   const dayUpdated = await prisma.day.update({
     data,
@@ -139,14 +115,40 @@ export async function editDay(data: Prisma.DayUncheckedUpdateInput, id: string):
   return dayUpdated;
 }
 
-export async function deleteDay(id: string): Promise<DayWithTeaStoryImages> {
-  // The assignment goes with the day on purpose: since the editions migration its day is SetNull, and
-  // an orphan row would still hold the (userId, year) unique and block assigning that person again.
-  return prisma.$transaction(async (tx) => {
-    await tx.dayAssignment.deleteMany({ where: { dayId: id } });
-    return tx.day.delete({
-      include: dayWithTeaStoryImagesInclude,
-      where: { id },
-    });
-  });
+/** Deletes a day that nobody holds, guesses included. A held day is refused: its holder has to be taken off it first. */
+export async function deleteDay(id: string): Promise<Day> {
+  try {
+    return await prisma.$transaction(
+      async (tx) => {
+        // The row is locked before its holder is read. Giving a participation this day makes the foreign key
+        // check take a key-share lock on the row, which FOR UPDATE excludes: a placement under way is waited
+        // for and then seen as the holder, and one that comes later waits and finds the row gone. Checking
+        // without the lock would let a placement commit in between and ON DELETE SET NULL undo it in silence.
+        await tx.$queryRaw`SELECT "id" FROM "Day" WHERE "id" = ${id} FOR UPDATE`;
+
+        const dayRecord = await tx.day.findUnique({
+          select: {
+            dayNumber: true,
+            participation: { select: { guestName: true, user: { select: { username: true } } } },
+          },
+          where: { id },
+        });
+        if (!dayRecord) {
+          throw new ConflictError("Ese día ya no existe.");
+        }
+        if (dayRecord.participation) {
+          const holder = toParticipantName(dayRecord.participation) ?? "otra persona";
+          throw new ConflictError(`El día ${dayRecord.dayNumber} es de ${holder}. Quítale el día antes de borrarlo.`);
+        }
+        return tx.day.delete({ where: { id } });
+      },
+      // The holder must be read as it stands once the lock is granted, not from a snapshot taken before the wait.
+      { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted },
+    );
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
+      throw new ConflictError("Ese día ya no existe.");
+    }
+    throw error;
+  }
 }

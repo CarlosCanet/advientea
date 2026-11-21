@@ -16,7 +16,6 @@ import TeaListImageForm from "./ui/TeaListImageForm";
 
 interface EditTeaInfoFormProps {
   dayNumber: number | undefined;
-  isExecuTEAve: boolean;
   teaCompleteInfo: Prisma.TeaGetPayload<{ include: { story: { include: { images: true } } } }>;
   teaId: string;
   username: string;
@@ -35,7 +34,7 @@ function initImages(teaCompleteInfo: Prisma.TeaGetPayload<{ include: { story: { 
   return [];
 }
 
-function EditTeaInfoForm({ dayNumber, isExecuTEAve, teaCompleteInfo, teaId, username }: EditTeaInfoFormProps) {
+function EditTeaInfoForm({ dayNumber, teaCompleteInfo, teaId, username }: EditTeaInfoFormProps) {
   const [state, action, isPending] = useActionState(editTeaInfoAction, initialTeaInfoActionResponse);
   const [images, setImages] = useState<Array<ImageStoryForm>>(() => initImages(teaCompleteInfo));
   const [imageSizeError, setImageSizeError] = useState<string>("");
@@ -110,7 +109,7 @@ function EditTeaInfoForm({ dayNumber, isExecuTEAve, teaCompleteInfo, teaId, user
                 min={0}
                 name="dayNumber"
                 placeholder="Día asignado"
-                readOnly={!isExecuTEAve}
+                readOnly
                 required
                 type="text"
               />

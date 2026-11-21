@@ -8,9 +8,12 @@ import { ForbiddenError, UnauthenticatedError } from "@/lib/errors";
 /**
  * Authorization sweep over EVERY module in src/app/actions (picked up by glob, not registered by hand).
  *
- * Two properties:
+ * Properties:
  *  1. With no session, no action reaches the DAL, Prisma or Cloudinary.
  *  2. With a plain USER session, no privileged action reaches them either.
+ *  3. With an EXECUTEAVE session, no ADMIN-only action reaches them, and the guard of every action
+ *     shared with the calendar manager lets it through.
+ *  4. With an ADMIN session, the guard of every privileged action lets it through.
  * A new action is covered automatically; forgetting its guard fails this test instead of shipping.
  */
 
@@ -22,35 +25,56 @@ const PUBLIC_ACTIONS: Record<string, string> = {
   signup: "creates the account itself",
 };
 
-// Require ADMIN or EXECUTEAVE. A USER must never get past the guard.
-const PRIVILEGED_ACTIONS: Record<string, string> = {
-  addDaysAction: "ADMIN",
-  assignUserToDay: "ADMIN or EXECUTEAVE",
+type AllowedRoles = "ADMIN" | "ADMIN or EXECUTEAVE";
+
+// Require ADMIN or EXECUTEAVE. A USER must never get past the guard, and neither must an EXECUTEAVE
+// where the label says ADMIN: the labels are enforced below, one session role at a time.
+const PRIVILEGED_ACTIONS: Record<string, AllowedRoles> = {
+  changeEditionStatusAction: "ADMIN",
   changeRoleAction: "ADMIN",
+  createEditionAction: "ADMIN",
   deleteDayAction: "ADMIN",
+  deleteEditionAction: "ADMIN",
+  enrolGuestAction: "ADMIN or EXECUTEAVE",
+  enrolUserAction: "ADMIN or EXECUTEAVE",
+  placeParticipantAction: "ADMIN or EXECUTEAVE",
+  swapParticipantsAction: "ADMIN or EXECUTEAVE",
+  unenrolParticipantAction: "ADMIN or EXECUTEAVE",
+};
+
+const ROLES_OF: Record<AllowedRoles, Role[]> = {
+  ADMIN: [Role.ADMIN],
+  "ADMIN or EXECUTEAVE": [Role.ADMIN, Role.EXECUTEAVE],
 };
 
 const { DAL_FUNCTIONS, GUARDS, prismaTouched } = vi.hoisted(() => ({
   GUARDS: ["requireSession", "requireRole", "verifySession"] as const,
   // Every DAL export the action modules import. Keep in sync with their `@/lib/dal` imports.
   DAL_FUNCTIONS: [
-    "add25Days",
     "addDay",
     "assignDay",
     "addStoryImage",
     "addStoryTea",
     "addTea",
+    "changeEditionStatus",
     "changeUserRole",
+    "createEdition",
     "createTeaGuess",
     "deleteDay",
+    "deleteEdition",
     "editStoryTea",
-    "editTea",
     "editUser",
+    "enrolGuest",
+    "enrolUser",
     "getActiveEdition",
-    "getDayAssignmentByUserId",
+    "getParticipationByUserId",
     "getTeaById",
+    "placeParticipant",
     "replaceStoryImages",
-    "unassignDay",
+    "swapParticipants",
+    "unenrolParticipant",
+    "unplaceParticipant",
+    "updateTeaContent",
   ] as const,
   prismaTouched: vi.fn(),
 }));
@@ -97,13 +121,14 @@ vi.mock("@/lib/services/tea-guess-service", () => ({
 }));
 
 import * as authActions from "@/app/actions/authActions";
+import * as editionActions from "@/app/actions/editionActions";
 import * as teaGuessActions from "@/app/actions/teaGuessActions";
 import * as teaInfoActions from "@/app/actions/teaInfoActions";
 import * as cloudinary from "@/lib/cloudinary";
 import * as dal from "@/lib/dal";
 
 type ActionModule = Record<string, unknown>;
-const MODULES: Record<string, ActionModule> = { authActions, teaGuessActions, teaInfoActions };
+const MODULES: Record<string, ActionModule> = { authActions, editionActions, teaGuessActions, teaInfoActions };
 // commonActions.ts holds form-parsing helpers, not Server Actions.
 const NON_ACTION_FILES = new Set(["commonActions"]);
 const ACTIONS_DIR = path.join(process.cwd(), "src", "app", "actions");
@@ -134,21 +159,79 @@ function expectNoWrites(actionName: string) {
   }
 }
 
-const userSession = {
-  isAuth: true as const,
-  role: Role.USER,
-  user: {
-    createdAt: new Date(),
-    email: "user@example.com",
-    emailVerified: false,
-    id: "user-id",
-    name: "user",
-    role: Role.USER,
-    updatedAt: new Date(),
-    username: "user",
-  },
-  userId: "user-id",
-};
+function sessionOf(role: Role) {
+  return {
+    isAuth: true as const,
+    role,
+    user: {
+      createdAt: new Date(),
+      email: "user@example.com",
+      emailVerified: false,
+      id: "user-id",
+      name: "user",
+      role,
+      updatedAt: new Date(),
+      username: "user",
+    },
+    userId: "user-id",
+  };
+}
+
+/** Opens a session with that role. `requireRole` answers by the contract of the real guard, whatever it is asked. */
+function signInAs(role: Role) {
+  const session = sessionOf(role);
+  dalMock.requireSession.mockResolvedValue(session);
+  dalMock.verifySession.mockResolvedValue(session);
+  dalMock.requireRole.mockImplementation(async (...roles: Role[]) => {
+    if (roles.includes(role)) {
+      return session;
+    }
+    throw new ForbiddenError();
+  });
+}
+
+/** How the guard answered each time the action asked for a role: "fulfilled" let it through, "rejected" refused. */
+function guardAnswers() {
+  return dalMock.requireRole.mock.settledResults.map((result) => result.type);
+}
+
+// An action that got past the guard would still stop at its dummy arguments before writing, so "nothing
+// was written" alone cannot tell a refusal from a wrong role list: the guard's own answer can.
+function expectRefusedByTheGuard(actionName: string, role: Role) {
+  const answers = guardAnswers();
+  expect(answers.length, `${actionName} never checked the role`).toBeGreaterThan(0);
+  expect(answers, `${actionName} lets a session with the role ${role} past its guard`).not.toContain("fulfilled");
+}
+
+function expectLetThroughByTheGuard(actionName: string, role: Role) {
+  const answers = guardAnswers();
+  expect(answers.length, `${actionName} never checked the role`).toBeGreaterThan(0);
+  expect(new Set(answers), `${actionName} refuses a session with the role ${role}`).toEqual(new Set(["fulfilled"]));
+}
+
+const PRIVILEGED = ALL_ACTIONS.filter(({ actionName }) => actionName in PRIVILEGED_ACTIONS).map((entry) => ({
+  ...entry,
+  allowed: PRIVILEGED_ACTIONS[entry.actionName],
+}));
+
+const SESSION_ONLY = ALL_ACTIONS.filter(
+  ({ actionName }) => !(actionName in PUBLIC_ACTIONS) && !(actionName in PRIVILEGED_ACTIONS),
+);
+
+// Without a session an action that asks for the session first and for a role later stops at the first guard,
+// so only a session shows that it asks for a role at all. Then it has to be listed, or no property above
+// would say which roles it must take.
+function itAsksNoRoleUnlessListed() {
+  for (const { action, actionName, moduleName } of SESSION_ONLY) {
+    it(`${moduleName}.${actionName} is not listed as privileged and asks for no role`, async () => {
+      await action(...dummyArgs()).catch(() => undefined);
+      expect(
+        dalMock.requireRole,
+        `${actionName} asks for a role but is not listed in PRIVILEGED_ACTIONS`,
+      ).not.toHaveBeenCalled();
+    });
+  }
+}
 
 describe("authorization sweep", () => {
   it("covers every action module on disk and lists only real actions as public or privileged", () => {
@@ -163,6 +246,16 @@ describe("authorization sweep", () => {
     for (const name of [...Object.keys(PUBLIC_ACTIONS), ...Object.keys(PRIVILEGED_ACTIONS)]) {
       expect(allNames, `${name} is listed but no action module exports it`).toContain(name);
     }
+  });
+
+  it("finds each action in one module only", () => {
+    // The lists above go by name alone, so a copy left behind when an action moves would hide behind the new one.
+    const modulesByAction = new Map<string, string[]>();
+    for (const { actionName, moduleName } of ALL_ACTIONS) {
+      modulesByAction.set(actionName, [...(modulesByAction.get(actionName) ?? []), moduleName]);
+    }
+    const repeated = [...modulesByAction].filter(([, modules]) => modules.length > 1);
+    expect(repeated).toEqual([]);
   });
 
   describe("no session: nothing reaches the DAL", () => {
@@ -184,6 +277,12 @@ describe("authorization sweep", () => {
         expectNoWrites(actionName);
         const guardConsulted = GUARDS.some((g) => dalMock[g].mock.calls.length > 0);
         expect(guardConsulted, `${actionName} never asked for a session`).toBe(true);
+        // The role properties below only run over the listed actions, so one that asks for a role must be listed.
+        const asksForRole = dalMock.requireRole.mock.calls.length > 0;
+        expect(
+          asksForRole && !(actionName in PRIVILEGED_ACTIONS),
+          `${actionName} asks for a role but is not listed in PRIVILEGED_ACTIONS`,
+        ).toBe(false);
       });
     }
   });
@@ -191,20 +290,65 @@ describe("authorization sweep", () => {
   describe("USER session: privileged actions are refused before any write", () => {
     beforeEach(() => {
       vi.clearAllMocks();
-      dalMock.requireSession.mockResolvedValue(userSession);
-      dalMock.verifySession.mockResolvedValue(userSession);
-      dalMock.requireRole.mockImplementation(async (...roles: Role[]) => {
-        if (roles.includes(Role.USER)) return userSession;
-        throw new ForbiddenError();
-      });
+      signInAs(Role.USER);
     });
 
-    for (const { action, actionName, moduleName } of ALL_ACTIONS) {
-      if (!(actionName in PRIVILEGED_ACTIONS)) continue;
-      it(`${moduleName}.${actionName} (${PRIVILEGED_ACTIONS[actionName]}) refuses a USER`, async () => {
+    itAsksNoRoleUnlessListed();
+
+    for (const { action, actionName, allowed, moduleName } of PRIVILEGED) {
+      it(`${moduleName}.${actionName} (${allowed}) refuses a USER`, async () => {
         await action(...dummyArgs()).catch(() => undefined);
         expectNoWrites(actionName);
-        expect(dalMock.requireRole, `${actionName} never checked the role`).toHaveBeenCalled();
+        expectRefusedByTheGuard(actionName, Role.USER);
+      });
+    }
+  });
+
+  describe("EXECUTEAVE session: ADMIN-only actions are refused before any write, the shared ones let it in", () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+      signInAs(Role.EXECUTEAVE);
+    });
+
+    itAsksNoRoleUnlessListed();
+
+    for (const { action, actionName, allowed, moduleName } of PRIVILEGED) {
+      if (ROLES_OF[allowed].includes(Role.EXECUTEAVE)) {
+        it(`${moduleName}.${actionName} (${allowed}) lets an EXECUTEAVE past its guard`, async () => {
+          await action(...dummyArgs()).catch(() => undefined);
+          expectLetThroughByTheGuard(actionName, Role.EXECUTEAVE);
+        });
+        continue;
+      }
+      it(`${moduleName}.${actionName} (${allowed}) refuses an EXECUTEAVE`, async () => {
+        await action(...dummyArgs()).catch(() => undefined);
+        expectNoWrites(actionName);
+        expectRefusedByTheGuard(actionName, Role.EXECUTEAVE);
+      });
+    }
+  });
+
+  describe("ADMIN session: every privileged action lets it in, asking for exactly the roles it lists", () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+      signInAs(Role.ADMIN);
+    });
+
+    itAsksNoRoleUnlessListed();
+
+    for (const { action, actionName, allowed, moduleName } of PRIVILEGED) {
+      it(`${moduleName}.${actionName} (${allowed}) lets an ADMIN past its guard`, async () => {
+        await action(...dummyArgs()).catch(() => undefined);
+        expectLetThroughByTheGuard(actionName, Role.ADMIN);
+      });
+
+      it(`${moduleName}.${actionName} asks the guard for ${allowed} and no other role`, async () => {
+        await action(...dummyArgs()).catch(() => undefined);
+        const asked = dalMock.requireRole.mock.calls.map((roles) => [...new Set(roles as Role[])].toSorted());
+        expect(asked.length, `${actionName} never checked the role`).toBeGreaterThan(0);
+        for (const roles of asked) {
+          expect(roles, `${actionName} asks for other roles than ${allowed}`).toEqual(ROLES_OF[allowed].toSorted());
+        }
       });
     }
   });

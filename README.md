@@ -163,7 +163,7 @@ pnpm install
 4. Set up the database (needs Docker running)
 
 ```bash
-pnpm docker:up                   # dev database on localhost:5432, test database on localhost:5433
+pnpm docker:up                   # dev database on localhost:5432, test database on localhost:5433 (see below to change them)
 pnpm exec prisma migrate deploy  # create the schema in the dev database
 pnpm db:seed                     # optional: synthetic data and sign-in accounts
 ```
@@ -183,6 +183,19 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+#### Other projects on the same ports
+
+If another project already uses 3000, 5432 or 5433 on your machine, move this one with a `mise.local.toml` in the repository root (gitignored, so it only affects your machine):
+
+```toml
+[env]
+PORT = "3100"         # next dev
+DB_PORT = "5442"      # dev database
+DB_TEST_PORT = "5443" # test database
+```
+
+mise exports these variables when you enter the folder. `docker-compose.yml`, `.env.test` and the `.env.example` URLs read them with the usual port as default, so nothing changes for anyone who does not set them. If your `.env` predates this, write its `DATABASE_URL` and `BETTER_AUTH_URL` ports as in `.env.example`. Containers created on the old ports keep them until you recreate them: `pnpm docker:down && pnpm docker:up`. Start and stop the databases with `pnpm docker:up` and `pnpm docker:down` rather than a bare `docker compose`: mise passes its variables to the `pnpm` it manages even outside an activated shell (an editor, a script), while `docker` run there would recreate the containers on the default ports.
 
 ### Scripts
 

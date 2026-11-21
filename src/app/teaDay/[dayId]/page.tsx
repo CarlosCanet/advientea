@@ -27,7 +27,7 @@ export default async function TeaDayPage({ params, searchParams }: TeaDayPagePro
     notFound();
   }
   const simulated = Boolean((await searchParams).simulated);
-  const tea = day.tea;
+  const tea = day.participation?.tea ?? null;
   const session = await auth.api.getSession({ headers: await headers() });
   const advienteaDayState = getAdvienteaDayState(
     day.dayNumber,

@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 
 import { Role } from "./generated/prisma/enums";
 
-const PROTECTED_ROUTES: Array<string> = ["/profile", "/edit-tea-info", "/ranking"];
+const PROTECTED_ROUTES: Array<string> = ["/profile", "/edit-tea-info", "/ranking", "/editions"];
 const EXECUTEAVE_ROUTES: Array<string> = [];
 const ADMIN_ROUTES: Array<string> = ["/admin-dashboard", "/users"];
 

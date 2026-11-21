@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
 // dal-tea MOCK
-import type { TeaWithDayAndIngredientsAndStoryImages } from "@/lib/dal/dal-tea";
+import type { TeaWithIngredientsAndParticipationDayAndStoryImages } from "@/lib/dal/dal-tea";
 
 import { TeaType } from "@/generated/prisma/client";
 import { prismaMock } from "@/lib/__mocks__/prisma";
@@ -13,18 +13,23 @@ describe("DAL StoryImage", () => {
   });
 
   describe("addStoryImage", () => {
-    const mockTeaResponse: TeaWithDayAndIngredientsAndStoryImages = {
+    const mockTeaResponse: TeaWithIngredientsAndParticipationDayAndStoryImages = {
       addMilk: false,
       canReinfuse: false,
       createdAt: new Date(),
-      day: { createdAt: new Date(), dayNumber: 5, id: "day-1", updatedAt: new Date(), year: 2025 },
-      dayId: "day-1",
       hasTheine: true,
       id: "tea-1",
       infusionTime: 3,
       ingredients: [],
       moreIndications: null,
       name: "Tea",
+      participation: {
+        day: { createdAt: new Date(), dayNumber: 5, id: "day-1", updatedAt: new Date(), year: 2025 },
+        id: "participation-1",
+        userId: "user-1",
+        year: 2025,
+      },
+      participationId: "participation-1",
       reinfuseNumber: null,
       storeName: null,
       story: {
