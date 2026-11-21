@@ -1,14 +1,15 @@
 "use client";
 
+import { Eye, EyeOff, KeyRound, Mail } from "lucide-react";
 import Form from "next/form";
 import Link from "next/link";
-import { useActionState, useState } from "react";
-import { FaEye, FaEyeSlash } from "react-icons/fa";
-import { GiBrainLeak } from "react-icons/gi";
-import { IoKeySharp } from "react-icons/io5";
-import { MdEmail } from "react-icons/md";
+import { useActionState, useId, useState } from "react";
 
 import { signin } from "@/app/actions/authActions";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group";
 import { Spinner } from "@/components/ui/spinner";
 import { initialSignInActionResponse } from "@/lib/types";
 
@@ -16,54 +17,94 @@ export default function SignInForm() {
   const [state, action, isPending] = useActionState(signin, initialSignInActionResponse);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState<boolean>(false);
+  const id = useId();
+  const emailId = `${id}-email`;
+  const passwordId = `${id}-password`;
+  const emailError = state?.errors?.email?.join(", ");
+  const passwordError = state?.errors?.password?.join(", ");
 
   return (
-    <div className="card w-full max-w-xl bg-base-100 shadow-xl mt-20 mb-20">
-      <Form action={action} className="card-body">
-        <h2 className="card-title">Login</h2>
-        <div className="items-center mt-2">
-          <label className="input input-bordered flex items-center gap-2 mb-2 w-full">
-            <MdEmail />
-            <input autoComplete="username" className="grow" name="email" placeholder="Email" required type="email" />
-          </label>
-          {state?.errors?.email && (
-            <p className="text-xs text-error font-bold -mt-2 mb-2">{state.errors.email.join(", ")}</p>
-          )}
+    <Card className="my-10 w-full max-w-md shadow-sm sm:my-16">
+      <CardHeader>
+        <CardTitle>
+          <h1 className="font-display text-3xl">Entrar</h1>
+        </CardTitle>
+        <CardDescription className="text-base text-foreground">
+          Entra con tu email para descubrir el té de cada día.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Form action={action} className="flex flex-col gap-6">
+          <FieldGroup className="gap-5">
+            <Field data-invalid={!!emailError || undefined}>
+              <FieldLabel htmlFor={emailId}>Email</FieldLabel>
+              <InputGroup>
+                <InputGroupInput
+                  aria-describedby={emailError ? `${emailId}-error` : undefined}
+                  aria-invalid={!!emailError || undefined}
+                  autoComplete="username"
+                  id={emailId}
+                  name="email"
+                  required
+                  type="email"
+                />
+                <InputGroupAddon>
+                  <Mail />
+                </InputGroupAddon>
+              </InputGroup>
+              <FieldError id={`${emailId}-error`}>{emailError}</FieldError>
+            </Field>
 
-          <label className="input input-bordered flex items-center gap-2 mb-2 w-full">
-            <IoKeySharp />
-            <input
-              autoComplete="current-password"
-              className="grow"
-              name="password"
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Introduce tu contraseña"
-              required
-              type={showPassword ? "text" : "password"}
-              value={password}
-            />
-            <button className="cursor-pointer" onClick={() => setShowPassword(!showPassword)} type="button">
-              {showPassword ? <FaEyeSlash /> : <FaEye />}
-            </button>
-          </label>
-          {state?.errors?.password && (
-            <p className="text-xs text-error font-bold -mt-2 mb-2">{state.errors.password.join(", ")}</p>
-          )}
-        </div>
-        <div className="card-actions justify-center mt-4">
-          <button className="btn btn-primary w-full" disabled={isPending} type="submit">
-            {isPending ? <Spinner /> : "Login"}
-          </button>
-        </div>
-        <div className="divider"></div>
-        <div className="flex gap-2 items-center justify-center">
-          <GiBrainLeak />
-          <Link className="link-neutral" href="/reset-password">
-            {" "}
-            He olvidado mi contraseña
+            <Field data-invalid={!!passwordError || undefined}>
+              <FieldLabel htmlFor={passwordId}>Contraseña</FieldLabel>
+              <InputGroup>
+                <InputGroupInput
+                  aria-describedby={passwordError ? `${passwordId}-error` : undefined}
+                  aria-invalid={!!passwordError || undefined}
+                  autoComplete="current-password"
+                  id={passwordId}
+                  name="password"
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                />
+                <InputGroupAddon>
+                  <KeyRound />
+                </InputGroupAddon>
+                <InputGroupAddon align="inline-end">
+                  <InputGroupButton
+                    aria-controls={passwordId}
+                    aria-label="Mostrar contraseña"
+                    aria-pressed={showPassword}
+                    onClick={() => setShowPassword(!showPassword)}
+                    size="icon-xs"
+                  >
+                    {showPassword ? <EyeOff /> : <Eye />}
+                  </InputGroupButton>
+                </InputGroupAddon>
+              </InputGroup>
+              <FieldError id={`${passwordId}-error`}>{passwordError}</FieldError>
+            </Field>
+          </FieldGroup>
+
+          <Button className="w-full" disabled={isPending} size="lg" type="submit">
+            {isPending && <Spinner data-icon="inline-start" />}
+            Entrar
+          </Button>
+        </Form>
+      </CardContent>
+      <CardFooter className="flex-col gap-3 text-center">
+        <Link className="text-foreground underline underline-offset-4" href="/reset-password">
+          He olvidado mi contraseña
+        </Link>
+        <p>
+          ¿Aún no tienes cuenta?{" "}
+          <Link className="font-medium text-foreground underline underline-offset-4" href="/sign-up">
+            Crea una
           </Link>
-        </div>
-      </Form>
-    </div>
+        </p>
+      </CardFooter>
+    </Card>
   );
 }
