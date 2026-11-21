@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 
 import * as Sentry from "@sentry/nextjs";
+import { Lock, Unlink } from "lucide-react";
 import { cookies } from "next/headers";
 
 import { saveGuestTeaAction } from "@/app/actions/teaInfoActions";
 import TeaInfoForm from "@/components/TeaInfoForm";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { getGuestParticipationByToken, isParticipationDayPlayed } from "@/lib/dal";
 import { GUEST_COOKIE } from "@/lib/guest-cookie";
 
@@ -12,12 +14,18 @@ export const metadata: Metadata = {
   robots: { follow: false, index: false },
 };
 
-function GuestNotice({ children }: { children: React.ReactNode }) {
+function GuestNotice({ children, icon, title }: { children: React.ReactNode; icon: React.ReactNode; title: string }) {
   return (
     <div className="flex flex-col justify-center items-center mx-5 mt-5 gap-3">
-      <div className="card w-full max-w-xl bg-neutral text-neutral-content card-xl shadow-sm">
-        <div className="card-body items-center text-center gap-4">{children}</div>
-      </div>
+      <Empty className="max-w-xl rounded-2xl bg-card p-6 text-card-foreground shadow-sm sm:p-10">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">{icon}</EmptyMedia>
+          <EmptyTitle>
+            <h1 className="font-display text-3xl">{title}</h1>
+          </EmptyTitle>
+          <EmptyDescription className="text-base text-foreground">{children}</EmptyDescription>
+        </EmptyHeader>
+      </Empty>
     </div>
   );
 }
@@ -28,10 +36,8 @@ export default async function GuestPage() {
   const participation = token ? await getGuestParticipationByToken(token) : null;
   if (!participation) {
     return (
-      <GuestNotice>
-        <p className="font-display text-2xl">
-          Este enlace no es válido o ha caducado. Pide uno nuevo al Geren<span className="italic">Té</span>.
-        </p>
+      <GuestNotice icon={<Unlink />} title="Enlace no válido">
+        Este enlace no es válido o ha caducado. Pide uno nuevo al Geren<span className="italic">Té</span>.
       </GuestNotice>
     );
   }
@@ -41,11 +47,9 @@ export default async function GuestPage() {
   // A played day only protects a tea that exists: one still missing can be uploaded late.
   if (participation.tea !== null && (await isParticipationDayPlayed(participation.id))) {
     return (
-      <GuestNotice>
-        <p className="font-display text-2xl">
-          Tu día ya ha abierto y tu té ya no se puede cambiar. Si hay un error, avisa al Geren
-          <span className="italic">Té</span>.
-        </p>
+      <GuestNotice icon={<Lock />} title="Ya no se puede cambiar">
+        Tu día ya ha abierto y tu té ya no se puede cambiar. Si hay un error, avisa al Geren
+        <span className="italic">Té</span>.
       </GuestNotice>
     );
   }

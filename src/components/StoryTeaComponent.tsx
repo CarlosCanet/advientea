@@ -4,6 +4,7 @@ import type { StoryTeaWithImages } from "@/lib/dal";
 
 import CarouselComponent from "@/components/tea/CarouselComponent";
 import TimelineIcon from "@/components/tea/TimelineIcon";
+import { Spinner } from "@/components/ui/spinner";
 import { getYouTubeId } from "@/lib/utils";
 
 import YoutubeComponent from "./YoutubeComponent";
@@ -72,7 +73,7 @@ export default function StoryTeaComponent({
         </ul>
         {isPart1Released && story.youtubeURL && (
           <div className="w-full mt-2 border-neutral border-8 rounded-box">
-            <Suspense fallback={<span className="loading loading-dots loading-xl text-primary"></span>}>
+            <Suspense fallback={<Spinner className="size-8" />}>
               <YoutubeComponent
                 youtubeURL={`https://www.youtube.com/embed/${videoId}?autoplay=0&loop=1&playlist=${videoId}&iv_load_policy=3`}
               />

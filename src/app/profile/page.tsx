@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 
+import PageHeader from "@/components/PageHeader";
 import ProfileForm from "@/components/profile/ProfileForm";
 import { getSession } from "@/lib/dal";
 import { DEFAULT_IMAGE_PROFILE } from "@/lib/types";
@@ -13,15 +14,13 @@ export default async function ProfilePage() {
 
   return (
     <div className="flex flex-col justify-center items-center mx-5 mt-5 pb-5 gap-3">
-      <div className="card w-full max-w-xl bg-neutral text-neutral-content card-md shadow-sm">
-        <div className="card-body items-center">
-          <div className="card-title text-4xl">
-            <span>
-              Tu Cuen<span className="italic">Té</span>
-            </span>
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        title={
+          <>
+            Tu Cuen<span className="italic">Té</span>
+          </>
+        }
+      />
       <div className="card w-full max-w-xl bg-base-100 text-neutral-content card-xl shadow-sm">
         <div className="card-body items-center">
           <ProfileForm email={user.email} imageId={user.image || DEFAULT_IMAGE_PROFILE} username={user.username} />

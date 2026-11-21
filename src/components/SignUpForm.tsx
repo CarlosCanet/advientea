@@ -10,6 +10,7 @@ import { IoKeySharp } from "react-icons/io5";
 import { MdEmail } from "react-icons/md";
 
 import { signup } from "@/app/actions/authActions";
+import { Spinner } from "@/components/ui/spinner";
 import { ALLOWED_IMAGE_TYPES, initialSignUpActionResponse } from "@/lib/types";
 
 export default function SignUpForm() {
@@ -175,7 +176,7 @@ export default function SignUpForm() {
         </div>
         <div className="card-actions justify-center mt-4">
           <button className="btn btn-primary w-full" disabled={isPending || !!passwordError} type="submit">
-            {isPending ? <span className="loading loading-spinner"></span> : "Registrarme"}
+            {isPending ? <Spinner /> : "Registrarme"}
           </button>
         </div>
         {state?.success ? (

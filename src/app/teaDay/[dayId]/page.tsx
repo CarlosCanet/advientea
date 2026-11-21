@@ -4,6 +4,7 @@ import { BsCupHotFill } from "react-icons/bs";
 import { FaStore } from "react-icons/fa";
 import { MdComputer } from "react-icons/md";
 
+import PageHeader from "@/components/PageHeader";
 import WaitForDayToCome from "@/components/states/WaitForDayToCome";
 import StoryTeaComponent from "@/components/StoryTeaComponent";
 import AuthorName from "@/components/tea/AuthorName";
@@ -41,17 +42,12 @@ export default async function TeaDayPage({ params, searchParams }: TeaDayPagePro
   return (
     <div className="flex flex-col justify-center items-center mx-5 mt-5 gap-3">
       {/* Day + Tea name */}
-      <div className="card w-full max-w-xl bg-neutral text-neutral-content card-xl shadow-sm">
-        <div className="card-body items-center">
-          <h2 className="card-title text-4xl">Día {day.dayNumber}</h2>
-          {advienteaDayState.isTeaReleased ? (
-            <div className="font-display text-2xl">{tea?.name}</div>
-          ) : (
-            <div className="skeleton skeleton-text font-display text-2xl">Té desconocido</div>
-          )}
-          {session && advienteaDayState.isPersonNameReleased && <AuthorName name={userName} />}
-        </div>
-      </div>
+      <PageHeader
+        subtitle={advienteaDayState.isTeaReleased ? tea?.name : "Té desconocido"}
+        title={`Día ${day.dayNumber}`}
+      >
+        {session && advienteaDayState.isPersonNameReleased && <AuthorName name={userName} />}
+      </PageHeader>
 
       {/* Tea info */}
       {!tea ? (

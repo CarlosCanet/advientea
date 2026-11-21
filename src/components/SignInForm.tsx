@@ -9,6 +9,7 @@ import { IoKeySharp } from "react-icons/io5";
 import { MdEmail } from "react-icons/md";
 
 import { signin } from "@/app/actions/authActions";
+import { Spinner } from "@/components/ui/spinner";
 import { initialSignInActionResponse } from "@/lib/types";
 
 export default function SignInForm() {
@@ -51,7 +52,7 @@ export default function SignInForm() {
         </div>
         <div className="card-actions justify-center mt-4">
           <button className="btn btn-primary w-full" disabled={isPending} type="submit">
-            {isPending ? <span className="loading loading-spinner"></span> : "Login"}
+            {isPending ? <Spinner /> : "Login"}
           </button>
         </div>
         <div className="divider"></div>

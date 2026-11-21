@@ -1,13 +1,30 @@
-import Image from "next/image";
+import { Coffee } from "lucide-react";
+import Link from "next/link";
+
+import { Button } from "@/components/ui/button";
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 
 function notFound() {
   return (
-    <div className="w-auto max-w-xl place-self-center flex flex-col items-center justify-center p-6 gap-6 mt-16 bg-accent rounded-2xl">
-      <Image alt="Not found image" height={80} src="/notFound.gif" width={300} />
-      <div className="text-base-100 font-bold text-center">Error 404</div>
-      <div className="text-base-100 font-bold text-center">
-        Parece que no <span className="italic">Té</span> encuentras
-      </div>
+    <div className="flex flex-col justify-center items-center mx-5 mt-16 gap-3">
+      <Empty className="max-w-xl rounded-2xl bg-card p-6 text-card-foreground shadow-sm sm:p-10">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <Coffee />
+          </EmptyMedia>
+          <EmptyTitle>
+            <h1 className="font-display text-3xl">
+              Parece que no <span className="italic">Té</span> encuentras
+            </h1>
+          </EmptyTitle>
+          <EmptyDescription className="text-base text-foreground">Error 404</EmptyDescription>
+        </EmptyHeader>
+        <EmptyContent>
+          <Button nativeButton={false} render={<Link href="/" />}>
+            Volver al inicio
+          </Button>
+        </EmptyContent>
+      </Empty>
     </div>
   );
 }

@@ -1,9 +1,6 @@
-import { FaClock } from "react-icons/fa";
-import { FaRepeat, FaTemperatureFull } from "react-icons/fa6";
-import { GiMilkCarton } from "react-icons/gi";
-import { LuZap, LuZapOff } from "react-icons/lu";
-import { MdMore } from "react-icons/md";
+import { Clock, Info, Milk, MilkOff, Repeat, Thermometer, Zap, ZapOff } from "lucide-react";
 
+import { Badge } from "@/components/ui/badge";
 import { Tea } from "@/generated/prisma/client";
 
 interface TeaInfusionInfoProps {
@@ -12,49 +9,51 @@ interface TeaInfusionInfoProps {
   xs?: boolean;
 }
 export default function TeaInfusionInfo({ hasMoreIndication = true, tea, xs = false }: TeaInfusionInfoProps) {
+  // The list view keeps the badge's own text-xs; the day page reads at text-sm.
+  const badgeSize = xs ? "" : "h-6 px-2.5 text-sm [&>svg]:size-3.5!";
   return (
     <>
       <div className="flex gap-1.5 flex-wrap justify-evenly my-2 ml-4">
-        <div className={`badge badge-error ${xs ? "badge-xs" : ""}`}>
-          <FaTemperatureFull />
-          {tea.temperature} ºC
-        </div>
-        <div className={`badge badge-secondary ${xs ? "badge-xs" : ""}`}>
-          <FaClock />
+        <Badge className={badgeSize} variant="outline">
+          <Thermometer />
+          {tea.temperature} °C
+        </Badge>
+        <Badge className={badgeSize} variant="outline">
+          <Clock />
           {tea.infusionTime} min
-        </div>
+        </Badge>
         {tea.addMilk ? (
-          <div className={`badge badge-info ${xs ? "badge-xs" : ""}`}>
-            <GiMilkCarton />
+          <Badge className={badgeSize} variant="outline">
+            <Milk />
             Con leche
-          </div>
+          </Badge>
         ) : (
-          <div className={`badge ${xs ? "badge-xs" : ""}`}>
-            <GiMilkCarton />
+          <Badge className={badgeSize} variant="outline">
+            <MilkOff />
             Sin leche
-          </div>
+          </Badge>
         )}
         {tea?.hasTheine ? (
-          <div className={`badge badge-warning ${xs ? "badge-xs" : ""}`}>
-            <LuZap />
+          <Badge className={badgeSize} variant="outline">
+            <Zap />
             Con teína
-          </div>
+          </Badge>
         ) : (
-          <div className={`badge ${xs ? "badge-xs" : ""}`}>
-            <LuZapOff />
+          <Badge className={badgeSize} variant="outline">
+            <ZapOff />
             Sin teína
-          </div>
+          </Badge>
         )}
         {tea?.canReinfuse && (
-          <div className={`badge badge-neutral ${xs ? "badge-xs" : ""}`}>
-            <FaRepeat />
+          <Badge className={badgeSize} variant="outline">
+            <Repeat />
             Reinfusiona {tea.reinfuseNumber} veces
-          </div>
+          </Badge>
         )}
       </div>
       {hasMoreIndication && tea.moreIndications && (
         <div className="flex gap-2 items-center text-lg ml-4">
-          <MdMore />
+          <Info />
           {tea.moreIndications}
         </div>
       )}
