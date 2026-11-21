@@ -56,14 +56,15 @@ The UI is moving from daisyUI to **shadcn/ui** (Base UI primitives, `base-maia` 
 - Links styled as buttons: `<Button render={<Link href="…" />} nativeButton={false}>`. Base UI uses `render`, not Radix's `asChild`.
 - Base UI form controls (`Select`, `Checkbox`, `Switch`) submit through a hidden input when given `name`; keep the field names Server Actions read. `required` blocks the submit but marks nothing: set `aria-invalid` and show a `FieldError` yourself.
 - Every control has a visible label or an `aria-label`; icon buttons always have `aria-label`.
+- Cancel, back and close actions are `variant="outline"`, never filled and never red; `destructive` is only for the action that deletes or removes.
 - Touch targets: shadcn sizes carry `pointer-coarse:h-11` / `pointer-coarse:size-11` (44 px on touch). Keep them when adding or editing components.
 - `--input` is grass 12, the field border colour: use it as `border-input`, never as a tint (`bg-input/30` from the registry turns a field dark green; use `bg-transparent` or `bg-popover`).
 - Focus: `focus-visible:focus-ring`, a 2 px outline set 2 px apart in `--focus` (grass 12; white inside `bg-brand` surfaces, set in `globals.css`). Never a translucent halo: it fails 3:1 on these greens.
 
 ### Colour and type
 
-- Tokens are CSS variables in `globals.css`, from Radix Colors `grass` and `amber`: `background` (grass 7, under the leaf illustration), `card` (grass 5), `foreground` (grass 12), `brand` and `primary` (grass 11), `honey` (amber 6, the main action on a dark surface and "today"), `destructive`. Use the utilities (`bg-card`, `text-foreground`, `bg-brand`, `bg-honey`…), never raw colours.
-- `brand` / `primary` (grass 11) is a fill only: as text on a card it fails contrast. Text and links on cards use `text-foreground`; links are underlined.
+- Tokens are CSS variables in `globals.css`, from Radix Colors `grass` and `amber`: `background` (grass 7, under the leaf illustration), `card` (grass 5), `foreground` (grass 12), `brand` and `primary` ("té verde" `#55724e`, a muted green), `honey` (amber 6, the main action on a dark surface and "today"), `destructive`. Use the utilities (`bg-card`, `text-foreground`, `bg-brand`, `bg-honey`…), never raw colours.
+- `brand` / `primary` is a fill only: as text on a card it fails contrast (4.1:1). Text and links on cards use `text-foreground`; links are underlined.
 - Light only: there is no dark mode.
 - Fonts: Figtree for everything (`font-sans`, the default); Griffy (`font-display`) only for the wordmark, page titles, day numbers, the "…Té" puns in headings and the home welcome text.
 
