@@ -1,8 +1,10 @@
 "use client";
+import { ArrowDown, ArrowUp } from "lucide-react";
 import { CldImage } from "next-cloudinary";
 import Image from "next/image";
-import { IoIosArrowDown, IoIosArrowUp } from "react-icons/io";
 
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { ImageStoryForm } from "@/lib/types";
 
 interface TeaImageFormProps {
@@ -13,6 +15,9 @@ interface TeaImageFormProps {
 }
 
 function TeaImageForm({ image, onChangeOrder, onDelete, totalImages }: TeaImageFormProps) {
+  const position = image.order + 1;
+  const alt = `Imagen ${position} de la historia`;
+
   const handleIncreasePosition = () => {
     if (image.order < totalImages - 1) {
       onChangeOrder(image.id, image.order + 1);
@@ -26,51 +31,59 @@ function TeaImageForm({ image, onChangeOrder, onDelete, totalImages }: TeaImageF
   };
 
   return (
-    <div className="flex justify-center items-center gap-4 mt-4">
-      <div className="w-full h-32 overflow-hidden flex items-center justify-center">
+    <li className="flex items-center gap-3 rounded-xl bg-popover p-2 ring-1 ring-foreground/10">
+      <div className="size-16 shrink-0 overflow-hidden rounded-lg bg-muted sm:size-20">
         {image.isNew ? (
-          <Image
-            alt="User profile preview"
-            className="object-cover w-full h-full"
-            height={96}
-            src={image.previewURL}
-            width={96}
-          />
+          <Image alt={alt} className="size-full object-cover" height={160} src={image.previewURL} width={160} />
         ) : (
-          <CldImage
-            alt="User profile preview"
-            className="object-cover w-full h-full"
-            height={600}
-            src={image.publicId}
-            width={600}
-          />
+          <CldImage alt={alt} className="size-full object-cover" height={160} src={image.publicId} width={160} />
         )}
       </div>
 
-      <div className="flex flex-col gap-4 w-1/4">
-        <div className="flex flex-row justify-center items-center w-full gap-1">
-          <button
-            className="btn btn-xs btn-soft btn-secondary"
+      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+        <p className="flex items-center gap-2 text-sm font-medium">
+          Imagen {position}
+          {image.isNew && <Badge variant="outline">Nueva</Badge>}
+        </p>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {/* Focusable while disabled: moving an image to an end must not drop the keyboard focus. */}
+          <Button
+            aria-label={`Mover imagen ${position} arriba`}
+            className="data-disabled:opacity-50"
             disabled={image.order === 0}
+            focusableWhenDisabled
             onClick={handleDecreasePosition}
+            size="icon"
             type="button"
+            variant="outline"
           >
-            <IoIosArrowUp />
-          </button>
-          <button
-            className="btn btn-xs btn-soft btn-secondary"
+            <ArrowUp />
+          </Button>
+          <Button
+            aria-label={`Mover imagen ${position} abajo`}
+            className="data-disabled:opacity-50"
             disabled={image.order === totalImages - 1}
+            focusableWhenDisabled
             onClick={handleIncreasePosition}
+            size="icon"
             type="button"
+            variant="outline"
           >
-            <IoIosArrowDown />
-          </button>
+            <ArrowDown />
+          </Button>
+          <Button
+            aria-label={`Quitar imagen ${position}`}
+            className="ml-auto border-destructive/50 text-destructive hover:bg-destructive/10 hover:text-destructive"
+            onClick={() => onDelete(image.id)}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
+            Quitar
+          </Button>
         </div>
-        <button className="btn btn-soft btn-error" onClick={() => onDelete(image.id)} type="button">
-          Borrar imagen
-        </button>
       </div>
-    </div>
+    </li>
   );
 }
 export default TeaImageForm;
