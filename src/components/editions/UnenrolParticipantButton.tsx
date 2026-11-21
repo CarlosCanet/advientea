@@ -14,7 +14,13 @@ interface UnenrolParticipantButtonProps {
   teaName: null | string;
 }
 
-export default function UnenrolParticipantButton({ name, participationId, teaName }: UnenrolParticipantButtonProps) {
+interface UseUnenrolParticipantOptions extends UnenrolParticipantButtonProps {
+  /** Where focus goes when the confirmation closes; needed when the control that opened it is gone, as a menu item is. */
+  finalFocus?: React.RefObject<HTMLElement | null>;
+}
+
+/** Removing a participant, shared by the table's button and the phone row's menu: same action, same confirmation. */
+export function useUnenrolParticipant({ finalFocus, name, participationId, teaName }: UseUnenrolParticipantOptions) {
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
@@ -27,7 +33,7 @@ export default function UnenrolParticipantButton({ name, participationId, teaNam
   };
 
   // Someone without a tea takes nothing with them, so they go without asking.
-  const onClick = () => {
+  const requestUnenrol = () => {
     if (hasTea) {
       setIsConfirmOpen(true);
       return;
@@ -35,29 +41,38 @@ export default function UnenrolParticipantButton({ name, participationId, teaNam
     unenrol();
   };
 
+  const confirmDialog = hasTea ? (
+    <ConfirmDialog
+      confirmLabel="Quitar"
+      description={`${name} ya ha subido su té «${teaName}». Se borrará con su historia y sus imágenes, si las tiene. No se puede deshacer.`}
+      finalFocus={finalFocus}
+      onConfirm={unenrol}
+      onOpenChange={setIsConfirmOpen}
+      open={isConfirmOpen}
+      title={`¿Quitar a ${name} de la edición?`}
+      variant="destructive"
+    />
+  ) : null;
+
+  return { confirmDialog, isPending, requestUnenrol };
+}
+
+export default function UnenrolParticipantButton({ name, participationId, teaName }: UnenrolParticipantButtonProps) {
+  const { confirmDialog, isPending, requestUnenrol } = useUnenrolParticipant({ name, participationId, teaName });
+
   return (
     <>
       <Button
         aria-label={`Quitar a ${name} de la edición`}
         disabled={isPending}
-        onClick={onClick}
+        onClick={requestUnenrol}
         size="sm"
         type="button"
         variant="ghost"
       >
         Quitar
       </Button>
-      {hasTea && (
-        <ConfirmDialog
-          confirmLabel="Quitar"
-          description={`${name} ya ha subido su té «${teaName}». Se borrará con su historia y sus imágenes, si las tiene. No se puede deshacer.`}
-          onConfirm={unenrol}
-          onOpenChange={setIsConfirmOpen}
-          open={isConfirmOpen}
-          title={`¿Quitar a ${name} de la edición?`}
-          variant="destructive"
-        />
-      )}
+      {confirmDialog}
     </>
   );
 }

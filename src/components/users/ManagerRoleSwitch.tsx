@@ -2,19 +2,21 @@
 import { useState, useTransition } from "react";
 
 import { changeRoleAction } from "@/app/actions/authActions";
+import { Switch } from "@/components/ui/switch";
 import { Role } from "@/generated/prisma/enums";
 import { showActionToast } from "@/lib/action-toast";
 
-interface CheckboxUsersExecuteaveProps {
+interface ManagerRoleSwitchProps {
   role: Role;
   userId: string;
+  username: string;
 }
-export default function CheckboxUsersExecuteave({ role, userId }: CheckboxUsersExecuteaveProps) {
+
+export default function ManagerRoleSwitch({ role, userId, username }: ManagerRoleSwitchProps) {
   const [isPending, startTransition] = useTransition();
   const [checked, setChecked] = useState(role === Role.EXECUTEAVE);
 
-  const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const nextChecked = event.target.checked;
+  const handleChange = (nextChecked: boolean) => {
     setChecked(nextChecked);
     startTransition(async () => {
       const result = await changeRoleAction(userId, nextChecked ? Role.EXECUTEAVE : Role.USER);
@@ -27,5 +29,7 @@ export default function CheckboxUsersExecuteave({ role, userId }: CheckboxUsersE
   if (role === Role.ADMIN) {
     return null;
   }
-  return <input checked={checked} disabled={isPending} onChange={handleChange} type="checkbox" />;
+  return (
+    <Switch aria-label={`Gerente: ${username}`} checked={checked} disabled={isPending} onCheckedChange={handleChange} />
+  );
 }
