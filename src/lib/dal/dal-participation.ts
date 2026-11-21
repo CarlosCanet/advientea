@@ -1,13 +1,13 @@
 import { randomBytes } from "node:crypto";
 
 import { EditionStatus, Participation, Prisma } from "@/generated/prisma/client";
-import { EditionInfo, getDaySchedule } from "@/lib/advientea-rules";
 import { getNow } from "@/lib/advientea-time";
 import { ConflictError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 import { cleanGuessName, toParticipantName } from "@/lib/utils";
 
 import { getEditionInfo } from "./dal-edition";
+import { getDayLock } from "./day-lock";
 
 export type ParticipationWithDayAndTeaAndUser = Prisma.ParticipationGetPayload<{
   include: { day: true; tea: true; user: true };
@@ -87,24 +87,7 @@ export async function getParticipationsForEdition(year: number): Promise<Array<P
 }
 
 // Not invalid input: a manager with a stale page asks about someone another manager has just removed.
-const PARTICIPATION_GONE = "Esa inscripción ya no existe.";
-
-type DayLock = "guesses" | "opened";
-
-// The guesses of a day were scored against the tea and author it had, so they lock it whatever the edition
-// status: an edition moved back to PREPARING counts no day as opened, and its guesses are still there.
-async function getDayLock(
-  tx: Prisma.TransactionClient,
-  dayNumber: number,
-  edition: EditionInfo,
-  now: Date,
-): Promise<DayLock | null> {
-  if (getDaySchedule(dayNumber, edition, now).isReleased) {
-    return "opened";
-  }
-  const guessCount = await tx.teaGuess.count({ where: { day: { dayNumber, year: edition.year } } });
-  return guessCount > 0 ? "guesses" : null;
-}
+export const PARTICIPATION_GONE = "Esa inscripción ya no existe.";
 
 // A locked day cannot change hands: it has opened, or it has guesses.
 async function assertDayCanChange(
@@ -483,6 +466,14 @@ export async function unenrolParticipant(
 ): Promise<Unenrolment> {
   try {
     return await prisma.$transaction(async (tx) => {
+      // Locked before it is read, as saveParticipationTea does: a save of its tea finishes before this reads the
+      // tea and its images, or waits until this has deleted them.
+      const locked = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT "id" FROM "DayAssignment" WHERE "id" = ${participationId} FOR UPDATE
+      `;
+      if (locked.length === 0) {
+        throw new ConflictError(PARTICIPATION_GONE);
+      }
       const participation = await tx.participation.findUnique({
         include: { day: true, user: true },
         where: { id: participationId },

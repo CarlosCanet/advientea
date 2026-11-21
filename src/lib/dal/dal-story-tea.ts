@@ -38,15 +38,6 @@ export async function addStoryTea(
   return storyTea;
 }
 
-export async function editStoryTea(data: Prisma.StoryTeaUncheckedUpdateInput, id: string): Promise<StoryTeaWithTea> {
-  const storyUpdated = await prisma.storyTea.update({
-    data,
-    include: { tea: true },
-    where: { id },
-  });
-  return storyUpdated;
-}
-
 export async function deleteStoryTea(id: string): Promise<StoryTeaWithTea> {
   const storyDeleted = await prisma.storyTea.delete({
     include: { tea: true },

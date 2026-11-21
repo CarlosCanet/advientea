@@ -108,6 +108,7 @@ export default async function EditionPage({ params }: { params: Promise<{ year: 
       return {
         canEditTea: canEditTea(session.user.role, {
           editionStatus: edition.status,
+          isDayPlayed: isOwnDayLocked,
           isOwn: participation.userId === session.user.id,
         }),
         canUnenrol: acceptsEnrolments && !isOwnDayLocked,

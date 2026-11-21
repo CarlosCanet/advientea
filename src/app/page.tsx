@@ -88,7 +88,7 @@ export default async function Home() {
                     Regístrate
                   </Link>
                 )}
-                <Link className="btn btn-secondary" href="/add-tea-info">
+                <Link className="btn btn-secondary" href={session ? "/my-tea" : "/add-tea-info"}>
                   Añade tu té
                 </Link>
               </div>

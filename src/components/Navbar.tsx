@@ -76,14 +76,7 @@ async function Navbar() {
               </li>
             )}
             {/* <li><Link href="/teaDay">Té del día</Link></li> */}
-            <li>
-              <Link href="/add-tea-info">Añadir tu té</Link>
-            </li>
-            {session && session.user.role !== Role.USER && (
-              <li>
-                <Link href="/edit-tea-info">Editar tu té</Link>
-              </li>
-            )}
+            <li>{session ? <Link href="/my-tea">Mi té</Link> : <Link href="/add-tea-info">Añadir tu té</Link>}</li>
             {session && (session.user.role === Role.ADMIN || session.user.role === Role.EXECUTEAVE) && (
               <li>
                 <Link href="/editions">Ediciones</Link>
