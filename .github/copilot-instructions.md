@@ -58,7 +58,7 @@ The UI is moving from daisyUI to **shadcn/ui** (Base UI primitives, `base-maia` 
 - Every control has a visible label or an `aria-label`; icon buttons always have `aria-label`.
 - Touch targets: shadcn sizes carry `pointer-coarse:h-11` / `pointer-coarse:size-11` (44 px on touch). Keep them when adding or editing components.
 - `--input` is grass 12, the field border colour: use it as `border-input`, never as a tint (`bg-input/30` from the registry turns a field dark green; use `bg-transparent` or `bg-popover`).
-- Focus: `focus-visible:focus-ring` (a grass 12 outline with an amber 10 halo), so it shows on light and dark surfaces.
+- Focus: `focus-visible:focus-ring`, a 2 px outline set 2 px apart in `--focus` (grass 12; white inside `bg-brand` surfaces, set in `globals.css`). Never a translucent halo: it fails 3:1 on these greens.
 
 ### Colour and type
 
