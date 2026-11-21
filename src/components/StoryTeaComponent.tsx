@@ -2,10 +2,10 @@ import { Suspense } from "react";
 
 import type { StoryTeaWithImages } from "@/lib/dal";
 
+import CarouselComponent from "@/components/tea/CarouselComponent";
+import TimelineIcon from "@/components/tea/TimelineIcon";
 import { getYouTubeId } from "@/lib/utils";
 
-import CarouselComponent from "./ui/CarouselComponent";
-import TimelineIcon from "./ui/TimelineIcon";
 import YoutubeComponent from "./YoutubeComponent";
 
 interface StoryTeaComponentProps {

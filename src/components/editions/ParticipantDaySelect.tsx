@@ -3,10 +3,9 @@
 import { ChangeEvent, useRef, useState, useTransition } from "react";
 
 import { placeParticipantAction, swapParticipantsAction } from "@/app/actions/editionActions";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import { showActionToast } from "@/lib/action-toast";
 import { ActionResponse } from "@/lib/types";
-
-import ConfirmDialog from "./ConfirmDialog";
 
 export interface CalendarDayOption {
   dayNumber: number;

@@ -3,11 +3,10 @@
 import { ChangeEvent, useRef, useState, useTransition } from "react";
 
 import { changeEditionStatusAction } from "@/app/actions/editionActions";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import { EditionStatus } from "@/generated/prisma/enums";
 import { showActionToast } from "@/lib/action-toast";
 import { EDITION_STATUS_LABELS } from "@/lib/utils";
-
-import ConfirmDialog from "./ConfirmDialog";
 
 interface EditionStatusSelectProps {
   status: EditionStatus;

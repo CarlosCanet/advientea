@@ -2,8 +2,8 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import CreateEditionDialog from "@/components/CreateEditionDialog";
-import DeleteEditionButton from "@/components/ui/DeleteEditionButton";
-import EditionStatusSelect from "@/components/ui/EditionStatusSelect";
+import DeleteEditionButton from "@/components/editions/DeleteEditionButton";
+import EditionStatusSelect from "@/components/editions/EditionStatusSelect";
 import { EditionStatus, Role } from "@/generated/prisma/enums";
 import { getNow, toMadridDateTime } from "@/lib/advientea-time";
 import { getAllEditions, getSession } from "@/lib/dal";

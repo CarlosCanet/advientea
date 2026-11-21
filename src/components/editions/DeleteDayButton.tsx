@@ -3,9 +3,8 @@
 import { useRef, useTransition } from "react";
 
 import { deleteDayAction } from "@/app/actions/editionActions";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import { showActionToast } from "@/lib/action-toast";
-
-import ConfirmDialog from "./ConfirmDialog";
 
 interface DeleteDayButtonProps {
   dayId: string;

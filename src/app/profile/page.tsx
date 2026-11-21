@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-import ProfileForm from "@/components/ui/ProfileForm";
+import ProfileForm from "@/components/profile/ProfileForm";
 import { getSession } from "@/lib/dal";
 import { DEFAULT_IMAGE_PROFILE } from "@/lib/types";
 

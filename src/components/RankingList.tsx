@@ -1,6 +1,5 @@
+import ProfileImage from "@/components/profile/ProfileImage";
 import { RankingEntry } from "@/lib/types";
-
-import ProfileImage from "./ui/ProfileImage";
 
 interface RankingListProps {
   currentUserId: string;

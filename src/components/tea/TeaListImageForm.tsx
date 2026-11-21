@@ -2,9 +2,8 @@
 import { Dispatch, SetStateAction, useState } from "react";
 import { FaImages } from "react-icons/fa";
 
+import TeaImageForm from "@/components/tea/TeaImageForm";
 import { ALLOWED_IMAGE_TYPES, ImageStoryForm } from "@/lib/types";
-
-import TeaImageForm from "./TeaImageForm";
 
 interface TeaListImageFormProps {
   images: Array<ImageStoryForm>;

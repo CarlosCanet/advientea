@@ -3,9 +3,8 @@
 import { useRef, useTransition } from "react";
 
 import { deleteEditionAction } from "@/app/actions/editionActions";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import { showActionToast } from "@/lib/action-toast";
-
-import ConfirmDialog from "./ConfirmDialog";
 
 export default function DeleteEditionButton({ year }: { year: number }) {
   const dialogRef = useRef<HTMLDialogElement>(null);

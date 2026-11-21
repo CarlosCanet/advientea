@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 
-import Timer from "../Timer";
+import Timer from "@/components/Timer";
 
 export default function TimerWithConfig() {
   const [seconds, setSeconds] = useState<number>(90);
