@@ -83,7 +83,7 @@ export async function saveTeaForParticipation(
     saved = await saveParticipationTea(
       participationId,
       { content: submission.content, images, story: submission.story },
-      { refusePlayedDay: actor.role === Role.USER },
+      { refuseArchivedEdition: actor.role !== Role.ADMIN, refusePlayedDay: actor.role === Role.USER },
     );
   } catch (error) {
     await Promise.allSettled(uploadedPublicIds.map((publicId) => deleteAsset(publicId)));

@@ -466,6 +466,14 @@ export async function unenrolParticipant(
 ): Promise<Unenrolment> {
   try {
     return await prisma.$transaction(async (tx) => {
+      // Locked before it is read, as saveParticipationTea does: a save of its tea finishes before this reads the
+      // tea and its images, or waits until this has deleted them.
+      const locked = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT "id" FROM "DayAssignment" WHERE "id" = ${participationId} FOR UPDATE
+      `;
+      if (locked.length === 0) {
+        throw new ConflictError(PARTICIPATION_GONE);
+      }
       const participation = await tx.participation.findUnique({
         include: { day: true, user: true },
         where: { id: participationId },

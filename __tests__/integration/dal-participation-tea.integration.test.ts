@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { Prisma } from "@/generated/prisma/client";
 import { EditionStatus, TeaType } from "@/generated/prisma/enums";
 import {
+  addStoryTea,
   addTea,
   enrolGuest,
   enrolUser,
@@ -28,8 +29,10 @@ const NO_LONGER_ENROLLED = "Esa inscripción ya no existe.";
 const editionArchived = (year: number) => `La edición ${year} está archivada y sus tés ya no se pueden cambiar.`;
 const DAY_PLAYED = "Tu día ya ha abierto y tu té ya no se puede cambiar. Si hay un error, avisa al GerenTé.";
 
-const REFUSE_PLAYED = { refusePlayedDay: true };
-const ALLOW_PLAYED = { refusePlayedDay: false };
+// What a USER asks for, what a calendar manager asks for, and what an admin asks for.
+const REFUSE_PLAYED = { refuseArchivedEdition: true, refusePlayedDay: true };
+const ALLOW_PLAYED = { refuseArchivedEdition: true, refusePlayedDay: false };
+const ALLOW_ALL = { refuseArchivedEdition: false, refusePlayedDay: false };
 
 // Who wins a race is a matter of timing, so each one is run a few times, with someone new every time.
 const ROUNDS = 5;
@@ -770,7 +773,7 @@ describe("dal participation tea", () => {
         expect(await everything()).toEqual(before);
       });
 
-      it("refuses a participation of an archived edition, whatever is said about played days", async () => {
+      it("refuses a participation of an archived edition when asked to, whatever is said about played days", async () => {
         const ana = await participationOn(3);
         const manager = await participationOn(1);
         const enrolled = await enrolGuest(2025, "Prima Lejana");
@@ -805,12 +808,28 @@ describe("dal participation tea", () => {
         expect(await prisma.tea.count({ where: { participationId: old.id } })).toBe(0);
       });
 
-      it("refuses a day that has opened when asked to, creating nothing", async () => {
+      it("saves a participation of an archived edition when not asked to refuse it, creating and updating", async () => {
         const ana = await participationOn(3);
-        const before = await everything();
+        const manager = await participationOn(1);
+        await setEditionStatus(EditionStatus.ARCHIVED);
 
-        await expectConflict(saveParticipationTea(ana.id, teaInput(), REFUSE_PLAYED, duringTheEdition), DAY_PLAYED);
-        expect(await everything()).toEqual(before);
+        const created = await saveParticipationTea(ana.id, teaInput(), ALLOW_ALL, duringTheEdition);
+        const updated = await saveParticipationTea(manager.id, teaInput(), ALLOW_ALL, duringTheEdition);
+
+        expect(created.created).toBe(true);
+        expect(updated.created).toBe(false);
+        expect((await teaWithStoryOf(ana.id))?.name).toBe("Té de la casa");
+        expect((await teaWithStoryOf(manager.id))?.name).toBe("Té de la casa");
+      });
+
+      it("creates the missing tea of a day that has opened, even when asked to refuse played days", async () => {
+        const ana = await participationOn(3);
+        await addGuess(3);
+
+        const result = await saveParticipationTea(ana.id, teaInput(), REFUSE_PLAYED, duringTheEdition);
+
+        expect(result.created).toBe(true);
+        expect((await teaWithStoryOf(ana.id))?.id).toBe(result.teaId);
       });
 
       it("refuses a day that has opened when asked to, changing nothing of the tea, its story or its images", async () => {
@@ -829,12 +848,12 @@ describe("dal participation tea", () => {
         expect(await everything()).toEqual(before);
       });
 
-      it("refuses a day with guesses when asked to, before it has opened", async () => {
-        const ana = await participationOn(3);
-        await addGuess(3);
+      it("refuses to update the tea of a day with guesses when asked to, before it has opened", async () => {
+        const manager = await participationOn(1);
+        await addGuess(1);
         const before = await everything();
 
-        await expectConflict(saveParticipationTea(ana.id, teaInput(), REFUSE_PLAYED, beforeTheEdition), DAY_PLAYED);
+        await expectConflict(saveParticipationTea(manager.id, teaInput(), REFUSE_PLAYED, beforeTheEdition), DAY_PLAYED);
         expect(await everything()).toEqual(before);
       });
 
@@ -849,12 +868,12 @@ describe("dal participation tea", () => {
       });
 
       it("reports the archived edition before the played day", async () => {
-        const ana = await participationOn(3);
-        await addGuess(3);
+        const manager = await participationOn(1);
+        await addGuess(1);
         await setEditionStatus(EditionStatus.ARCHIVED);
 
         await expectConflict(
-          saveParticipationTea(ana.id, teaInput(), REFUSE_PLAYED, duringTheEdition),
+          saveParticipationTea(manager.id, teaInput(), REFUSE_PLAYED, duringTheEdition),
           editionArchived(2025),
         );
       });
@@ -944,6 +963,56 @@ describe("dal participation tea", () => {
             expect(unenrolled.status === "rejected" && unenrolled.reason).toBeInstanceOf(ConflictError);
             expect(participation).not.toBeNull();
             expect(teas.map((tea) => tea.id)).toEqual([saved.value.teaId]);
+          }
+        }
+      });
+
+      it("settles a save that replaces the images racing the unenrolment that deletes the tea", async () => {
+        for (let round = 0; round < ROUNDS; round++) {
+          const racer = await enrolGuest(2025, `Carrera ${round}`);
+          const tea = await addTea(bareContent, [], racer.id);
+          const story = await addStoryTea({ storyPart1: "Érase una vez" }, tea.id);
+          const originals = [
+            `advientea-local/2025/teaDay/kept-${round}`,
+            `advientea-local/2025/teaDay/dropped-${round}`,
+          ];
+          await replaceStoryImages(
+            story.id,
+            originals.map((publicId) => ({ kind: "new" as const, publicId })),
+          );
+          const kept = await prisma.storyImage.findFirstOrThrow({ where: { publicId: originals[0] } });
+          const added = `advientea-local/2025/teaDay/added-${round}`;
+
+          const [saved, unenrolled] = await Promise.allSettled([
+            saveParticipationTea(
+              racer.id,
+              teaInput({
+                images: [
+                  { id: kept.id, kind: "existing" },
+                  { kind: "new", publicId: added },
+                ],
+                story: fullStory,
+              }),
+              REFUSE_PLAYED,
+              beforeTheEdition,
+            ),
+            unenrolParticipant(racer.id, { deleteTea: true }, beforeTheEdition),
+          ]);
+
+          // The unenrolment always goes through: after the save it deletes what the save left, before it the save finds nobody.
+          if (unenrolled.status !== "fulfilled") {
+            throw new Error(`the unenrolment failed: ${String(unenrolled.reason)}`);
+          }
+          expect(await prisma.participation.findUnique({ where: { id: racer.id } })).toBeNull();
+          expect(await prisma.tea.findUnique({ where: { id: tea.id } })).toBeNull();
+          expect(await prisma.storyImage.count({ where: { storyTeaId: story.id } })).toBe(0);
+          if (saved.status === "rejected") {
+            expect(saved.reason).toBeInstanceOf(ConflictError);
+            expect((saved.reason as ConflictError).message).toBe(NO_LONGER_ENROLLED);
+            expect(unenrolled.value.storyImagePublicIds.toSorted()).toEqual(originals.toSorted());
+          } else {
+            expect(saved.value.removedPublicIds).toEqual([originals[1]]);
+            expect(unenrolled.value.storyImagePublicIds.toSorted()).toEqual([originals[0], added].toSorted());
           }
         }
       });

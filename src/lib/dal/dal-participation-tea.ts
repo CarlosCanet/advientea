@@ -109,13 +109,15 @@ function toStoryData(story: ParticipationTeaInput["story"]) {
 
 /**
  * Creates or updates the tea of a participation, with its story and images, in one transaction. Ingredients
- * and the tea type are never touched, and neither is the participation's day. With `refusePlayedDay`, a day
- * that has opened or has guesses refuses the save: those guesses were scored against the tea it had.
+ * and the tea type are never touched, and neither is the participation's day. With `refuseArchivedEdition`, an
+ * archived edition refuses the save. With `refusePlayedDay`, a tea whose day has opened or has guesses cannot
+ * be changed: those guesses were scored against it. A missing tea can always be created, since without a tea
+ * nobody could guess, so nothing has been scored.
  */
 export async function saveParticipationTea(
   participationId: string,
   input: ParticipationTeaInput,
-  options: { refusePlayedDay: boolean },
+  options: { refuseArchivedEdition: boolean; refusePlayedDay: boolean },
   now: Date = getNow(),
 ): Promise<SavedParticipationTea> {
   try {
@@ -139,10 +141,11 @@ export async function saveParticipationTea(
         select: { _count: { select: { participations: true } }, status: true, year: true },
         where: { year },
       });
-      if (edition.status === EditionStatus.ARCHIVED) {
+      if (options.refuseArchivedEdition && edition.status === EditionStatus.ARCHIVED) {
         throw new ConflictError(`La edición ${year} está archivada y sus tés ya no se pueden cambiar.`);
       }
-      if (options.refusePlayedDay && participation.dayId) {
+      const existingTea = await tx.tea.findUnique({ select: { id: true }, where: { participationId } });
+      if (options.refusePlayedDay && existingTea && participation.dayId) {
         const day = await tx.day.findUniqueOrThrow({ select: { dayNumber: true }, where: { id: participation.dayId } });
         const editionInfo = { lastDayNumber: edition._count.participations, status: edition.status, year };
         if ((await getDayLock(tx, day.dayNumber, editionInfo, now)) !== null) {
@@ -152,7 +155,6 @@ export async function saveParticipationTea(
         }
       }
 
-      const existingTea = await tx.tea.findUnique({ select: { id: true }, where: { participationId } });
       const content = toTeaContentData(input.content);
       const tea = existingTea
         ? await tx.tea.update({ data: content, select: { id: true }, where: { id: existingTea.id } })

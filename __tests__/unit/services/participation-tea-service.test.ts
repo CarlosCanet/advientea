@@ -194,12 +194,12 @@ describe("saveTeaForParticipation", () => {
       expect(saveParticipationTea).toHaveBeenCalledTimes(1);
     });
 
-    it("lets an admin through to the DAL even for an archived edition", async () => {
+    it("saves for an admin even on an archived edition, without asking the DAL to refuse it", async () => {
       editionIs(EditionStatus.ARCHIVED);
+      vi.mocked(saveParticipationTea).mockResolvedValue({ created: false, removedPublicIds: [], teaId: "tea-id" });
 
-      await saveTeaForParticipation(admin, "participation-id", submission());
-
-      expect(saveParticipationTea).toHaveBeenCalledTimes(1);
+      expect(await saveTeaForParticipation(admin, "participation-id", submission())).toEqual({ created: false });
+      expect(savedWith().options).toMatchObject({ refuseArchivedEdition: false });
     });
   });
 
@@ -213,17 +213,17 @@ describe("saveTeaForParticipation", () => {
     });
 
     it.each([
-      { actor: ana, refusePlayedDay: true, role: "a user" },
-      { actor: manager, refusePlayedDay: false, role: "a calendar manager" },
-      { actor: admin, refusePlayedDay: false, role: "an admin" },
+      { actor: ana, refuseArchivedEdition: true, refusePlayedDay: true, role: "a user" },
+      { actor: manager, refuseArchivedEdition: true, refusePlayedDay: false, role: "a calendar manager" },
+      { actor: admin, refuseArchivedEdition: false, refusePlayedDay: false, role: "an admin" },
     ])(
-      "asks the DAL to refuse a played day only for a user: $role → $refusePlayedDay",
-      async ({ actor, refusePlayedDay }) => {
+      "asks the DAL to refuse an archived edition unless admin and a played day only for a user: $role",
+      async ({ actor, refuseArchivedEdition, refusePlayedDay }) => {
         vi.mocked(getParticipationById).mockResolvedValue(participationOf(actor.id));
 
         await saveTeaForParticipation(actor, "participation-id", submission());
 
-        expect(savedWith().options).toEqual({ refusePlayedDay });
+        expect(savedWith().options).toEqual({ refuseArchivedEdition, refusePlayedDay });
       },
     );
 

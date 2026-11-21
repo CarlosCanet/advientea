@@ -37,7 +37,8 @@ export default async function MyTeaPage() {
 
   const mayEdit = canEditTea(session.user.role, {
     editionStatus: participation.edition.status,
-    isDayPlayed: await isParticipationDayPlayed(participation.id),
+    // A played day only protects a tea that exists: one still missing can be uploaded late.
+    isDayPlayed: participation.tea !== null && (await isParticipationDayPlayed(participation.id)),
     isOwn: true,
   });
   if (!mayEdit) {
