@@ -8,7 +8,7 @@ export default async function Home() {
   const session = await getSession();
   return (
     <div className="flex flex-col items-center justify-center p-4 gap-6 mt-16">
-      <header className="card bg-neutral image-full max-w-md shadow-lg overflow-hidden before:content-[''] before:absolute before:inset-0 before:bg-[url('/BackgroundSemiCircleLeaves.svg')] before:rotate-180 before:bg-no-repeat before:opacity-25 before:pointer-events-none">
+      <header className="card bg-neutral image-full max-w-md shadow-lg overflow-hidden before:content-[''] before:absolute before:inset-0 before:bg-[url('/BackgroundSemiCircleLeaves.svg')] before:-scale-x-100 before:bg-no-repeat before:bg-left before:bg-size-[auto_100%] before:opacity-10 before:[mask-image:linear-gradient(to_right,black_15%,transparent_65%)] before:pointer-events-none">
         <div className="card-body">
           <h1 className="mb-4 text-4xl font-semibold text-center font-display text-accent">
             Advien<i>té</i>

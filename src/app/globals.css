@@ -95,12 +95,12 @@
   --card-foreground: #203c25;
   --popover: #daf1db; /* grass 4 */
   --popover-foreground: #203c25;
-  /* grass 11 is a fill only: as text on a card it is 3.8:1. */
-  --brand: #2a7e3b; /* grass 11 */
+  /* A fill only: as text on a card it is 4.1:1. */
+  --brand: #55724e; /* "té verde": grass 11 lightness, lower chroma */
   --brand-foreground: #ffffff;
   --honey: #f3d673; /* amber 6 */
   --honey-foreground: #4f3422; /* amber 12 */
-  --primary: #2a7e3b;
+  --primary: #55724e;
   --primary-foreground: #ffffff;
   --secondary: #b2ddb5; /* grass 6 */
   --secondary-foreground: #203c25;
