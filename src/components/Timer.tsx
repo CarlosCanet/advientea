@@ -1,6 +1,10 @@
 "use client";
 
+import { Play, RotateCcw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface TimerProps {
   isPlayingSound?: boolean;
@@ -10,8 +14,8 @@ interface TimerProps {
 export default function Timer({ isPlayingSound = true, seconds }: TimerProps) {
   const [isRunning, setIsRunning] = useState(false);
   const [timeLeft, setTimeLeft] = useState<number>(seconds);
+  const [isFinished, setIsFinished] = useState(false);
   const endTimeRef = useRef<null | number>(null);
-  const modalRef = useRef<HTMLDialogElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
 
   const startTimer = () => {
@@ -19,6 +23,7 @@ export default function Timer({ isPlayingSound = true, seconds }: TimerProps) {
       audioRef.current = new Audio("/pourTea.mp3");
     }
     endTimeRef.current = Date.now() + timeLeft * 1000;
+    setIsFinished(false);
     setIsRunning(true);
   };
 
@@ -26,10 +31,6 @@ export default function Timer({ isPlayingSound = true, seconds }: TimerProps) {
     setIsRunning(false);
     setTimeLeft(seconds);
     endTimeRef.current = null;
-  };
-
-  const openModal = () => {
-    modalRef.current?.showModal();
   };
 
   const formatTime = (totalSeconds: number) => {
@@ -46,7 +47,7 @@ export default function Timer({ isPlayingSound = true, seconds }: TimerProps) {
       const difference = endTimeRef.current! - now;
 
       if (difference <= 0) {
-        openModal();
+        setIsFinished(true);
         if (isPlayingSound) {
           audioRef.current?.play();
         }
@@ -63,32 +64,38 @@ export default function Timer({ isPlayingSound = true, seconds }: TimerProps) {
 
   return (
     <>
-      <div className="flex gap-6 justify-center items-center">
-        <div className="bg-info text-info-content font-bold text-2xl py-2 px-4 rounded-md border-4 border-secondary">
+      <div className="flex flex-wrap items-center justify-center gap-4">
+        <div
+          aria-label="Temporizador"
+          className="rounded-xl border border-input bg-popover px-4 py-1.5 text-2xl font-semibold tabular-nums"
+          role="timer"
+        >
           {formatTime(timeLeft)}
         </div>
         {!isRunning ? (
-          <button className="btn btn-primary text-2xl w-25 h-13" disabled={isRunning} onClick={startTimer}>
-            Start
-          </button>
+          <Button className="min-w-32" onClick={startTimer} size="lg">
+            <Play data-icon="inline-start" />
+            Empezar
+          </Button>
         ) : (
-          <button className="btn btn-warning text-2xl w-25 h-13" disabled={!isRunning} onClick={resetTimer}>
-            Reset
-          </button>
+          <Button className="min-w-32" onClick={resetTimer} size="lg" variant="outline">
+            <RotateCcw data-icon="inline-start" />
+            Reiniciar
+          </Button>
         )}
       </div>
-      <dialog className="modal" ref={modalRef}>
-        <div className="modal-box">
-          <h3 className="font-bold text-xl place-self-center">
-            Es la hora de servir<span className="italic">Té</span>
-          </h3>
-          <div className="modal-action place-self-center">
-            <form method="dialog">
-              <button className="btn btn-primary">Close</button>
-            </form>
-          </div>
-        </div>
-      </dialog>
+      <Dialog onOpenChange={setIsFinished} open={isFinished}>
+        <DialogContent showCloseButton={false}>
+          <DialogHeader className="items-center text-center">
+            <DialogTitle className="text-xl font-semibold">
+              Es la hora de servir<span className="italic">Té</span>
+            </DialogTitle>
+          </DialogHeader>
+          <DialogFooter className="sm:justify-center">
+            <DialogClose render={<Button variant="outline" />}>Cerrar</DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
