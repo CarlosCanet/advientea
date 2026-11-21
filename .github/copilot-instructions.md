@@ -65,6 +65,7 @@ The UI is moving from daisyUI to **shadcn/ui** (Base UI primitives, `base-maia` 
 
 - Tokens are CSS variables in `globals.css`, from Radix Colors `grass` and `amber`: `background` (grass 7, under the leaf illustration), `card` (grass 5), `foreground` (grass 12), `brand` and `primary` ("té verde" `#55724e`, a muted green), `honey` (amber 6, the main action on a dark surface and "today"), `destructive`. Use the utilities (`bg-card`, `text-foreground`, `bg-brand`, `bg-honey`…), never raw colours.
 - `brand` / `primary` is a fill only: as text on a card it fails contrast (4.1:1). Text and links on cards use `text-foreground`; links are underlined.
+- Form controls, tables, lists and badges go on light surfaces (`bg-card`, `bg-popover`). A `bg-brand` surface holds only headings and text in `text-brand-foreground`, the honey main action and outline or ghost buttons: on it, placeholders, muted text, grass 12 text and `bg-primary` fills are unreadable or invisible.
 - Light only: there is no dark mode.
 - Fonts: Figtree for everything (`font-sans`, the default); Griffy (`font-display`) only for the wordmark, page titles, day numbers, the "…Té" puns in headings and the home welcome text.
 
