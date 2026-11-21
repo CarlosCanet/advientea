@@ -35,6 +35,8 @@ describe("isPublicPath", () => {
     "/timer",
     "/invitado",
     "/invitado/some-token",
+    "/api/health",
+    "/api/health/db",
   ])("lets anyone see %s", (pathname) => {
     expect(isPublicPath(pathname)).toBe(true);
   });
@@ -49,6 +51,7 @@ describe("isPublicPath", () => {
     "/add-tea-info",
     "/invitadoX",
     "/teaDayfoo",
+    "/api/healthx",
   ])("asks for a session on %s", (pathname) => {
     expect(isPublicPath(pathname)).toBe(false);
   });
@@ -91,14 +94,16 @@ describe("the proxy matcher", () => {
   const runsOn = (url: string) => unstable_doesMiddlewareMatch({ config, url });
 
   it("runs on pages and on server action posts to them", () => {
-    for (const url of ["/", "/my-tea", "/invitado", "/editions/2026"]) {
+    for (const url of ["/", "/my-tea", "/invitado", "/editions/2026", "/api/healthx"]) {
       expect(runsOn(url), url).toBe(true);
     }
   });
 
-  it("skips the auth API, the Next assets and every file with an extension", () => {
+  it("skips the auth API, the health checks, the Next assets and every file with an extension", () => {
     for (const url of [
       "/api/auth/get-session",
+      "/api/health",
+      "/api/health/db",
       "/_next/static/chunks/main.js",
       "/_next/image",
       "/favicon.ico",

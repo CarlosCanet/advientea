@@ -14,18 +14,23 @@ Sentry.init({
   // No guest token reaches Sentry, whichever field carries the URL.
   beforeBreadcrumb: (breadcrumb) => toScrubbedGuestEvent(breadcrumb),
   beforeSend: (event) => toScrubbedGuestEvent(event),
-  beforeSendTransaction: (event) => toScrubbedGuestEvent(event),
+  beforeSendSpan: (span) => toScrubbedGuestEvent(span),
 
   dsn: SENTRY_DSN,
   // Staging reports its errors too, so a regression shows up before the release.
   enabled: isProduction || VERCEL_ENV === "preview",
 
-  // Staging sends errors only: no replays and no traces.
-  integrations: isProduction ? [Sentry.replayIntegration()] : [],
-  tracesSampleRate: isProduction ? 0.1 : 0,
+  // Same-origin, past ad-blockers, to src/app/monitoring/route.ts; the proxy's matcher leaves this path alone. The
+  // cookies go with it on purpose: Vercel Deployment Protection lets no preview request through without its own, and
+  // the route forwards only the envelope.
+  transportOptions: { fetchOptions: { credentials: "same-origin" } },
+  tunnel: "/monitoring",
 
-  // Enable logs to be sent to Sentry
-  enableLogs: isProduction,
+  // Errors only, everywhere: no traces, so the tunnel (one Vercel function call per envelope) runs only for errors.
+  // Staging also skips replays.
+  integrations: isProduction ? [Sentry.replayIntegration()] : [],
+  tracesSampleRate: 0,
+
   environment: VERCEL_ENV || process.env.NODE_ENV,
 
   // A replay only when an error occurs, never of a whole session.

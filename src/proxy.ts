@@ -7,6 +7,7 @@ import { NextResponse } from "next/server";
 const PUBLIC_EXACT_PATHS: Array<string> = ["/"];
 // Each prefix covers the path itself and everything below it, never a longer name: /timer, not /timers.
 const PUBLIC_PATH_PREFIXES: Array<string> = [
+  "/api/health",
   "/invitado",
   "/reset-password",
   "/sign-in",
@@ -44,11 +45,12 @@ export const config = {
     /*
      * Every path except:
      * - api/auth (better-auth's own endpoints, sign-in included)
+     * - api/health (uptime checks: skipping the proxy keeps each check to one invocation)
      * - _next/static, _next/image (build output and image optimization)
      * - favicon.ico
      * - monitoring (Sentry's tunnel route: client errors are reported without a session too)
      * - any path whose last segment has a file extension (assets in public/)
      */
-    "/((?!api/auth|_next/static|_next/image|favicon\\.ico|monitoring(?:/|$))(?!.*\\.[A-Za-z0-9]+$).*)",
+    "/((?!api/auth|api/health(?:/|$)|_next/static|_next/image|favicon\\.ico|monitoring(?:/|$))(?!.*\\.[A-Za-z0-9]+$).*)",
   ],
 };

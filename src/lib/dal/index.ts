@@ -1,6 +1,7 @@
 export * from "./dal-auth";
 export * from "./dal-day";
 export * from "./dal-edition";
+export * from "./dal-health";
 export * from "./dal-participation";
 export * from "./dal-participation-tea";
 export * from "./dal-story-image";

@@ -14,23 +14,29 @@ Sentry.init({
   // No guest token reaches Sentry, whichever field carries the URL.
   beforeBreadcrumb: (breadcrumb) => toScrubbedGuestEvent(breadcrumb),
   beforeSend: (event) => toScrubbedGuestEvent(event),
-  beforeSendTransaction: (event) => toScrubbedGuestEvent(event),
+  beforeSendSpan: (span) => toScrubbedGuestEvent(span),
 
   dsn: SENTRY_DSN,
   // Staging reports its errors too, so a regression shows up before the release.
   enabled: isProduction || VERCEL_ENV === "preview",
 
-  // Staging sends errors only: no traces.
-  tracesSampleRate: isProduction ? 0.1 : 0,
+  // The browser's events come in through src/app/monitoring/route.ts, which forwards only the envelope and only for
+  // this DSN. intercept: false, because on Vercel the SDK's own node:http hook keeps the function open until it times
+  // out; the path keeps those requests out of the traces.
+  integrations: [Sentry.serveTunnelIntegration({ intercept: false, path: "/monitoring" })],
 
-  // Enable logs to be sent to Sentry
-  enableLogs: isProduction,
+  // Errors only, everywhere: tracing costs Vercel CPU on every request (Hobby has 4 h a month) and nobody reads it.
+  // Raise it for a few days to investigate a slow page.
+  tracesSampleRate: 0,
+
   environment: VERCEL_ENV || process.env.NODE_ENV,
 
   // The user is set by hand (id and username, never the email) where the session is read; nothing else personal
-  // leaves the server: no cookies, no bodies, and only two request headers.
+  // leaves the server: no cookies, no bodies, only two request headers, and no query parameters or rows (a guest's
+  // token is one).
   dataCollection: {
     cookies: false,
+    databaseQueryData: false,
     httpBodies: [],
     httpHeaders: { request: { allow: ["user-agent", "referer"] }, response: false },
     urlQueryParams: true,
