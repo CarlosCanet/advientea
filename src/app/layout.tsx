@@ -1,21 +1,22 @@
 import type { Metadata } from "next";
 
-import { Geist, Geist_Mono } from "next/font/google";
-import { Toaster } from "sonner";
+import { Figtree, Griffy } from "next/font/google";
 
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import SentryUser from "@/components/SentryUser";
+import { Toaster } from "@/components/ui/sonner";
 import { verifySession } from "@/lib/dal";
 
-const geistSans = Geist({
+const figtree = Figtree({
   subsets: ["latin"],
-  variable: "--font-geist-sans",
+  variable: "--font-figtree",
 });
 
-const geistMono = Geist_Mono({
+const griffy = Griffy({
   subsets: ["latin"],
-  variable: "--font-geist-mono",
+  variable: "--font-griffy",
+  weight: "400",
 });
 
 export const metadata: Metadata = {
@@ -33,21 +34,11 @@ export default async function RootLayout({
 }>) {
   const { user } = await verifySession();
   return (
-    <html lang="es">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-cover`}
-        style={{
-          backgroundAttachment: "scroll",
-          backgroundImage: "url('/BackgroundLeaves.svg')",
-          backgroundPosition: "top left",
-          backgroundRepeat: "repeat",
-          backgroundSize: "cover",
-          minHeight: "100vh",
-        }}
-      >
+    <html className={`${figtree.variable} ${griffy.variable}`} lang="es">
+      <body className="leaf-background min-h-screen antialiased">
         <Navbar />
         <main className="pt-16">{children}</main>
-        <Toaster richColors />
+        <Toaster position="top-center" richColors />
         <SentryUser user={user ? { id: user.id, username: user.username } : null} />
       </body>
     </html>

@@ -45,9 +45,9 @@ export default async function TeaDayPage({ params, searchParams }: TeaDayPagePro
         <div className="card-body items-center">
           <h2 className="card-title text-4xl">Día {day.dayNumber}</h2>
           {advienteaDayState.isTeaReleased ? (
-            <div className="font-[Griffy] text-2xl">{tea?.name}</div>
+            <div className="font-display text-2xl">{tea?.name}</div>
           ) : (
-            <div className="skeleton skeleton-text font-[Griffy] text-2xl">Té desconocido</div>
+            <div className="skeleton skeleton-text font-display text-2xl">Té desconocido</div>
           )}
           {session && advienteaDayState.isPersonNameReleased && <AuthorName name={userName} />}
         </div>
@@ -102,9 +102,7 @@ export default async function TeaDayPage({ params, searchParams }: TeaDayPagePro
                   )}
                 </>
               ) : (
-                <div className="skeleton skeleton-text font-[Griffy] text-center text-2xl">
-                  No es la hora todavía...
-                </div>
+                <div className="skeleton skeleton-text font-display text-center text-2xl">No es la hora todavía...</div>
               )}
             </div>
           </div>

@@ -29,7 +29,7 @@ export default async function GuestPage() {
   if (!participation) {
     return (
       <GuestNotice>
-        <p className="font-[Griffy] text-2xl">
+        <p className="font-display text-2xl">
           Este enlace no es válido o ha caducado. Pide uno nuevo al Geren<span className="italic">Té</span>.
         </p>
       </GuestNotice>
@@ -42,7 +42,7 @@ export default async function GuestPage() {
   if (participation.tea !== null && (await isParticipationDayPlayed(participation.id))) {
     return (
       <GuestNotice>
-        <p className="font-[Griffy] text-2xl">
+        <p className="font-display text-2xl">
           Tu día ya ha abierto y tu té ya no se puede cambiar. Si hay un error, avisa al Geren
           <span className="italic">Té</span>.
         </p>

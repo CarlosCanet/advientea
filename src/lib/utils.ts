@@ -46,3 +46,5 @@ export type ParticipantNameSource = { guestName: null | string; user: null | { u
 export function toParticipantName(participation: ParticipantNameSource): null | string {
   return participation.user?.username ?? participation.guestName;
 }
+
+export { cn } from "cn";

@@ -1,5 +1,5 @@
 ---
-description: "Adviente - Next.js 16 + Tailwind CSS v4 + daisyUI 5 development standards"
+description: "Adviente - Next.js 16 + Tailwind CSS v4 + shadcn/ui development standards"
 applyTo: "**/*.tsx, **/*.ts, **/*.jsx, **/*.js, **/*.css"
 ---
 
@@ -17,7 +17,7 @@ This is a Next.js 16.0 project using the App Router pattern with TypeScript, fea
 - React 19.2 with TypeScript 5
 - Tailwind CSS v4.1.13+ + daisyUI 5.3.9+
 - Turbopack for development and builds (stable in v16)
-- Geist fonts (Sans & Mono) from Next.js font optimization
+- Figtree and Griffy from `next/font/google` (self-hosted)
 - Prisma ORM with PostgreSQL (development)
 - BetterAuth for authentication
 - Resend for email delivery
@@ -48,31 +48,24 @@ npm run test   # Run tests with Vitest
 
 ## CSS & Styling Conventions
 
-### Tailwind CSS v4 Syntax
+The UI is moving from daisyUI to **shadcn/ui** (Base UI primitives, `base-maia` style, lucide icons) on the `feat/shadcn` branch; the plan is `.docs/PLAN-SHADCN.md`. Until daisyUI is removed, both load: `globals.css` bridges daisyUI's colours to the shadcn tokens. **New code uses shadcn components and Tailwind utilities only, never daisyUI classes** (`btn`, `card`, `modal`, `badge`, `bg-base-*`, `text-error`…).
 
-The project uses **Tailwind CSS v4** with new syntax in `globals.css`:
+### Components
 
-```css
-@import "tailwindcss";        /* New v4 import syntax */
-@plugin "daisyui";           /* New v4 plugin syntax */
-@theme inline { ... }        /* New v4 theme definition */
-```
+- shadcn components live in `src/components/ui/` (lowercase files, added with `pnpm dlx shadcn@latest add <name>`; you own the code after that). App components do not go there: they live in domain folders under `src/components/` (step P1.1 moves the existing ones).
+- Links styled as buttons: `<Button render={<Link href="…" />} nativeButton={false}>`. Base UI uses `render`, not Radix's `asChild`.
+- Base UI form controls (`Select`, `Checkbox`, `Switch`) submit through a hidden input when given `name`; keep the field names Server Actions read. `required` blocks the submit but marks nothing: set `aria-invalid` and show a `FieldError` yourself.
+- Every control has a visible label or an `aria-label`; icon buttons always have `aria-label`.
+- Touch targets: shadcn sizes carry `pointer-coarse:h-11` / `pointer-coarse:size-11` (44 px on touch). Keep them when adding or editing components.
+- `--input` is grass 12, the field border colour: use it as `border-input`, never as a tint (`bg-input/30` from the registry turns a field dark green; use `bg-transparent` or `bg-popover`).
+- Focus: `focus-visible:focus-ring` (a grass 12 outline with an amber 10 halo), so it shows on light and dark surfaces.
 
-**Important:** Use daisyUI component classes following the v5 conventions as defined in `.github/instructions/daisyui.instructions.md`.
+### Colour and type
 
-### Color System
-
-Custom CSS variables are integrated with Tailwind:
-
-- `--background` / `--foreground` for theme-aware colors
-- Dark mode support via `prefers-color-scheme`
-- Font variables: `--font-geist-sans`, `--font-geist-mono`
-
-### Component Patterns
-
-- Use daisyUI component classes (e.g., `btn`, `card`, `modal`) as primary styling approach
-- Combine with Tailwind utilities for customization: `btn px-10`
-- Use `!` suffix for CSS specificity override when needed: `btn bg-red-500!`
+- Tokens are CSS variables in `globals.css`, from Radix Colors `grass` and `amber`: `background` (grass 7, under the leaf illustration), `card` (grass 5), `foreground` (grass 12), `brand` and `primary` (grass 11), `honey` (amber 6, the main action on a dark surface and "today"), `destructive`. Use the utilities (`bg-card`, `text-foreground`, `bg-brand`, `bg-honey`…), never raw colours.
+- `brand` / `primary` (grass 11) is a fill only: as text on a card it fails contrast. Text and links on cards use `text-foreground`; links are underlined.
+- Light only: there is no dark mode.
+- Fonts: Figtree for everything (`font-sans`, the default); Griffy (`font-display`) only for the wordmark, page titles, day numbers, the "…Té" puns in headings and the home welcome text.
 
 ## File Structure Patterns
 
@@ -86,7 +79,7 @@ src/app/
 
 **Layout Requirements:**
 
-- Always include Geist font variables in className: `${geistSans.variable} ${geistMono.variable}`
+- The root layout puts the font variables on `<html>`: `${figtree.variable} ${griffy.variable}`
 - Root layout handles global font loading and CSS imports
 
 ## Development Standards & Architecture
@@ -197,7 +190,6 @@ src/app/
 - Grid/flex layouts should be responsive: `flex-col sm:flex-row`
 - Maintain semantic HTML structure for accessibility
 - Follow container queries best practices
-- Dark mode support via CSS variables and `prefers-color-scheme`
 
 ## External Dependencies & Integration
 

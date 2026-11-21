@@ -8,7 +8,7 @@ export default function WaitForDayToCome({ dayNumber }: WaitForDayToComeProps) {
       <div className="card w-full max-w-xl bg-neutral text-neutral-content card-xl shadow-sm">
         <div className="card-body items-center">
           <h2 className="card-title text-4xl">Día {dayNumber}</h2>
-          <div className="font-[Griffy] text-2xl">Vuelve el día {dayNumber}</div>
+          <div className="font-display text-2xl">Vuelve el día {dayNumber}</div>
         </div>
       </div>
     </div>
