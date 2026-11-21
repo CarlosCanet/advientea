@@ -1,4 +1,4 @@
-import { Prisma, Tea } from "@/generated/prisma/client";
+import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { toParticipantName } from "@/lib/utils";
 
@@ -62,37 +62,6 @@ export async function addTea(
       participation: { connect: { id: participationId } },
     },
     include: teaWithIngredientsAndParticipationDayInclude,
-  });
-}
-
-export type TeaContentInput = Partial<
-  Pick<
-    Tea,
-    | "addMilk"
-    | "canReinfuse"
-    | "hasTheine"
-    | "infusionTime"
-    | "moreIndications"
-    | "name"
-    | "reinfuseNumber"
-    | "storeName"
-    | "teaType"
-    | "temperature"
-    | "url"
-  >
-> & { ingredientIds?: Array<string> };
-export async function updateTeaContent(
-  id: string,
-  content: TeaContentInput,
-): Promise<TeaWithIngredientsAndParticipationDay> {
-  const { ingredientIds, ...fields } = content;
-  return prisma.tea.update({
-    data: {
-      ...fields,
-      ingredients: ingredientIds ? { set: ingredientIds.map((ingredientId) => ({ id: ingredientId })) } : undefined,
-    },
-    include: teaWithIngredientsAndParticipationDayInclude,
-    where: { id },
   });
 }
 

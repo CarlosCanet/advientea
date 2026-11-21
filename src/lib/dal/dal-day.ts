@@ -93,20 +93,6 @@ export async function getDaysForEdition(year: number): Promise<Array<DayForEditi
   });
 }
 
-export async function addDay(dayYear: DayYear): Promise<Day | null> {
-  try {
-    const created = await prisma.day.create({ data: { dayNumber: dayYear.dayNumber, year: dayYear.year } });
-    return created;
-  } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      console.error(`Day ${dayYear.dayNumber}/${dayYear.year} already exists`);
-      return null;
-    }
-    console.error(error);
-    throw error;
-  }
-}
-
 export async function editDay(data: Prisma.DayUncheckedUpdateInput, id: string): Promise<Day> {
   const dayUpdated = await prisma.day.update({
     data,

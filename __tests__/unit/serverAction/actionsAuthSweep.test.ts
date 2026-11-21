@@ -19,10 +19,17 @@ import { ForbiddenError, UnauthenticatedError } from "@/lib/errors";
 
 // Public by design. Adding a name here is a reviewable decision.
 const PUBLIC_ACTIONS: Record<string, string> = {
-  addTeaInfo: "guest submissions are allowed by product decision (2026-10-19); the only unauthenticated write path",
+  saveGuestTeaAction:
+    "a guest has no account: the secret link's cookie names their participation, never the form; the only unauthenticated write path",
   signin: "authenticates; there is no session yet",
   signout: "ends the session; harmless without one",
   signup: "creates the account itself",
+};
+
+// Ask for a session and no role: any signed-in person may call them, and what they reach is decided from the
+// session itself. Every action not listed above is held to this anyway; these are named so the decision is reviewable.
+const SESSION_ACTIONS: Record<string, string> = {
+  saveMyTeaAction: "a participant saves their own tea; the participation comes from the session, never from the form",
 };
 
 type AllowedRoles = "ADMIN" | "ADMIN or EXECUTEAVE";
@@ -38,6 +45,7 @@ const PRIVILEGED_ACTIONS: Record<string, AllowedRoles> = {
   enrolGuestAction: "ADMIN or EXECUTEAVE",
   enrolUserAction: "ADMIN or EXECUTEAVE",
   placeParticipantAction: "ADMIN or EXECUTEAVE",
+  regenerateGuestLinkAction: "ADMIN or EXECUTEAVE",
   swapParticipantsAction: "ADMIN or EXECUTEAVE",
   unenrolParticipantAction: "ADMIN or EXECUTEAVE",
 };
@@ -49,11 +57,9 @@ const ROLES_OF: Record<AllowedRoles, Role[]> = {
 
 const { DAL_FUNCTIONS, GUARDS, prismaTouched } = vi.hoisted(() => ({
   GUARDS: ["requireSession", "requireRole", "verifySession"] as const,
-  // Every DAL export the action modules import. Keep in sync with their `@/lib/dal` imports.
+  // Every DAL export the action modules import, directly or through the services they call (left real here, so
+  // that what a service reaches is seen too). Keep in sync with their `@/lib/dal` imports.
   DAL_FUNCTIONS: [
-    "addDay",
-    "assignDay",
-    "addStoryImage",
     "addStoryTea",
     "addTea",
     "changeEditionStatus",
@@ -62,19 +68,24 @@ const { DAL_FUNCTIONS, GUARDS, prismaTouched } = vi.hoisted(() => ({
     "createTeaGuess",
     "deleteDay",
     "deleteEdition",
-    "editStoryTea",
     "editUser",
     "enrolGuest",
     "enrolUser",
     "getActiveEdition",
+    "getEdition",
+    "getGuestParticipationByToken",
+    "getOpenParticipationByUserId",
+    "getParticipationById",
     "getParticipationByUserId",
     "getTeaById",
+    "isParticipationDayPlayed",
     "placeParticipant",
+    "regenerateGuestToken",
     "replaceStoryImages",
+    "saveParticipationTea",
     "swapParticipants",
     "unenrolParticipant",
     "unplaceParticipant",
-    "updateTeaContent",
   ] as const,
   prismaTouched: vi.fn(),
 }));
@@ -97,7 +108,10 @@ vi.mock("@/lib/prisma", () => ({
     },
   ),
 }));
-vi.mock("next/headers", () => ({ headers: vi.fn().mockResolvedValue(new Headers()) }));
+vi.mock("next/headers", () => ({
+  cookies: vi.fn().mockResolvedValue({ get: () => undefined, getAll: () => [], has: () => false }),
+  headers: vi.fn().mockResolvedValue(new Headers()),
+}));
 vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/auth", () => ({
@@ -243,8 +257,21 @@ describe("authorization sweep", () => {
       .sort();
     expect(Object.keys(MODULES).sort()).toEqual(onDisk);
     const allNames = ALL_ACTIONS.map((a) => a.actionName);
-    for (const name of [...Object.keys(PUBLIC_ACTIONS), ...Object.keys(PRIVILEGED_ACTIONS)]) {
+    for (const name of [
+      ...Object.keys(PUBLIC_ACTIONS),
+      ...Object.keys(PRIVILEGED_ACTIONS),
+      ...Object.keys(SESSION_ACTIONS),
+    ]) {
       expect(allNames, `${name} is listed but no action module exports it`).toContain(name);
+    }
+  });
+
+  it("lists the session-only actions in no other list", () => {
+    const sessionOnly = SESSION_ONLY.map(({ actionName }) => actionName);
+    for (const name of Object.keys(SESSION_ACTIONS)) {
+      expect(name in PUBLIC_ACTIONS, `${name} is listed both as public and as session-only`).toBe(false);
+      expect(name in PRIVILEGED_ACTIONS, `${name} is listed both as privileged and as session-only`).toBe(false);
+      expect(sessionOnly).toContain(name);
     }
   });
 

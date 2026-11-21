@@ -61,3 +61,7 @@ export const unenrolParticipantSchema = z.object({
   deleteTea: z.boolean(),
   participationId: z.string().min(1),
 });
+
+export const regenerateGuestLinkSchema = z.object({
+  participationId: z.string().min(1),
+});

@@ -1,15 +1,7 @@
-import { describe, expect, expectTypeOf, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { TeaType } from "@/generated/prisma/enums";
-import {
-  addTea,
-  deleteTea,
-  enrolGuest,
-  getTeaById,
-  getUsernameAssignedToTea,
-  type TeaContentInput,
-  updateTeaContent,
-} from "@/lib/dal";
+import { addTea, deleteTea, enrolGuest, getTeaById, getUsernameAssignedToTea } from "@/lib/dal";
 import { prisma } from "@/lib/prisma";
 
 const teaData = {
@@ -131,51 +123,6 @@ describe("dal Tea", () => {
       expect(await prisma.storyTea.count({ where: { teaId: tea.id } })).toBe(0);
       const after = await prisma.participation.findUniqueOrThrow({ where: { id: participation.id } });
       expect(after.dayId).toBe(participation.dayId);
-    });
-  });
-
-  describe("updateTeaContent", () => {
-    // The seed puts a tea with ingredients and a story on day 1 of 2025, assigned to the manager.
-    async function seededTea() {
-      return prisma.tea.findFirstOrThrow({
-        include: { ingredients: true, participation: true },
-        where: { participation: { day: { dayNumber: 1, year: 2025 } } },
-      });
-    }
-
-    it("updates the tea's content", async () => {
-      const tea = await seededTea();
-
-      await updateTeaContent(tea.id, { name: "Té editado", teaType: TeaType.GREEN, temperature: 70 });
-
-      const edited = await prisma.tea.findUniqueOrThrow({ where: { id: tea.id } });
-      expect(edited).toMatchObject({ name: "Té editado", teaType: TeaType.GREEN, temperature: 70 });
-    });
-
-    it("replaces the ingredients with the given list", async () => {
-      const tea = await seededTea();
-      const lemon = await prisma.teaIngredient.findUniqueOrThrow({ where: { name: "Limón" } });
-      const orange = await prisma.teaIngredient.findUniqueOrThrow({ where: { name: "Naranja" } });
-
-      await updateTeaContent(tea.id, { ingredientIds: [lemon.id, orange.id] });
-
-      const edited = await prisma.tea.findUniqueOrThrow({ include: { ingredients: true }, where: { id: tea.id } });
-      expect(edited.ingredients.map((ingredient) => ingredient.name).toSorted()).toEqual(["Limón", "Naranja"]);
-    });
-
-    it("leaves the tea with its participation, and the participation on its day", async () => {
-      const tea = await seededTea();
-
-      await updateTeaContent(tea.id, { name: "Té editado" });
-
-      const after = await prisma.tea.findUniqueOrThrow({ include: { participation: true }, where: { id: tea.id } });
-      expect(after.participationId).toBe(tea.participationId);
-      expect(after.participation.dayId).toBe(tea.participation.dayId);
-    });
-
-    it("cannot be asked to hand the tea to someone else: the content type has no participation", () => {
-      expectTypeOf<TeaContentInput>().not.toHaveProperty("participationId");
-      expectTypeOf<TeaContentInput>().not.toHaveProperty("participation");
     });
   });
 });

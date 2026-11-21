@@ -327,22 +327,37 @@ describe("calculateTimeScore", () => {
 });
 
 describe("canEditTea", () => {
-  const ownPreparing = { editionStatus: EditionStatus.PREPARING, isOwn: true };
-  const ownActive = { editionStatus: EditionStatus.ACTIVE, isOwn: true };
-  const otherPreparing = { editionStatus: EditionStatus.PREPARING, isOwn: false };
-  const otherActive = { editionStatus: EditionStatus.ACTIVE, isOwn: false };
-  const ownArchived = { editionStatus: EditionStatus.ARCHIVED, isOwn: true };
-  const otherArchived = { editionStatus: EditionStatus.ARCHIVED, isOwn: false };
+  const ownPreparing = { editionStatus: EditionStatus.PREPARING, isDayPlayed: false, isOwn: true };
+  const ownActive = { editionStatus: EditionStatus.ACTIVE, isDayPlayed: false, isOwn: true };
+  const otherPreparing = { editionStatus: EditionStatus.PREPARING, isDayPlayed: false, isOwn: false };
+  const otherActive = { editionStatus: EditionStatus.ACTIVE, isDayPlayed: false, isOwn: false };
+  const ownArchived = { editionStatus: EditionStatus.ARCHIVED, isDayPlayed: false, isOwn: true };
+  const otherArchived = { editionStatus: EditionStatus.ARCHIVED, isDayPlayed: false, isOwn: false };
+  const played = <T extends object>(tea: T) => ({ ...tea, isDayPlayed: true });
 
   it("lets an admin edit any tea, archived editions included", () => {
     expect(canEditTea(Role.ADMIN, otherActive)).toBe(true);
     expect(canEditTea(Role.ADMIN, otherArchived)).toBe(true);
   });
 
+  it("lets an admin edit a tea whose day has been played, in any edition", () => {
+    expect(canEditTea(Role.ADMIN, played(ownActive))).toBe(true);
+    expect(canEditTea(Role.ADMIN, played(otherActive))).toBe(true);
+    expect(canEditTea(Role.ADMIN, played(otherArchived))).toBe(true);
+  });
+
   it("lets a calendar manager edit every tea of an edition that is not archived", () => {
     expect(canEditTea(Role.EXECUTEAVE, otherPreparing)).toBe(true);
     expect(canEditTea(Role.EXECUTEAVE, otherActive)).toBe(true);
     expect(canEditTea(Role.EXECUTEAVE, otherArchived)).toBe(false);
+  });
+
+  it("lets a calendar manager edit a played tea of an edition that is not archived, theirs or not", () => {
+    expect(canEditTea(Role.EXECUTEAVE, played(otherActive))).toBe(true);
+    expect(canEditTea(Role.EXECUTEAVE, played(ownActive))).toBe(true);
+    expect(canEditTea(Role.EXECUTEAVE, played(otherPreparing))).toBe(true);
+    expect(canEditTea(Role.EXECUTEAVE, played(otherArchived))).toBe(false);
+    expect(canEditTea(Role.EXECUTEAVE, played(ownArchived))).toBe(false);
   });
 
   it("lets a user edit only their own tea of an edition that is not archived", () => {
@@ -352,7 +367,18 @@ describe("canEditTea", () => {
     expect(canEditTea(Role.USER, ownArchived)).toBe(false);
   });
 
+  it("refuses a user their own tea once its day has been played", () => {
+    expect(canEditTea(Role.USER, played(ownActive))).toBe(false);
+    expect(canEditTea(Role.USER, played(ownPreparing))).toBe(false);
+  });
+
+  it("refuses a user a played tea that is not theirs or is archived, as without the flag", () => {
+    expect(canEditTea(Role.USER, played(otherActive))).toBe(false);
+    expect(canEditTea(Role.USER, played(ownArchived))).toBe(false);
+  });
+
   it("never lets a visitor without an account edit", () => {
     expect(canEditTea(undefined, ownActive)).toBe(false);
+    expect(canEditTea(undefined, played(ownActive))).toBe(false);
   });
 });

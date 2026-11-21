@@ -47,10 +47,8 @@ export const initialSignInActionResponse: SignInActionResponse = {
   success: false,
 };
 
-export interface TeaInfoFormData {
-  dayNumber: number;
-  personName: string;
-
+/** The tea form's own fields: /my-tea and the managers' editor send only these. */
+export interface TeaFormData {
   addMilk: boolean;
   canReinfuse: boolean;
   hasTheine: boolean;
@@ -58,7 +56,6 @@ export interface TeaInfoFormData {
   moreIndications?: string;
   reinfuseNumber?: number;
   storeName?: string;
-  teaId?: string;
   teaName: string;
   temperature: number;
   urlStore?: string;
@@ -79,12 +76,12 @@ export interface TeaInfoActionResponse {
   errors?: {
     errors: Array<string>;
     properties?: {
-      [K in keyof TeaInfoFormData]?: {
+      [K in keyof TeaFormData]?: {
         errors: Array<string>;
       };
     };
   };
-  inputs?: TeaInfoFormData;
+  inputs?: TeaFormData;
   message: string;
   success: boolean;
 }

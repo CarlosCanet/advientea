@@ -3,40 +3,80 @@ import Form from "next/form";
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useState } from "react";
 import { BsCupHotFill } from "react-icons/bs";
-import { FaCalendar, FaClock, FaStore, FaUser } from "react-icons/fa";
+import { FaClock, FaStore } from "react-icons/fa";
 import { FaMusic, FaRepeat, FaTemperatureFull } from "react-icons/fa6";
 import { MdComputer, MdMore } from "react-icons/md";
 import { SiUndertale } from "react-icons/si";
 
-import { editTeaInfoAction } from "@/app/actions/teaInfoActions";
-import { Prisma } from "@/generated/prisma/client";
-import { ImageStoryForm, initialTeaInfoActionResponse } from "@/lib/types";
+import type { Prisma } from "@/generated/prisma/client";
+
+import { showActionToast } from "@/lib/action-toast";
+import { ImageStoryForm, initialTeaInfoActionResponse, TeaInfoActionResponse } from "@/lib/types";
 
 import TeaListImageForm from "./ui/TeaListImageForm";
 
-interface EditTeaInfoFormProps {
-  dayNumber: number | undefined;
-  teaCompleteInfo: Prisma.TeaGetPayload<{ include: { story: { include: { images: true } } } }>;
-  teaId: string;
-  username: string;
+type TeaWithStoryImages = Prisma.TeaGetPayload<{ include: { story: { include: { images: true } } } }>;
+
+interface TeaInfoFormProps {
+  action: (prevState: null | TeaInfoActionResponse, formData: FormData) => Promise<TeaInfoActionResponse>;
+  /** A line above the day, such as the guest's greeting. */
+  greeting?: string;
+  heading: string;
+  subheading?: string;
+  /** The tea as saved, to prefill the form; none when the participant has not uploaded it yet. */
+  tea?: null | TeaWithStoryImages;
+  /** Only for editTeaInfoAction, which saves the tea named by it. */
+  teaId?: string;
 }
 
-function initImages(teaCompleteInfo: Prisma.TeaGetPayload<{ include: { story: { include: { images: true } } } }>) {
-  if (teaCompleteInfo.story && teaCompleteInfo.story.images.length > 0) {
-    const oldImages: Array<ImageStoryForm> = teaCompleteInfo.story.images.map((img, i) => ({
-      id: img.id,
-      isNew: false,
-      order: i,
-      publicId: img.publicId,
-    }));
-    return oldImages;
+function initImages(tea: null | TeaWithStoryImages | undefined): Array<ImageStoryForm> {
+  if (!tea?.story) {
+    return [];
   }
-  return [];
+  return tea.story.images.map((img, i) => ({ id: img.id, isNew: false, order: i, publicId: img.publicId }));
 }
 
-function EditTeaInfoForm({ dayNumber, teaCompleteInfo, teaId, username }: EditTeaInfoFormProps) {
-  const [state, action, isPending] = useActionState(editTeaInfoAction, initialTeaInfoActionResponse);
-  const [images, setImages] = useState<Array<ImageStoryForm>>(() => initImages(teaCompleteInfo));
+interface TeaInfoFormFieldsProps extends Omit<TeaInfoFormProps, "action"> {
+  action: (formData: FormData) => void;
+  isPending: boolean;
+  state: TeaInfoActionResponse;
+}
+
+/**
+ * The tea form of a participation, for /my-tea and the managers' editor. The action state lives here, above
+ * the fields, because the fields are mounted again whenever the saved tea changes (so that the image list
+ * starts over from the rows the save left behind), and the response that brings the new tea also brings the
+ * result to toast.
+ */
+function TeaInfoForm({ action: saveAction, ...props }: TeaInfoFormProps) {
+  const [state, action, isPending] = useActionState(saveAction, initialTeaInfoActionResponse);
+  useEffect(() => {
+    if (state.message) {
+      showActionToast(state);
+    }
+  }, [state]);
+  return (
+    <TeaInfoFormFields
+      action={action}
+      isPending={isPending}
+      key={props.tea?.updatedAt.toISOString() ?? "new"}
+      state={state}
+      {...props}
+    />
+  );
+}
+
+function TeaInfoFormFields({
+  action,
+  greeting,
+  heading,
+  isPending,
+  state,
+  subheading,
+  tea,
+  teaId,
+}: TeaInfoFormFieldsProps) {
+  const [images, setImages] = useState<Array<ImageStoryForm>>(() => initImages(tea));
   const [imageSizeError, setImageSizeError] = useState<string>("");
   const router = useRouter();
 
@@ -49,13 +89,8 @@ function EditTeaInfoForm({ dayNumber, teaCompleteInfo, teaId, username }: EditTe
       });
     };
   }, [images]);
-  useEffect(() => {
-    if (state.success) {
-      router.push("/");
-    }
-  }, [state, router]);
   const errors = state.errors?.properties ?? undefined;
-  const imagesError = imageSizeError ?? state.errors?.properties?.images?.errors.join(" ");
+  const imagesError = imageSizeError || state.errors?.properties?.images?.errors.join(" ");
 
   const onSubmit = (formData: FormData) => {
     const totalSize = images.reduce((acc, curr) => (curr.isNew ? acc + curr.file.size : acc), 0);
@@ -63,6 +98,7 @@ function EditTeaInfoForm({ dayNumber, teaCompleteInfo, teaId, username }: EditTe
       setImageSizeError("El tamaño total de las imágenes es superior al permitido");
       return;
     }
+    setImageSizeError("");
     images.forEach((img) => {
       if (img.isNew) {
         formData.append("images", img.file);
@@ -72,60 +108,26 @@ function EditTeaInfoForm({ dayNumber, teaCompleteInfo, teaId, username }: EditTe
         formData.append("kept_images_order", img.order.toString());
       }
     });
-    formData.append("tea_id", teaId);
+    if (teaId) {
+      formData.append("tea_id", teaId);
+    }
     action(formData);
   };
 
   return (
     <div className="card w-full mx-10 bg-base-100 shadow-xl mt-10 mb-10 before:content-[''] before:absolute before:inset-0 before:bg-[url('/BackgroundSemiCircleLeaves.svg')] before:bg-no-repeat before:opacity-10 before:pointer-events-none">
       <Form action={onSubmit} className="card-body">
-        <h2 className="card-title">
-          <div>
-            Editar<span className="italic">Té</span>
-          </div>
-        </h2>
+        <h2 className="card-title">{heading}</h2>
+        {greeting && <p>{greeting}</p>}
+        {subheading && <p className="text-sm">{subheading}</p>}
         <div className="items-center mt-2">
-          <div className="flex gap-2">
-            <label className="input input-bordered flex items-center gap-2 mb-2 w-full">
-              <FaUser />
-              <input
-                className="grow"
-                defaultValue={username}
-                name="personName"
-                placeholder="Nombre de la persona"
-                readOnly
-                required
-                type="text"
-              />
-            </label>
-            {errors?.personName && (
-              <p className="text-xs text-error font-bold -mt-2 mb-2">{errors.personName.errors.join(", ")}</p>
-            )}
-            <label className="input input-bordered flex items-center gap-2 mb-2 w-full">
-              <FaCalendar />
-              <input
-                className="grow"
-                defaultValue={dayNumber}
-                min={0}
-                name="dayNumber"
-                placeholder="Día asignado"
-                readOnly
-                required
-                type="text"
-              />
-            </label>
-            {errors?.dayNumber && (
-              <p className="text-xs text-error font-bold -mt-2 mb-2">{errors.dayNumber.errors.join(", ")}</p>
-            )}
-          </div>
-
           <div className="divider divider-neutral">Info del té</div>
 
           <label className="input input-bordered flex items-center gap-2 mb-2 w-full">
             <BsCupHotFill />
             <input
               className="grow"
-              defaultValue={state.inputs?.teaName ?? teaCompleteInfo.name}
+              defaultValue={state.inputs?.teaName ?? tea?.name}
               name="teaName"
               placeholder="Nombre del té"
               required
@@ -140,7 +142,7 @@ function EditTeaInfoForm({ dayNumber, teaCompleteInfo, teaId, username }: EditTe
               <FaTemperatureFull />
               <input
                 className="grow"
-                defaultValue={state.inputs?.temperature ?? teaCompleteInfo.temperature}
+                defaultValue={state.inputs?.temperature ?? tea?.temperature}
                 max={150}
                 min={30}
                 name="temperature"
@@ -156,7 +158,7 @@ function EditTeaInfoForm({ dayNumber, teaCompleteInfo, teaId, username }: EditTe
               <FaClock />
               <input
                 className="grow"
-                defaultValue={state.inputs?.infusionTime ?? teaCompleteInfo.infusionTime}
+                defaultValue={state.inputs?.infusionTime ?? tea?.infusionTime}
                 max={30}
                 min={1}
                 name="infusionTime"
@@ -174,7 +176,7 @@ function EditTeaInfoForm({ dayNumber, teaCompleteInfo, teaId, username }: EditTe
               ¿Tiene teína?
               <input
                 className="checkbox"
-                defaultChecked={state.inputs?.hasTheine ?? teaCompleteInfo.hasTheine}
+                defaultChecked={state.inputs?.hasTheine ?? tea?.hasTheine}
                 name="hasTheine"
                 type="checkbox"
               />
@@ -186,7 +188,7 @@ function EditTeaInfoForm({ dayNumber, teaCompleteInfo, teaId, username }: EditTe
               ¿Con leche?
               <input
                 className="checkbox"
-                defaultChecked={state.inputs?.addMilk ?? teaCompleteInfo.addMilk}
+                defaultChecked={state.inputs?.addMilk ?? tea?.addMilk}
                 name="addMilk"
                 type="checkbox"
               />
@@ -200,7 +202,7 @@ function EditTeaInfoForm({ dayNumber, teaCompleteInfo, teaId, username }: EditTe
               ¿Reinfusiona?
               <input
                 className="checkbox"
-                defaultChecked={state.inputs?.canReinfuse ?? teaCompleteInfo.canReinfuse}
+                defaultChecked={state.inputs?.canReinfuse ?? tea?.canReinfuse}
                 name="canReinfuse"
                 type="checkbox"
               />
@@ -209,7 +211,7 @@ function EditTeaInfoForm({ dayNumber, teaCompleteInfo, teaId, username }: EditTe
               <FaRepeat />
               <input
                 className="grow"
-                defaultValue={state.inputs?.reinfuseNumber ?? teaCompleteInfo.reinfuseNumber ?? 0}
+                defaultValue={state.inputs?.reinfuseNumber ?? tea?.reinfuseNumber ?? undefined}
                 min={0}
                 name="reinfuseNumber"
                 placeholder="¿Cuántas veces?"
@@ -230,7 +232,7 @@ function EditTeaInfoForm({ dayNumber, teaCompleteInfo, teaId, username }: EditTe
             <MdMore />
             <input
               className="grow"
-              defaultValue={state.inputs?.moreIndications ?? teaCompleteInfo.moreIndications ?? ""}
+              defaultValue={state.inputs?.moreIndications ?? tea?.moreIndications ?? ""}
               name="moreIndications"
               placeholder="Más indicaciones"
               type="text"
@@ -243,7 +245,7 @@ function EditTeaInfoForm({ dayNumber, teaCompleteInfo, teaId, username }: EditTe
             <FaStore />
             <input
               className="grow"
-              defaultValue={state.inputs?.storeName ?? teaCompleteInfo.storeName ?? ""}
+              defaultValue={state.inputs?.storeName ?? tea?.storeName ?? ""}
               name="storeName"
               placeholder="Nombre de la tienda"
               type="text"
@@ -256,7 +258,7 @@ function EditTeaInfoForm({ dayNumber, teaCompleteInfo, teaId, username }: EditTe
             <MdComputer />
             <input
               className="grow"
-              defaultValue={state.inputs?.urlStore ?? teaCompleteInfo.url ?? ""}
+              defaultValue={state.inputs?.urlStore ?? tea?.url ?? ""}
               name="urlStore"
               placeholder="Web de la tienda"
               type="text"
@@ -280,21 +282,21 @@ function EditTeaInfoForm({ dayNumber, teaCompleteInfo, teaId, username }: EditTe
           <label className="label">Parte 1 (07:00 h)</label>
           <textarea
             className="textarea w-full"
-            defaultValue={state.inputs?.storyPart1 ?? teaCompleteInfo.story?.storyPart1 ?? ""}
+            defaultValue={state.inputs?.storyPart1 ?? tea?.story?.storyPart1 ?? ""}
             name="storyPart1"
             placeholder="Historia: parte 1"
           />
           <label className="label">Parte 2 (13:00 h)</label>
           <textarea
             className="textarea w-full"
-            defaultValue={state.inputs?.storyPart2 ?? teaCompleteInfo.story?.storyPart2 ?? ""}
+            defaultValue={state.inputs?.storyPart2 ?? tea?.story?.storyPart2 ?? ""}
             name="storyPart2"
             placeholder="Historia: parte 2"
           />
           <label className="label">Parte 3 (18:00 h)</label>
           <textarea
             className="textarea w-full"
-            defaultValue={state.inputs?.storyPart3 ?? teaCompleteInfo.story?.storyPart3 ?? ""}
+            defaultValue={state.inputs?.storyPart3 ?? tea?.story?.storyPart3 ?? ""}
             name="storyPart3"
             placeholder="Historia: parte 3"
           />
@@ -307,7 +309,7 @@ function EditTeaInfoForm({ dayNumber, teaCompleteInfo, teaId, username }: EditTe
             <label className="input input-bordered flex items-center gap-2 w-full">
               <input
                 className="grow"
-                defaultValue={state.inputs?.youtubeURL ?? teaCompleteInfo.story?.youtubeURL ?? ""}
+                defaultValue={state.inputs?.youtubeURL ?? tea?.story?.youtubeURL ?? ""}
                 name="youtubeURL"
                 placeholder="Enlace de youtube a video o música"
                 type="text"
@@ -317,7 +319,7 @@ function EditTeaInfoForm({ dayNumber, teaCompleteInfo, teaId, username }: EditTe
               ¿Sólo música?
               <input
                 className="checkbox"
-                defaultChecked={state.inputs?.onlyMusic ?? teaCompleteInfo.story?.onlyMusic ?? false}
+                defaultChecked={state.inputs?.onlyMusic ?? tea?.story?.onlyMusic ?? false}
                 name="onlyMusic"
                 type="checkbox"
               />
@@ -338,11 +340,11 @@ function EditTeaInfoForm({ dayNumber, teaCompleteInfo, teaId, username }: EditTe
             Cancelar
           </button>
           <button className="btn btn-primary" disabled={isPending} type="submit">
-            {isPending ? <span className="loading loading-spinner"></span> : "EdiTélo"}
+            {isPending ? <span className="loading loading-spinner"></span> : tea ? "EdiTélo" : "Añadirlo"}
           </button>
         </div>
       </Form>
     </div>
   );
 }
-export default EditTeaInfoForm;
+export default TeaInfoForm;

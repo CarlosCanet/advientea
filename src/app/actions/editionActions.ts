@@ -12,6 +12,7 @@ import {
   enrolGuest,
   enrolUser,
   placeParticipant,
+  regenerateGuestToken,
   requireRole,
   swapParticipants,
   unenrolParticipant,
@@ -25,6 +26,7 @@ import {
   enrolGuestSchema,
   enrolUserSchema,
   placeParticipantSchema,
+  regenerateGuestLinkSchema,
   swapParticipantsSchema,
   unenrolParticipantSchema,
 } from "@/lib/schemas/edition";
@@ -258,5 +260,21 @@ export async function unenrolParticipantAction(participationId: string, deleteTe
     return { message: sentences.join(" "), success: true };
   } catch (error: unknown) {
     return failure("unenrolParticipantAction", error, "No se pudo quitar la inscripción. Inténtalo de nuevo.");
+  }
+}
+
+export async function regenerateGuestLinkAction(participationId: string): Promise<ActionResponse> {
+  try {
+    await requireRole(Role.ADMIN, Role.EXECUTEAVE);
+    const validatedFields = regenerateGuestLinkSchema.safeParse({ participationId });
+    if (!validatedFields.success) {
+      return { message: "La inscripción no es válida.", success: false };
+    }
+    // The new token reaches the manager through the page, which is revalidated; never through this response.
+    const { guestName, year } = await regenerateGuestToken(validatedFields.data.participationId);
+    revalidatePath(`/editions/${year}`);
+    return { message: `Enlace nuevo para ${guestName}. El anterior ya no funciona.`, success: true };
+  } catch (error: unknown) {
+    return failure("regenerateGuestLinkAction", error, "No se pudo crear un enlace nuevo. Inténtalo de nuevo.");
   }
 }

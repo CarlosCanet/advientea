@@ -1,4 +1,3 @@
-import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BsCupHotFill } from "react-icons/bs";
@@ -12,8 +11,7 @@ import AuthorName from "@/components/ui/AuthorName";
 import TeaInfusionInfo from "@/components/ui/TeaInfusionInfo";
 import WaitForDayToCome from "@/components/ui/WaitForDayToCome";
 import { getAdvienteaDayState } from "@/lib/advientea-rules";
-import { auth } from "@/lib/auth";
-import { getDayById, getEditionInfo, getUsernameAssignedToTea } from "@/lib/dal";
+import { getDayById, getEditionInfo, getSession, getUsernameAssignedToTea } from "@/lib/dal";
 
 interface TeaDayPageProps {
   params: Promise<{ dayId: string }>;
@@ -28,7 +26,7 @@ export default async function TeaDayPage({ params, searchParams }: TeaDayPagePro
   }
   const simulated = Boolean((await searchParams).simulated);
   const tea = day.participation?.tea ?? null;
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getSession();
   const advienteaDayState = getAdvienteaDayState(
     day.dayNumber,
     await getEditionInfo(day.year),

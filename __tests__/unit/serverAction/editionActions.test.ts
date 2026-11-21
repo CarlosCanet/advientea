@@ -7,6 +7,7 @@ import {
   enrolGuestAction,
   enrolUserAction,
   placeParticipantAction,
+  regenerateGuestLinkAction,
   swapParticipantsAction,
   unenrolParticipantAction,
 } from "@/app/actions/editionActions";
@@ -20,6 +21,7 @@ import {
   enrolGuest,
   enrolUser,
   placeParticipant,
+  regenerateGuestToken,
   requireRole,
   swapParticipants,
   unenrolParticipant,
@@ -35,6 +37,7 @@ vi.mock("@/lib/dal", () => ({
   enrolGuest: vi.fn(),
   enrolUser: vi.fn(),
   placeParticipant: vi.fn(),
+  regenerateGuestToken: vi.fn(),
   requireRole: vi.fn(),
   swapParticipants: vi.fn(),
   unenrolParticipant: vi.fn(),
@@ -1036,5 +1039,67 @@ describe("unenrolParticipantAction", () => {
     expect(result).toEqual({ message: "No se pudo quitar la inscripción. Inténtalo de nuevo.", success: false });
     expect(revalidatePath).not.toHaveBeenCalled();
     expect(deleteAsset).not.toHaveBeenCalled();
+  });
+});
+
+describe("regenerateGuestLinkAction", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(requireRole).mockResolvedValue({} as Awaited<ReturnType<typeof requireRole>>);
+    vi.mocked(regenerateGuestToken).mockResolvedValue({ guestName: "Prima Lejana", token: "new-secret", year: 2026 });
+  });
+
+  it("is open to the admin and to the calendar manager", async () => {
+    await regenerateGuestLinkAction("participation-id");
+
+    expect(requireRole).toHaveBeenCalledWith(Role.ADMIN, Role.EXECUTEAVE);
+  });
+
+  it("answers a refusal of the guard with its message and never reaches the DAL", async () => {
+    const refusal = new ForbiddenError();
+    vi.mocked(requireRole).mockRejectedValue(refusal);
+
+    const result = await regenerateGuestLinkAction("participation-id");
+
+    expect(result).toEqual({ message: refusal.message, success: false });
+    expect(regenerateGuestToken).not.toHaveBeenCalled();
+  });
+
+  it("refuses a participation id that is not valid before reaching the DAL", async () => {
+    const result = await regenerateGuestLinkAction("");
+
+    expect(result).toEqual({ message: "La inscripción no es válida.", success: false });
+    expect(regenerateGuestToken).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("gives the guest a new link, names them, refreshes the page of the edition and never sends the token back", async () => {
+    const result = await regenerateGuestLinkAction("participation-id");
+
+    expect(regenerateGuestToken).toHaveBeenCalledWith("participation-id");
+    expect(result).toEqual({
+      message: "Enlace nuevo para Prima Lejana. El anterior ya no funciona.",
+      success: true,
+    });
+    expect(revalidatePath).toHaveBeenCalledWith("/editions/2026");
+    expect(JSON.stringify(result)).not.toContain("new-secret");
+  });
+
+  it("shows the conflict message from the DAL", async () => {
+    vi.mocked(regenerateGuestToken).mockRejectedValue(new ConflictError("Solo los invitados tienen enlace."));
+
+    const result = await regenerateGuestLinkAction("participation-id");
+
+    expect(result).toEqual({ message: "Solo los invitados tienen enlace.", success: false });
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("hides an unexpected error behind a generic message", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.mocked(regenerateGuestToken).mockRejectedValue(new Error("connection refused"));
+
+    const result = await regenerateGuestLinkAction("participation-id");
+
+    expect(result).toEqual({ message: "No se pudo crear un enlace nuevo. Inténtalo de nuevo.", success: false });
   });
 });

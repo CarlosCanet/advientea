@@ -90,8 +90,14 @@ export function getAdvienteaDayState(
   return base;
 }
 
-/** Who may change a tea: admins always, managers any tea of an edition not archived, users only their own there. */
-export function canEditTea(role: Role | undefined, tea: { editionStatus: EditionStatus; isOwn: boolean }): boolean {
+/**
+ * Who may change a tea: admins always, managers any tea of an edition not archived, users only their own there
+ * and only until their day is played (it has opened or has guesses), since the guesses are scored against it.
+ */
+export function canEditTea(
+  role: Role | undefined,
+  tea: { editionStatus: EditionStatus; isDayPlayed: boolean; isOwn: boolean },
+): boolean {
   if (role === Role.ADMIN) {
     return true;
   }
@@ -100,7 +106,7 @@ export function canEditTea(role: Role | undefined, tea: { editionStatus: Edition
     return isOpen;
   }
   if (role === Role.USER) {
-    return isOpen && tea.isOwn;
+    return isOpen && tea.isOwn && !tea.isDayPlayed;
   }
   return false;
 }

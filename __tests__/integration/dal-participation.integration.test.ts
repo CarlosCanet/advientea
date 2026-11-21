@@ -4,14 +4,15 @@ import { Prisma } from "@/generated/prisma/client";
 import { EditionStatus } from "@/generated/prisma/enums";
 import {
   addTea,
-  assignDay,
   enrolGuest,
   enrolUser,
   getAssignees,
   getDayByDayNumber,
   getEditionInfo,
+  getGuestParticipationByToken,
   getParticipationsForEdition,
   placeParticipant,
+  regenerateGuestToken,
   swapParticipants,
   unenrolParticipant,
   unplaceParticipant,
@@ -264,13 +265,12 @@ describe("dal Participation", () => {
       });
     });
 
-    it("never loads the guest token or anything of the account but the username", async () => {
+    it("loads nothing of the account but the username", async () => {
       await enrolGuest(2025, "Prima Lejana");
 
       const participations = await getParticipationsForEdition(2025);
 
       for (const participation of participations) {
-        expect(participation).not.toHaveProperty("guestToken");
         expect(participation).not.toHaveProperty("email");
         if (participation.user) {
           expect(Object.keys(participation.user)).toEqual(["username"]);
@@ -278,30 +278,25 @@ describe("dal Participation", () => {
       }
     });
 
-    it("carries no guest token and no email anywhere in what it returns", async () => {
+    it("carries the token of each guest, for the manager to build their link, and no email anywhere", async () => {
       const enrolled = await enrolGuest(2025, "Prima Lejana");
       const anonymous = await participationOn(2);
-      // Whether enrolling hands out a token or not, these two guests have one the payload could leak.
-      await prisma.participation.update({ data: { guestToken: "token-of-anonymous" }, where: { id: anonymous.id } });
-      await prisma.participation.update({ data: { guestToken: "token-of-the-cousin" }, where: { id: enrolled.id } });
       const users = await prisma.user.findMany({ select: { email: true } });
-      const tokens = await prisma.participation.findMany({
-        select: { guestToken: true },
-        where: { guestToken: { not: null } },
-      });
 
       const participations = await getParticipationsForEdition(2025);
 
+      const found = (id: string) => participations.find((participation) => participation.id === id);
+      expect(found(enrolled.id)?.guestToken).toBe(enrolled.guestToken);
+      expect(found(anonymous.id)?.guestToken).toBe(anonymous.guestToken);
+      expect(anonymous.guestToken).toEqual(expect.any(String));
+      for (const participation of participations.filter(({ userId }) => userId !== null)) {
+        expect(participation.guestToken ?? null).toBeNull();
+      }
       const payload = JSON.stringify(participations);
       expect(users).toHaveLength(5);
-      expect(tokens.length).toBeGreaterThanOrEqual(2);
       for (const { email } of users) {
         expect(payload).not.toContain(email);
       }
-      for (const { guestToken } of tokens) {
-        expect(payload).not.toContain(guestToken);
-      }
-      expect(payload).not.toContain("guestToken");
       expect(payload).not.toContain("email");
     });
 
@@ -312,88 +307,6 @@ describe("dal Participation", () => {
       const participations = await getParticipationsForEdition(2025);
 
       expect(participations.map((participation) => participation.guestName)).not.toContain("Fantasma");
-    });
-  });
-
-  describe("assignDay", () => {
-    it("puts a user with no participation on a free day, taking the year from the day", async () => {
-      const user = await userWithoutDay();
-      const free = await addFreeDay(6);
-
-      const result = await assignDay(free.id, { userId: user.id }, beforeTheEdition);
-
-      expect(result).toMatchObject({ dayId: free.id, guestName: null, userId: user.id, year: 2025 });
-      expect(result.day?.dayNumber).toBe(6);
-      expect(result.user?.id).toBe(user.id);
-    });
-
-    it("is idempotent for the person already on the day", async () => {
-      const three = await day(3);
-      const current = await prisma.participation.findUniqueOrThrow({ where: { dayId: three.id } });
-
-      const result = await assignDay(three.id, { userId: current.userId! }, beforeTheEdition);
-
-      expect(result.id).toBe(current.id);
-      expect(await prisma.participation.count({ where: { year: 2025 } })).toBe(5);
-    });
-
-    it("refuses a day held by someone else and names them", async () => {
-      const four = await day(4);
-      const ana = await prisma.participation.findUniqueOrThrow({ where: { dayId: (await day(3)).id } });
-
-      await expect(assignDay(four.id, { userId: ana.userId! }, beforeTheEdition)).rejects.toThrow(ConflictError);
-      await expect(assignDay(four.id, { userId: ana.userId! }, beforeTheEdition)).rejects.toThrow(/Sony/);
-    });
-
-    it("refuses to move in silence a user who already has another day this year", async () => {
-      const ana = await prisma.participation.findUniqueOrThrow({ where: { dayId: (await day(3)).id } });
-      const free = await addFreeDay(7);
-
-      await expect(assignDay(free.id, { userId: ana.userId! }, beforeTheEdition)).rejects.toThrow(/el día 3/);
-      expect((await prisma.participation.findUniqueOrThrow({ where: { id: ana.id } })).dayId).toBe(ana.dayId);
-    });
-
-    it("gives the day to a user enrolled without one, reusing their participation", async () => {
-      const user = await userWithoutDay();
-      const enrolled = await prisma.participation.create({
-        data: { edition: { connect: { year: 2025 } }, user: { connect: { id: user.id } } },
-      });
-      const free = await addFreeDay(8);
-
-      const result = await assignDay(free.id, { userId: user.id }, beforeTheEdition);
-
-      expect(result.id).toBe(enrolled.id);
-      expect(result.dayId).toBe(free.id);
-    });
-
-    it("creates a guest participation on a free day", async () => {
-      const free = await addFreeDay(9);
-
-      const result = await assignDay(free.id, { guestName: "Prima Lejana" }, beforeTheEdition);
-
-      expect(result).toMatchObject({ dayId: free.id, guestName: "Prima Lejana", userId: null, year: 2025 });
-    });
-
-    it("still accepts the person already on a day that has opened, since nothing changes", async () => {
-      const three = await day(3);
-      const current = await prisma.participation.findUniqueOrThrow({ where: { dayId: three.id } });
-
-      const result = await assignDay(three.id, { userId: current.userId! }, duringTheEdition);
-
-      expect(result.id).toBe(current.id);
-    });
-
-    it("refuses a day that has already opened", async () => {
-      const user = await userWithoutDay();
-      const past = await addFreeDay(7);
-
-      await expect(assignDay(past.id, { userId: user.id }, duringTheEdition)).rejects.toThrow(/ya ha pasado o es hoy/);
-    });
-
-    it("rejects an unknown day as invalid input, not as a conflict", async () => {
-      await expect(assignDay("no-such-day", { guestName: "Nadie" }, beforeTheEdition)).rejects.toThrow(
-        /does not exist/,
-      );
     });
   });
 
@@ -3204,6 +3117,46 @@ describe("dal Participation", () => {
       await expect(enrolGuest(2030, "Prima Lejana")).rejects.toThrow(ConflictError);
       await expect(enrolGuest(2030, "Prima Lejana")).rejects.toThrow(/archivada/);
       expect(await prisma.participation.count({ where: { year: 2030 } })).toBe(0);
+    });
+  });
+
+  describe("regenerateGuestToken", () => {
+    async function storedTokenOf(participationId: string) {
+      return (await prisma.participation.findUniqueOrThrow({ where: { id: participationId } })).guestToken;
+    }
+
+    it("gives the guest a new secret token, and the old one stops matching at once", async () => {
+      const enrolled = await enrolGuest(2025, "Prima Lejana");
+      const old = enrolled.guestToken!;
+
+      const result = await regenerateGuestToken(enrolled.id);
+
+      expect(result).toEqual({ guestName: "Prima Lejana", token: expect.any(String), year: 2025 });
+      // 32 random bytes in base64url.
+      expect(result.token).toMatch(/^[A-Za-z0-9_-]{43}$/);
+      expect(result.token).not.toBe(old);
+      expect(await storedTokenOf(enrolled.id)).toBe(result.token);
+      expect(await getGuestParticipationByToken(old)).toBeNull();
+      expect((await getGuestParticipationByToken(result.token))?.id).toBe(enrolled.id);
+    });
+
+    it("refuses a participation that does not exist", async () => {
+      await expectConflict(regenerateGuestToken("no-such-participation"), NO_LONGER_ENROLLED);
+    });
+
+    it("refuses the participation of an account and leaves it as it was", async () => {
+      const ana = await participationOn(3);
+
+      await expectConflict(regenerateGuestToken(ana.id), "Solo los invitados tienen enlace.");
+      expect(await storedTokenOf(ana.id)).toBeNull();
+    });
+
+    it("refuses a guest of an archived edition and keeps their token", async () => {
+      const guest = await participationOn(2);
+      await setEditionStatus(EditionStatus.ARCHIVED);
+
+      await expectConflict(regenerateGuestToken(guest.id), "La edición 2025 está archivada.");
+      expect(await storedTokenOf(guest.id)).toBe(guest.guestToken);
     });
   });
 });

@@ -1,73 +1,56 @@
 import type { NextRequest } from "next/server";
 
+import { getSessionCookie } from "better-auth/cookies";
 import { NextResponse } from "next/server";
 
-import { Role } from "./generated/prisma/enums";
+// Pages anyone may open without signing in. Each one, like every page, checks on the server what it shows.
+const PUBLIC_EXACT_PATHS: Array<string> = ["/"];
+// Each prefix covers the path itself and everything below it, never a longer name: /timer, not /timers.
+const PUBLIC_PATH_PREFIXES: Array<string> = [
+  "/api/health",
+  "/invitado",
+  "/reset-password",
+  "/sign-in",
+  "/sign-up",
+  "/teaDay",
+  "/timer",
+];
 
-const PROTECTED_ROUTES: Array<string> = ["/profile", "/edit-tea-info", "/ranking", "/editions"];
-const EXECUTEAVE_ROUTES: Array<string> = [];
-const ADMIN_ROUTES: Array<string> = ["/admin-dashboard", "/users"];
-
-export async function proxy(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-  const isProtected = PROTECTED_ROUTES.some((route) => pathname.startsWith(route));
-  const isExecuteave = EXECUTEAVE_ROUTES.some((route) => pathname.startsWith(route));
-  const isAdmin = ADMIN_ROUTES.some((route) => pathname.startsWith(route));
-
-  if (isProtected || isExecuteave || isAdmin) {
-    try {
-      const sessionResponse = await fetch(new URL("/api/auth/get-session", request.url), {
-        headers: {
-          cookie: request.headers.get("cookie") || "",
-        },
-      });
-
-      if (!sessionResponse.ok) {
-        const loginUrl = new URL("/sign-in", request.url);
-        return NextResponse.redirect(loginUrl);
-      }
-
-      const sessionData = await sessionResponse.json();
-      if (!sessionData || !sessionData.session || !sessionData.user) {
-        const loginUrl = new URL("/sign-in", request.url);
-        return NextResponse.redirect(loginUrl);
-      }
-      const { session, user } = sessionData;
-
-      if (!session || !user) {
-        const loginUrl = new URL("/sign-in", request.url);
-        return NextResponse.redirect(loginUrl);
-      }
-
-      // Verify route permissions
-      if (isExecuteave && user.role === Role.USER) {
-        return NextResponse.rewrite(new URL("/", request.url));
-      }
-      if (isAdmin && user.role !== Role.ADMIN) {
-        return NextResponse.rewrite(new URL("/", request.url));
-      }
-
-      return NextResponse.next();
-    } catch (error) {
-      console.error("Middleware error:", error);
-      const loginUrl = new URL("/sign-in", request.url);
-      return NextResponse.rewrite(loginUrl);
-    }
+/** Whether a path is open without a session; anything not listed here needs one. */
+export function isPublicPath(pathname: string): boolean {
+  if (PUBLIC_EXACT_PATHS.includes(pathname)) {
+    return true;
   }
-  return NextResponse.next();
+  return PUBLIC_PATH_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 }
 
-// Configurar qué rutas debe procesar el middleware
+/**
+ * Deny by default: without a session cookie, only the public paths go through. The cookie is only checked
+ * for presence, which is enough to send an anonymous visitor to sign in; each page and each Server Action
+ * still checks the session itself, and the role it needs.
+ */
+export function proxy(request: NextRequest) {
+  if (isPublicPath(request.nextUrl.pathname)) {
+    return NextResponse.next();
+  }
+  // Same prefix as auth.ts; better-auth also looks for the __Secure- name it uses over HTTPS.
+  if (getSessionCookie(request, { cookiePrefix: "advientea" })) {
+    return NextResponse.next();
+  }
+  return NextResponse.redirect(new URL("/sign-in", request.url));
+}
+
 export const config = {
   matcher: [
     /*
-     * Match all request paths except:
-     * - api/auth (auth API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - Public routes defined above
+     * Every path except:
+     * - api/auth (better-auth's own endpoints, sign-in included)
+     * - api/health (uptime checks: skipping the proxy keeps each check to one invocation)
+     * - _next/static, _next/image (build output and image optimization)
+     * - favicon.ico
+     * - monitoring (Sentry's tunnel route: client errors are reported without a session too)
+     * - any path whose last segment has a file extension (assets in public/)
      */
-    "/((?!api/auth|_next/static|_next/image|favicon.ico).*)",
+    "/((?!api/auth|api/health(?:/|$)|_next/static|_next/image|favicon\\.ico|monitoring(?:/|$))(?!.*\\.[A-Za-z0-9]+$).*)",
   ],
 };

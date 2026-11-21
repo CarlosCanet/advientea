@@ -4,20 +4,42 @@
 
 import * as Sentry from "@sentry/nextjs";
 
+import { toScrubbedGuestEvent } from "./src/lib/sentry-scrub";
+
 const SENTRY_DSN = process.env.NEXT_PUBLIC_SENTRY_DSN;
+const VERCEL_ENV = process.env.NEXT_PUBLIC_VERCEL_ENV;
+const isProduction = VERCEL_ENV === "production";
 
 Sentry.init({
+  // No guest token reaches Sentry, whichever field carries the URL.
+  beforeBreadcrumb: (breadcrumb) => toScrubbedGuestEvent(breadcrumb),
+  beforeSend: (event) => toScrubbedGuestEvent(event),
+  beforeSendSpan: (span) => toScrubbedGuestEvent(span),
+
   dsn: SENTRY_DSN,
-  enabled: process.env.NEXT_PUBLIC_VERCEL_ENV === "production",
+  // Staging reports its errors too, so a regression shows up before the release.
+  enabled: isProduction || VERCEL_ENV === "preview",
 
-  // Define how likely traces are sampled. Adjust this value in production, or use tracesSampler for greater control.
-  tracesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1.0,
+  // The browser's events come in through src/app/monitoring/route.ts, which forwards only the envelope and only for
+  // this DSN. intercept: false, because on Vercel the SDK's own node:http hook keeps the function open until it times
+  // out; the path keeps those requests out of the traces.
+  integrations: [Sentry.serveTunnelIntegration({ intercept: false, path: "/monitoring" })],
 
-  // Enable logs to be sent to Sentry
-  enableLogs: process.env.NEXT_PUBLIC_VERCEL_ENV === "production",
-  environment: process.env.NEXT_PUBLIC_VERCEL_ENV || process.env.NODE_ENV,
+  // Errors only, everywhere: tracing costs Vercel CPU on every request (Hobby has 4 h a month) and nobody reads it.
+  // Raise it for a few days to investigate a slow page.
+  tracesSampleRate: 0,
 
-  // Enable sending user PII (Personally Identifiable Information)
-  // https://docs.sentry.io/platforms/javascript/guides/nextjs/configuration/options/#sendDefaultPii
-  sendDefaultPii: true,
+  environment: VERCEL_ENV || process.env.NODE_ENV,
+
+  // The user is set by hand (id and username, never the email) where the session is read; nothing else personal
+  // leaves the server: no cookies, no bodies, only two request headers, and no query parameters or rows (a guest's
+  // token is one).
+  dataCollection: {
+    cookies: false,
+    databaseQueryData: false,
+    httpBodies: [],
+    httpHeaders: { request: { allow: ["user-agent", "referer"] }, response: false },
+    urlQueryParams: true,
+    userInfo: false,
+  },
 });

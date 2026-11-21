@@ -3,7 +3,6 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 import { Day, Prisma, TeaType } from "@/generated/prisma/client";
 import { prismaMock } from "@/lib/__mocks__/prisma";
 import {
-  addDay,
   DayWithParticipationTeaStoryImages,
   DayWithParticipationTeaStoryImagesAndUser,
   editDay,
@@ -122,41 +121,6 @@ describe("DAL Day", () => {
           where: { year: 2025 },
         }),
       );
-    });
-  });
-
-  describe("addDay", () => {
-    it("should create day successfully", async () => {
-      const mockCreatedDay: Day = {
-        createdAt: new Date(),
-        dayNumber: 5,
-        id: "day-new",
-        updatedAt: new Date(),
-        year: 2025,
-      };
-      prismaMock.day.create.mockResolvedValue(mockCreatedDay);
-
-      const result = await addDay({ dayNumber: 5, year: 2025 });
-      expect(result).toEqual(mockCreatedDay);
-    });
-
-    it("should return null (and log error) on P2002 unique constraint violation", async () => {
-      const p2002Error = new Prisma.PrismaClientKnownRequestError("Unique constraint failed", {
-        clientVersion: "1",
-        code: "P2002",
-      });
-      prismaMock.day.create.mockRejectedValue(p2002Error);
-      const result = await addDay({ dayNumber: 5, year: 2025 });
-
-      expect(result).toBeNull();
-      expect(console.error).toHaveBeenCalledWith(expect.stringContaining("already exists"));
-    });
-
-    it("should throw on other unknown errors", async () => {
-      const genericError = new Error("DB connection failed");
-      prismaMock.day.create.mockRejectedValue(genericError);
-
-      await expect(addDay({ dayNumber: 5, year: 2025 })).rejects.toThrow("DB connection failed");
     });
   });
 
