@@ -1,7 +1,7 @@
 import { Coffee } from "lucide-react";
 import Link from "next/link";
 
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 
 function notFound() {
@@ -20,9 +20,9 @@ function notFound() {
           <EmptyDescription className="text-base text-foreground">Error 404</EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
-          <Button nativeButton={false} render={<Link href="/" />}>
+          <Link className={buttonVariants()} href="/">
             Volver al inicio
-          </Button>
+          </Link>
         </EmptyContent>
       </Empty>
     </div>

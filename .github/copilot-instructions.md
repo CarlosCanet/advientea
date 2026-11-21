@@ -53,7 +53,7 @@ The UI is moving from daisyUI to **shadcn/ui** (Base UI primitives, `base-maia` 
 ### Components
 
 - shadcn components live in `src/components/ui/` (lowercase files, added with `pnpm dlx shadcn@latest add <name>`; you own the code after that). App components do not go there: they live in domain folders under `src/components/` (step P1.1 moves the existing ones).
-- Links styled as buttons: `<Button render={<Link href="…" />} nativeButton={false}>`. Base UI uses `render`, not Radix's `asChild`.
+- Links styled as buttons stay real links: `<Link className={buttonVariants({ variant, size })} href="…">`; to add or override classes, wrap it in `cn(buttonVariants({ variant, size }), "…")` (cva concatenates, `cn` resolves the conflicts). Never `<Button render={<Link />} nativeButton={false}>`: Base UI then puts `role="button"` on the `<a>`. Menu items that navigate keep `<DropdownMenuItem render={<Link href="…" />}>`, since a menu item has its own role. Base UI uses `render`, not Radix's `asChild`.
 - Base UI form controls (`Select`, `Checkbox`, `Switch`) submit through a hidden input when given `name`; keep the field names Server Actions read. `required` blocks the submit but marks nothing: set `aria-invalid` and show a `FieldError` yourself.
 - Every control has a visible label or an `aria-label`; icon buttons always have `aria-label`.
 - Cancel, back and close actions are `variant="outline"`, never filled and never red; `destructive` is only for the action that deletes or removes.

@@ -1,7 +1,7 @@
 import { Hourglass } from "lucide-react";
 import Link from "next/link";
 
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 
 /** Empty state for every page that needs an active edition: says what is going on and when to come back. */
@@ -24,9 +24,9 @@ export default function NoActiveEdition() {
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
-          <Button nativeButton={false} render={<Link href="/" />}>
+          <Link className={buttonVariants()} href="/">
             Volver al inicio
-          </Button>
+          </Link>
         </EmptyContent>
       </Empty>
     </div>
