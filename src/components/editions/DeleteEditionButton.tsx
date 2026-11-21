@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 
 import { deleteEditionAction } from "@/app/actions/editionActions";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import { Button } from "@/components/ui/button";
 import { showActionToast } from "@/lib/action-toast";
 
 export default function DeleteEditionButton({ year }: { year: number }) {
@@ -18,14 +19,9 @@ export default function DeleteEditionButton({ year }: { year: number }) {
 
   return (
     <>
-      <button
-        className="btn btn-sm btn-error btn-outline"
-        disabled={isPending}
-        onClick={() => setIsConfirmOpen(true)}
-        type="button"
-      >
+      <Button disabled={isPending} onClick={() => setIsConfirmOpen(true)} size="sm" type="button" variant="destructive">
         Borrar
-      </button>
+      </Button>
       <ConfirmDialog
         confirmLabel="Borrar"
         description="Solo se puede borrar una edición en preparación que todavía no tenga días ni inscritos. No se puede deshacer."

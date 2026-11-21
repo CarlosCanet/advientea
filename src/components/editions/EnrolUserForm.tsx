@@ -1,8 +1,11 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useId, useRef, useState, useTransition } from "react";
 
 import { enrolUserAction } from "@/app/actions/editionActions";
+import { Button } from "@/components/ui/button";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { showActionToast } from "@/lib/action-toast";
 import { UserBasic } from "@/lib/dal";
 
@@ -13,53 +16,53 @@ interface EnrolUserFormProps {
 }
 
 export default function EnrolUserForm({ users, year }: EnrolUserFormProps) {
-  const [userId, setUserId] = useState("");
+  const [userId, setUserId] = useState<null | string>(null);
   const [isPending, startTransition] = useTransition();
-  const selectRef = useRef<HTMLSelectElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const triggerId = useId();
 
   if (users.length === 0) {
     return <p className="text-sm">Todas las cuentas están ya en esta edición.</p>;
   }
 
+  const items = users.map((user) => ({ label: user.username, value: user.id }));
+
   const onSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (isPending) {
+    if (isPending || userId === null) {
       return;
     }
     startTransition(async () => {
       const result = await enrolUserAction(year, userId);
       showActionToast(result);
       if (result.success) {
-        setUserId("");
+        setUserId(null);
       }
-      selectRef.current?.focus();
+      triggerRef.current?.focus();
     });
   };
 
   return (
     <form className="flex flex-wrap items-end gap-2" onSubmit={onSubmit}>
-      <label className="flex flex-col gap-1 text-sm">
-        Cuenta
-        <select
-          // Never disabled while it saves: a disabled field drops the focus; the submit guard covers the wait.
-          className="select select-sm w-56"
-          onChange={(event) => setUserId(event.target.value)}
-          ref={selectRef}
-          value={userId}
-        >
-          <option disabled value="">
-            Elige a alguien
-          </option>
-          {users.map((user) => (
-            <option key={user.id} value={user.id}>
-              {user.username}
-            </option>
-          ))}
-        </select>
-      </label>
-      <button className="btn btn-sm btn-primary" disabled={isPending || userId === ""} type="submit">
+      <Field className="w-56 gap-2">
+        <FieldLabel htmlFor={triggerId}>Cuenta</FieldLabel>
+        {/* Never disabled while it saves: a disabled field drops the focus; the submit guard covers the wait. */}
+        <Select items={items} onValueChange={setUserId} value={userId}>
+          <SelectTrigger className="w-full" id={triggerId} ref={triggerRef}>
+            <SelectValue placeholder="Elige a alguien" />
+          </SelectTrigger>
+          <SelectContent>
+            {items.map((item) => (
+              <SelectItem key={item.value} value={item.value}>
+                {item.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </Field>
+      <Button disabled={isPending || userId === null} type="submit">
         Inscribir
-      </button>
+      </Button>
     </form>
   );
 }

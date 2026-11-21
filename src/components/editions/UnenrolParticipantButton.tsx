@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 
 import { unenrolParticipantAction } from "@/app/actions/editionActions";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import { Button } from "@/components/ui/button";
 import { showActionToast } from "@/lib/action-toast";
 
 interface UnenrolParticipantButtonProps {
@@ -36,15 +37,16 @@ export default function UnenrolParticipantButton({ name, participationId, teaNam
 
   return (
     <>
-      <button
+      <Button
         aria-label={`Quitar a ${name} de la edición`}
-        className="btn btn-sm btn-ghost"
         disabled={isPending}
         onClick={onClick}
+        size="sm"
         type="button"
+        variant="ghost"
       >
         Quitar
-      </button>
+      </Button>
       {hasTea && (
         <ConfirmDialog
           confirmLabel="Quitar"
