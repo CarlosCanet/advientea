@@ -1,12 +1,10 @@
-import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BsFillPatchQuestionFill } from "react-icons/bs";
 
 import { TeaType } from "@/generated/prisma/enums";
 import { getAdvienteaDayState } from "@/lib/advientea-rules";
-import { auth } from "@/lib/auth";
-import { getAllIngredients, getAssignees, getDayById, getDayForGuessing, getEditionInfo } from "@/lib/dal";
+import { getAllIngredients, getAssignees, getDayById, getDayForGuessing, getEditionInfo, getSession } from "@/lib/dal";
 import { canUserGuessPerson, canUserGuessTea } from "@/lib/services/tea-guess-service";
 import { SelectOption } from "@/lib/types";
 import { TEA_TYPE_LABELS, toParticipantName } from "@/lib/utils";
@@ -17,7 +15,7 @@ interface TeaGuessCardProps {
   dayId: string;
 }
 export default async function TeaGuessCard({ dayId }: TeaGuessCardProps) {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getSession();
   if (!session) {
     return null;
   }

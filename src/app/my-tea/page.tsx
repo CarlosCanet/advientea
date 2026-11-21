@@ -1,12 +1,10 @@
-import { headers } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { saveMyTeaAction } from "@/app/actions/teaInfoActions";
 import TeaInfoForm from "@/components/TeaInfoForm";
 import { canEditTea } from "@/lib/advientea-rules";
-import { auth } from "@/lib/auth";
-import { getOpenParticipationByUserId, isParticipationDayPlayed } from "@/lib/dal";
+import { getOpenParticipationByUserId, getSession, isParticipationDayPlayed } from "@/lib/dal";
 
 function MyTeaNotice({ children }: { children: React.ReactNode }) {
   return (
@@ -19,7 +17,7 @@ function MyTeaNotice({ children }: { children: React.ReactNode }) {
 }
 
 export default async function MyTeaPage() {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getSession();
   if (!session) {
     redirect("/sign-in");
   }

@@ -7,10 +7,16 @@ import { Role } from "@/generated/prisma/enums";
 import { auth } from "../auth";
 import { ForbiddenError, UnauthenticatedError } from "../errors";
 
+/**
+ * The request's session, read once per render: the layout, the Navbar and the page share one lookup. Outside a
+ * render (Server Actions, Route Handlers) React's cache does nothing and every call reads it again.
+ */
+export const getSession = cache(async function getSession() {
+  return auth.api.getSession({ headers: await headers() });
+});
+
 export const verifySession = cache(async function verifySession() {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+  const session = await getSession();
   if (!session?.user) {
     return { isAuth: false as const, role: null, user: null, userId: null };
   }

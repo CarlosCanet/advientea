@@ -1,20 +1,16 @@
-import { headers } from "next/headers";
 import Image from "next/image";
 import Link from "next/link";
 import { RxHamburgerMenu } from "react-icons/rx";
 
 import { signout } from "@/app/actions/authActions";
 import { Role } from "@/generated/prisma/enums";
-import { auth } from "@/lib/auth";
-import { getActiveEdition } from "@/lib/dal";
+import { getActiveEdition, getSession } from "@/lib/dal";
 import { DEFAULT_IMAGE_PROFILE } from "@/lib/types";
 
 import ProfileImage from "./ui/ProfileImage";
 
 async function Navbar() {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+  const session = await getSession();
   const edition = await getActiveEdition();
 
   return (

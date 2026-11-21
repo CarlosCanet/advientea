@@ -1,4 +1,3 @@
-import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
@@ -11,8 +10,14 @@ import UnenrolParticipantButton from "@/components/ui/UnenrolParticipantButton";
 import { EditionStatus, Role } from "@/generated/prisma/enums";
 import { canEditTea, getDaySchedule } from "@/lib/advientea-rules";
 import { getNow } from "@/lib/advientea-time";
-import { auth } from "@/lib/auth";
-import { getDaysForEdition, getEdition, getEditionInfo, getParticipationsForEdition, getUsersBasic } from "@/lib/dal";
+import {
+  getDaysForEdition,
+  getEdition,
+  getEditionInfo,
+  getParticipationsForEdition,
+  getSession,
+  getUsersBasic,
+} from "@/lib/dal";
 import { EditionIssue, findEditionIssues } from "@/lib/edition-issues";
 import { toEditionYear } from "@/lib/schemas/edition";
 import { EDITION_STATUS_LABELS, toParticipantName } from "@/lib/utils";
@@ -59,7 +64,7 @@ function toIssueLines(issues: Array<EditionIssue>): Array<{ items: string; kind:
 }
 
 export default async function EditionPage({ params }: { params: Promise<{ year: string }> }) {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getSession();
   if (!session) {
     redirect("/");
   }
