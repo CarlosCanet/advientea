@@ -1,9 +1,10 @@
 "use client";
 
-import { ChangeEvent, useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 
 import { changeEditionStatusAction } from "@/app/actions/editionActions";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { EditionStatus } from "@/generated/prisma/enums";
 import { showActionToast } from "@/lib/action-toast";
 import { EDITION_STATUS_LABELS } from "@/lib/utils";
@@ -14,6 +15,8 @@ interface EditionStatusSelectProps {
 }
 
 const STATUS_ORDER = [EditionStatus.PREPARING, EditionStatus.ACTIVE, EditionStatus.ARCHIVED];
+
+const STATUS_ITEMS = STATUS_ORDER.map((option) => ({ label: EDITION_STATUS_LABELS[option], value: option }));
 
 const CONSEQUENCES: Record<EditionStatus, (year: number) => string> = {
   [EditionStatus.ACTIVE]: (year) =>
@@ -28,9 +31,15 @@ export default function EditionStatusSelect({ status, year }: EditionStatusSelec
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [target, setTarget] = useState<EditionStatus>(status);
   const [isPending, startTransition] = useTransition();
+  // The picked option is gone once the dialog opens, so focus is sent back to the trigger by hand.
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
-  const onChange = (event: ChangeEvent<HTMLSelectElement>) => {
-    setTarget(event.target.value as EditionStatus);
+  // The select always shows the server's status: the change only happens once the dialog is confirmed.
+  const onChoose = (chosen: EditionStatus | null) => {
+    if (chosen === null || chosen === status) {
+      return;
+    }
+    setTarget(chosen);
     setIsConfirmOpen(true);
   };
 
@@ -42,22 +51,32 @@ export default function EditionStatusSelect({ status, year }: EditionStatusSelec
 
   return (
     <>
-      <select
-        aria-label={`Estado de la edición ${year}`}
-        className="select select-sm w-40"
+      <Select
         disabled={isPending}
-        onChange={onChange}
+        items={STATUS_ITEMS}
+        onValueChange={(chosen, details) => {
+          // Only a picked item counts: typing on the closed trigger would otherwise commit a status.
+          if (details.reason === "item-press") {
+            onChoose(chosen);
+          }
+        }}
         value={status}
       >
-        {STATUS_ORDER.map((option) => (
-          <option key={option} value={option}>
-            {EDITION_STATUS_LABELS[option]}
-          </option>
-        ))}
-      </select>
+        <SelectTrigger aria-label={`Estado de la edición ${year}`} className="w-40" ref={triggerRef} size="sm">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {STATUS_ITEMS.map((item) => (
+            <SelectItem key={item.value} value={item.value}>
+              {item.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
       <ConfirmDialog
         confirmLabel="Cambiar"
         description={CONSEQUENCES[target](year)}
+        finalFocus={triggerRef}
         onConfirm={onConfirm}
         onOpenChange={setIsConfirmOpen}
         open={isConfirmOpen}

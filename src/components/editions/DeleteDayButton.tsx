@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 
 import { deleteDayAction } from "@/app/actions/editionActions";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import { Button } from "@/components/ui/button";
 import { showActionToast } from "@/lib/action-toast";
 
 interface DeleteDayButtonProps {
@@ -47,15 +48,16 @@ export default function DeleteDayButton({ dayId, dayNumber, guessCount, isReleas
 
   return (
     <>
-      <button
+      <Button
         aria-label={`Borrar el día ${dayNumber}`}
-        className="btn btn-sm btn-error btn-outline"
         disabled={isPending}
         onClick={onClick}
+        size="sm"
         type="button"
+        variant="destructive"
       >
         Borrar
-      </button>
+      </Button>
       {needsConfirmation && (
         <ConfirmDialog
           confirmLabel="Borrar"

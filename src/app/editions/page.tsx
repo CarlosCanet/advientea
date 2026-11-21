@@ -3,17 +3,13 @@ import { notFound, redirect } from "next/navigation";
 
 import CreateEditionDialog from "@/components/CreateEditionDialog";
 import DeleteEditionButton from "@/components/editions/DeleteEditionButton";
+import EditionStatusBadge from "@/components/editions/EditionStatusBadge";
 import EditionStatusSelect from "@/components/editions/EditionStatusSelect";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EditionStatus, Role } from "@/generated/prisma/enums";
 import { getNow, toMadridDateTime } from "@/lib/advientea-time";
 import { getAllEditions, getSession } from "@/lib/dal";
-import { EDITION_STATUS_LABELS } from "@/lib/utils";
-
-const STATUS_BADGES: Record<EditionStatus, string> = {
-  [EditionStatus.ACTIVE]: "badge-success",
-  [EditionStatus.ARCHIVED]: "badge-ghost",
-  [EditionStatus.PREPARING]: "badge-warning",
-};
 
 export default async function EditionsPage() {
   const session = await getSession();
@@ -30,55 +26,60 @@ export default async function EditionsPage() {
   const suggestedYear = Math.max(thisYear, ...editions.map((edition) => edition.year + 1));
 
   return (
-    <div className="flex justify-center">
-      <div className="card w-100 lg:w-180 m-5 bg-base-100 shadow-xl p-5">
-        <div className="flex gap-5 w-full justify-center items-center mb-4">
-          <h1 className="text-center text-xl font-bold tracking-tight md:text-3xl">Ediciones</h1>
+    <div className="px-4 py-5">
+      <Card className="w-full max-w-3xl mx-auto">
+        <CardHeader className="flex flex-wrap items-center justify-center gap-4">
+          <h1 className="font-display text-2xl sm:text-3xl">Ediciones</h1>
           {isAdmin && <CreateEditionDialog suggestedYear={suggestedYear} />}
-        </div>
-        {editions.length === 0 ? (
-          <p className="text-center">Todavía no hay ninguna edición.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Año</th>
-                  <th>Nombre</th>
-                  <th>Estado</th>
-                  {isAdmin && <th />}
-                </tr>
-              </thead>
-              <tbody>
+        </CardHeader>
+        <CardContent>
+          {editions.length === 0 ? (
+            <p className="text-center text-base">Todavía no hay ninguna edición.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Año</TableHead>
+                  <TableHead>Nombre</TableHead>
+                  <TableHead>Estado</TableHead>
+                  {isAdmin && (
+                    <TableHead>
+                      <span className="sr-only">Borrar</span>
+                    </TableHead>
+                  )}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {editions.map((edition) => (
-                  <tr key={edition.year}>
-                    <td className="tabular-nums">
-                      <Link className="link" href={`/editions/${edition.year}`}>
+                  <TableRow key={edition.year}>
+                    <TableCell className="tabular-nums">
+                      <Link
+                        className="rounded-sm font-medium underline underline-offset-4 focus-visible:focus-ring"
+                        href={`/editions/${edition.year}`}
+                      >
                         {edition.year}
                       </Link>
-                    </td>
-                    <td>{edition.name}</td>
-                    <td>
+                    </TableCell>
+                    <TableCell>{edition.name}</TableCell>
+                    <TableCell>
                       {isAdmin ? (
                         <EditionStatusSelect status={edition.status} year={edition.year} />
                       ) : (
-                        <span className={`badge ${STATUS_BADGES[edition.status]}`}>
-                          {EDITION_STATUS_LABELS[edition.status]}
-                        </span>
+                        <EditionStatusBadge status={edition.status} />
                       )}
-                    </td>
+                    </TableCell>
                     {isAdmin && (
-                      <td className="text-right">
+                      <TableCell className="text-right">
                         {edition.status === EditionStatus.PREPARING && <DeleteEditionButton year={edition.year} />}
-                      </td>
+                      </TableCell>
                     )}
-                  </tr>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

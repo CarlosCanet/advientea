@@ -1,12 +1,18 @@
+import { ArrowLeft, CircleCheck, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import DeleteDayButton from "@/components/editions/DeleteDayButton";
+import EditionStatusBadge from "@/components/editions/EditionStatusBadge";
 import EnrolGuestForm from "@/components/editions/EnrolGuestForm";
 import EnrolUserForm from "@/components/editions/EnrolUserForm";
 import GuestLinkButtons from "@/components/editions/GuestLinkButtons";
 import ParticipantDaySelect, { CalendarDayOption } from "@/components/editions/ParticipantDaySelect";
 import UnenrolParticipantButton from "@/components/editions/UnenrolParticipantButton";
+import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EditionStatus, Role } from "@/generated/prisma/enums";
 import { canEditTea, getDaySchedule } from "@/lib/advientea-rules";
 import { getNow } from "@/lib/advientea-time";
@@ -20,9 +26,12 @@ import {
 } from "@/lib/dal";
 import { EditionIssue, findEditionIssues } from "@/lib/edition-issues";
 import { toEditionYear } from "@/lib/schemas/edition";
-import { EDITION_STATUS_LABELS, toParticipantName } from "@/lib/utils";
+import { toParticipantName } from "@/lib/utils";
 
 const DELETED_ACCOUNT = "Cuenta borrada";
+
+const SECTION_TITLE = "mb-3 text-lg font-semibold";
+const TEXT_LINK = "rounded-sm underline underline-offset-4 focus-visible:focus-ring";
 
 const ISSUE_ORDER: Array<EditionIssue["kind"]> = [
   "dayOutsideCalendar",
@@ -172,61 +181,78 @@ export default async function EditionPage({ params }: { params: Promise<{ year: 
   const usersNotEnrolled = users.filter((user) => !enrolledUserIds.has(user.id));
 
   return (
-    <div className="flex justify-center">
-      <div className="card w-100 lg:w-180 m-5 bg-base-100 shadow-xl p-5 flex flex-col gap-6">
-        <div>
-          <Link className="link text-sm" href="/editions">
-            ← Ediciones
+    <div className="px-4 py-5">
+      <Card className="w-full max-w-3xl mx-auto">
+        <CardHeader className="gap-3">
+          <Link
+            className={buttonVariants({ className: "justify-self-start", size: "sm", variant: "outline" })}
+            href="/editions"
+          >
+            <ArrowLeft aria-hidden="true" />
+            Ediciones
           </Link>
-          <h1 className="text-center text-xl font-bold tracking-tight md:text-3xl">{edition.name}</h1>
-          <p className="text-center text-sm">
-            Edición {edition.year} · {EDITION_STATUS_LABELS[edition.status]}
+          <h1 className="text-center font-display text-2xl sm:text-3xl">{edition.name}</h1>
+          <p className="flex flex-wrap items-center justify-center gap-2 text-sm">
+            Edición {edition.year}
+            <EditionStatusBadge status={edition.status} />
           </p>
-        </div>
+        </CardHeader>
 
-        <section aria-labelledby="edition-issues">
-          <h2 className="text-lg font-bold mb-2" id="edition-issues">
-            Avisos
-          </h2>
-          {issueLines.length === 0 ? (
-            <p>{participations.length === 0 ? "La edición todavía no tiene participantes." : "No falta nada."}</p>
-          ) : (
-            <ul className="list-disc pl-5">
-              {issueLines.map((line) => (
-                <li key={line.kind}>
-                  <span className="font-semibold">{ISSUE_LABELS[line.kind]}:</span> {line.items}
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+        <CardContent className="flex flex-col gap-8">
+          <section aria-labelledby="edition-issues">
+            <h2 className={SECTION_TITLE} id="edition-issues">
+              Avisos
+            </h2>
+            {issueLines.length === 0 ? (
+              <p className="flex items-center gap-2 text-base">
+                {participations.length === 0 ? (
+                  "La edición todavía no tiene participantes."
+                ) : (
+                  <>
+                    <CircleCheck aria-hidden="true" className="size-4 shrink-0" />
+                    No falta nada.
+                  </>
+                )}
+              </p>
+            ) : (
+              <ul className="flex flex-col gap-2 rounded-xl bg-popover p-3 ring-1 ring-foreground/10">
+                {issueLines.map((line) => (
+                  <li className="flex gap-2 text-base" key={line.kind}>
+                    <TriangleAlert aria-hidden="true" className="mt-1 size-4 shrink-0" />
+                    <span className="min-w-0 break-words">
+                      <span className="font-semibold">{ISSUE_LABELS[line.kind]}:</span> {line.items}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
 
-        <section aria-labelledby="edition-participants">
-          <h2 className="text-lg font-bold mb-2" id="edition-participants">
-            Participantes ({rows.length})
-          </h2>
-          {rows.length === 0 ? (
-            <p>Todavía no hay nadie inscrito.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th className="w-1 px-1">Día</th>
-                    <th>Participante</th>
-                    <th>Té</th>
-                    <th className="w-1 px-1">
+          <section aria-labelledby="edition-participants">
+            <h2 className={SECTION_TITLE} id="edition-participants">
+              Participantes ({rows.length})
+            </h2>
+            {rows.length === 0 ? (
+              <p className="text-base">Todavía no hay nadie inscrito.</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-1 px-1">Día</TableHead>
+                    <TableHead>Participante</TableHead>
+                    <TableHead>Té</TableHead>
+                    <TableHead className="w-1 px-1">
                       <span className="sr-only">Ver el día</span>
-                    </th>
-                    <th className="w-1 px-1">
+                    </TableHead>
+                    <TableHead className="w-1 px-1">
                       <span className="sr-only">Quitar</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {rows.map((row) => (
-                    <tr key={row.id}>
-                      <td className="px-1">
+                    <TableRow key={row.id}>
+                      <TableCell className="px-1">
                         <ParticipantDaySelect
                           dayNumber={row.dayNumber}
                           days={calendarDays}
@@ -234,37 +260,39 @@ export default async function EditionPage({ params }: { params: Promise<{ year: 
                           name={row.name}
                           participationId={row.id}
                         />
-                      </td>
-                      <td>
-                        {row.name}
-                        {row.isGuest && <span className="badge badge-ghost badge-sm ml-2">Invitado</span>}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {row.name}
+                          {row.isGuest && <Badge variant="secondary">Invitado</Badge>}
+                        </div>
                         {row.hasGuestLink && (
                           <GuestLinkButtons name={row.name} participationId={row.id} token={row.guestToken} />
                         )}
-                      </td>
-                      <td>
+                      </TableCell>
+                      <TableCell>
                         {row.tea === null ? (
                           "Falta"
                         ) : row.canEditTea ? (
-                          <Link className="link" href={`/edit-tea-info/${row.tea.id}`}>
+                          <Link className={TEXT_LINK} href={`/edit-tea-info/${row.tea.id}`}>
                             {row.tea.name}
                           </Link>
                         ) : (
                           row.tea.name
                         )}
-                      </td>
-                      <td className="px-1">
+                      </TableCell>
+                      <TableCell className="px-1">
                         {row.dayId !== null && (
                           <Link
                             aria-label={`Ver el día ${row.dayNumber}`}
-                            className="link"
+                            className={buttonVariants({ size: "sm", variant: "link" })}
                             href={`/teaDay/${row.dayId}?simulated=true`}
                           >
                             Ver
                           </Link>
                         )}
-                      </td>
-                      <td className="px-1">
+                      </TableCell>
+                      <TableCell className="px-1">
                         {row.canUnenrol && (
                           <UnenrolParticipantButton
                             name={row.name}
@@ -272,65 +300,68 @@ export default async function EditionPage({ params }: { params: Promise<{ year: 
                             teaName={row.tea?.name ?? null}
                           />
                         )}
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
-
-        {unheldDays.length > 0 && (
-          <section aria-labelledby="edition-unheld-days">
-            <h2 className="text-lg font-bold mb-2" id="edition-unheld-days">
-              Días sin nadie
-            </h2>
-            <p className="text-sm mb-2">
-              Filas de días que no tiene nadie. Borrarlas no cambia el calendario, que va del 1 al número de
-              participantes.
-            </p>
-            <ul className="flex flex-col gap-2">
-              {unheldDays.map((day) => (
-                <li className="flex items-center justify-between gap-2" key={day.id}>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-semibold">{`Día ${day.dayNumber}`}</span>
-                    {day.isOutsideCalendar && (
-                      <span className="badge badge-warning badge-sm">Fuera del calendario</span>
-                    )}
-                    {day.isReleased && <span className="badge badge-ghost badge-sm">Abierto</span>}
-                    {day.guessCount > 0 && (
-                      <span className="badge badge-ghost badge-sm">
-                        {day.guessCount === 1 ? "1 apuesta" : `${day.guessCount} apuestas`}
-                      </span>
-                    )}
-                  </div>
-                  <DeleteDayButton
-                    dayId={day.id}
-                    dayNumber={day.dayNumber}
-                    guessCount={day.guessCount}
-                    isReleased={day.isReleased}
-                  />
-                </li>
-              ))}
-            </ul>
+                </TableBody>
+              </Table>
+            )}
           </section>
-        )}
 
-        <section aria-labelledby="edition-enrol">
-          <h2 className="text-lg font-bold mb-2" id="edition-enrol">
-            Inscribir
-          </h2>
-          {acceptsEnrolments ? (
-            <div className="flex flex-col gap-4">
-              <EnrolUserForm users={usersNotEnrolled} year={year} />
-              <EnrolGuestForm year={year} />
-            </div>
-          ) : (
-            <p>La edición está archivada y ya no admite inscripciones.</p>
+          {unheldDays.length > 0 && (
+            <section aria-labelledby="edition-unheld-days">
+              <h2 className={SECTION_TITLE} id="edition-unheld-days">
+                Días sin nadie
+              </h2>
+              <p className="mb-3 text-sm text-muted-foreground">
+                Filas de días que no tiene nadie. Borrarlas no cambia el calendario, que va del 1 al número de
+                participantes.
+              </p>
+              <ul className="flex flex-col gap-2">
+                {unheldDays.map((day) => (
+                  <li className="flex items-center justify-between gap-2" key={day.id}>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-semibold">{`Día ${day.dayNumber}`}</span>
+                      {day.isOutsideCalendar && (
+                        <Badge variant="outline">
+                          <TriangleAlert aria-hidden="true" />
+                          Fuera del calendario
+                        </Badge>
+                      )}
+                      {day.isReleased && <Badge variant="secondary">Abierto</Badge>}
+                      {day.guessCount > 0 && (
+                        <Badge variant="secondary">
+                          {day.guessCount === 1 ? "1 apuesta" : `${day.guessCount} apuestas`}
+                        </Badge>
+                      )}
+                    </div>
+                    <DeleteDayButton
+                      dayId={day.id}
+                      dayNumber={day.dayNumber}
+                      guessCount={day.guessCount}
+                      isReleased={day.isReleased}
+                    />
+                  </li>
+                ))}
+              </ul>
+            </section>
           )}
-        </section>
-      </div>
+
+          <section aria-labelledby="edition-enrol">
+            <h2 className={SECTION_TITLE} id="edition-enrol">
+              Inscribir
+            </h2>
+            {acceptsEnrolments ? (
+              <div className="flex flex-col gap-5">
+                <EnrolUserForm users={usersNotEnrolled} year={year} />
+                <EnrolGuestForm year={year} />
+              </div>
+            ) : (
+              <p className="text-base">La edición está archivada y ya no admite inscripciones.</p>
+            )}
+          </section>
+        </CardContent>
+      </Card>
     </div>
   );
 }

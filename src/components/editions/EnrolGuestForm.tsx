@@ -1,14 +1,18 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useId, useRef, useState, useTransition } from "react";
 
 import { enrolGuestAction } from "@/app/actions/editionActions";
+import { Button } from "@/components/ui/button";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { showActionToast } from "@/lib/action-toast";
 
 export default function EnrolGuestForm({ year }: { year: number }) {
   const [name, setName] = useState("");
   const [isPending, startTransition] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
+  const inputId = useId();
 
   const onSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -27,10 +31,10 @@ export default function EnrolGuestForm({ year }: { year: number }) {
 
   return (
     <form className="flex flex-wrap items-end gap-2" onSubmit={onSubmit}>
-      <label className="flex flex-col gap-1 text-sm">
-        Invitado sin cuenta
-        <input
-          className="input input-sm w-56"
+      <Field className="w-56 gap-2">
+        <FieldLabel htmlFor={inputId}>Invitado sin cuenta</FieldLabel>
+        <Input
+          id={inputId}
           maxLength={60}
           onChange={(event) => setName(event.target.value)}
           placeholder="Nombre"
@@ -40,10 +44,10 @@ export default function EnrolGuestForm({ year }: { year: number }) {
           type="text"
           value={name}
         />
-      </label>
-      <button className="btn btn-sm btn-primary" disabled={isPending || name.trim() === ""} type="submit">
+      </Field>
+      <Button disabled={isPending || name.trim() === ""} type="submit">
         Inscribir
-      </button>
+      </Button>
     </form>
   );
 }

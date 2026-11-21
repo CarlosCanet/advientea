@@ -1,10 +1,13 @@
 "use client";
 
+import { Copy, RefreshCw } from "lucide-react";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { regenerateGuestLinkAction } from "@/app/actions/editionActions";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { showActionToast } from "@/lib/action-toast";
 
 interface GuestLinkButtonsProps {
@@ -55,27 +58,30 @@ export default function GuestLinkButtons({ name, participationId, token }: Guest
   };
 
   return (
-    <div className="flex flex-col gap-1">
-      <div className="flex flex-wrap gap-1">
+    <div className="mt-1 flex flex-col gap-1">
+      <div className="-ml-2.5 flex flex-wrap gap-1">
         {token !== null && (
-          <button aria-label={`Copiar enlace de ${name}`} className="btn btn-xs btn-ghost" onClick={copy} type="button">
+          <Button aria-label={`Copiar enlace de ${name}`} onClick={copy} size="xs" type="button" variant="ghost">
+            <Copy aria-hidden="true" />
             Copiar enlace
-          </button>
+          </Button>
         )}
-        <button
+        <Button
           aria-label={`Nuevo enlace para ${name}`}
-          className="btn btn-xs btn-ghost"
           disabled={isPending}
           onClick={onRegenerateClick}
+          size="xs"
           type="button"
+          variant="ghost"
         >
+          <RefreshCw aria-hidden="true" />
           Nuevo enlace
-        </button>
+        </Button>
       </div>
       {manualLink !== null && (
-        <input
+        <Input
           aria-label={`Enlace de ${name}`}
-          className="input input-xs w-full"
+          className="h-8 min-w-64 text-sm md:text-sm"
           onFocus={(event) => event.currentTarget.select()}
           readOnly
           type="text"

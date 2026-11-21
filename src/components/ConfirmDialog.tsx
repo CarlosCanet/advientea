@@ -17,6 +17,8 @@ import { Button } from "@/components/ui/button";
 interface ConfirmDialogProps {
   confirmLabel: string;
   description: string;
+  /** Where focus goes on close; by default, back to what had it before opening. */
+  finalFocus?: React.RefObject<HTMLElement | null>;
   onConfirm: () => void;
   onOpenChange: (open: boolean) => void;
   open: boolean;
@@ -28,6 +30,7 @@ interface ConfirmDialogProps {
 export default function ConfirmDialog({
   confirmLabel,
   description,
+  finalFocus,
   onConfirm,
   onOpenChange,
   open,
@@ -55,7 +58,7 @@ export default function ConfirmDialog({
 
   return (
     <AlertDialog onOpenChange={(nextOpen) => onOpenChange(nextOpen)} open={open}>
-      <AlertDialogContent initialFocus={variant === "destructive" ? cancelRef : confirmRef}>
+      <AlertDialogContent finalFocus={finalFocus} initialFocus={variant === "destructive" ? cancelRef : confirmRef}>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>{description}</AlertDialogDescription>
