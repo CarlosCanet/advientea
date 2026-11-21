@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useTransition } from "react";
+import { useState, useTransition } from "react";
 
 import { unenrolParticipantAction } from "@/app/actions/editionActions";
 import ConfirmDialog from "@/components/ConfirmDialog";
@@ -14,7 +14,7 @@ interface UnenrolParticipantButtonProps {
 }
 
 export default function UnenrolParticipantButton({ name, participationId, teaName }: UnenrolParticipantButtonProps) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   const hasTea = teaName !== null;
@@ -28,7 +28,7 @@ export default function UnenrolParticipantButton({ name, participationId, teaNam
   // Someone without a tea takes nothing with them, so they go without asking.
   const onClick = () => {
     if (hasTea) {
-      dialogRef.current?.showModal();
+      setIsConfirmOpen(true);
       return;
     }
     unenrol();
@@ -47,12 +47,13 @@ export default function UnenrolParticipantButton({ name, participationId, teaNam
       </button>
       {hasTea && (
         <ConfirmDialog
-          confirmClassName="btn-error"
           confirmLabel="Quitar"
-          message={`${name} ya ha subido su té «${teaName}». Se borrará con su historia y sus imágenes, si las tiene. No se puede deshacer.`}
+          description={`${name} ya ha subido su té «${teaName}». Se borrará con su historia y sus imágenes, si las tiene. No se puede deshacer.`}
           onConfirm={unenrol}
-          ref={dialogRef}
+          onOpenChange={setIsConfirmOpen}
+          open={isConfirmOpen}
           title={`¿Quitar a ${name} de la edición?`}
+          variant="destructive"
         />
       )}
     </>

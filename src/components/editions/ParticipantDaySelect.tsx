@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, useRef, useState, useTransition } from "react";
+import { ChangeEvent, useState, useTransition } from "react";
 
 import { placeParticipantAction, swapParticipantsAction } from "@/app/actions/editionActions";
 import ConfirmDialog from "@/components/ConfirmDialog";
@@ -36,7 +36,7 @@ export default function ParticipantDaySelect({
   name,
   participationId,
 }: ParticipantDaySelectProps) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [swapTarget, setSwapTarget] = useState<null | SwapTarget>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -61,7 +61,7 @@ export default function ParticipantDaySelect({
     const holder = days.find((day) => day.dayNumber === chosen)?.holder;
     if (holder && holder.participationId !== participationId) {
       setSwapTarget({ dayNumber: chosen, holder });
-      dialogRef.current?.showModal();
+      setIsConfirmOpen(true);
       return;
     }
     run(() => placeParticipantAction(participationId, chosen));
@@ -99,9 +99,12 @@ export default function ParticipantDaySelect({
       </select>
       <ConfirmDialog
         confirmLabel="Intercambiar"
-        message={swapTarget ? `${name} pasará al día ${swapTarget.dayNumber} y ${holderName} ${holderOutcome}.` : ""}
+        description={
+          swapTarget ? `${name} pasará al día ${swapTarget.dayNumber} y ${holderName} ${holderOutcome}.` : ""
+        }
         onConfirm={onConfirmSwap}
-        ref={dialogRef}
+        onOpenChange={setIsConfirmOpen}
+        open={isConfirmOpen}
         title={swapTarget ? `¿Intercambiar con ${holderName}?` : ""}
       />
     </>

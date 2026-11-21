@@ -1,42 +1,78 @@
 "use client";
 
-import { Ref } from "react";
+import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog";
+import { useEffect, useRef } from "react";
+
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 
 interface ConfirmDialogProps {
-  confirmClassName?: string;
   confirmLabel: string;
-  message: string;
+  description: string;
   onConfirm: () => void;
-  ref: Ref<HTMLDialogElement>;
+  onOpenChange: (open: boolean) => void;
+  open: boolean;
   title: string;
+  variant?: "default" | "destructive";
 }
 
-/** A modal that asks before going ahead; the caller opens it with showModal(). */
+/** A modal that asks before going ahead; the caller owns `open`. On close, focus returns to what had it before opening. */
 export default function ConfirmDialog({
-  confirmClassName = "btn-primary",
   confirmLabel,
-  message,
+  description,
   onConfirm,
-  ref,
+  onOpenChange,
+  open,
   title,
+  variant = "default",
 }: ConfirmDialogProps) {
+  const cancelRef = useRef<HTMLButtonElement>(null);
+  const confirmRef = useRef<HTMLButtonElement>(null);
+  const hasConfirmedRef = useRef(false);
+
+  useEffect(() => {
+    if (open) {
+      hasConfirmedRef.current = false;
+    }
+  }, [open]);
+
+  // The popup stays mounted, and clickable, during its exit animation: a double click would confirm twice.
+  const confirmOnce = () => {
+    if (hasConfirmedRef.current) {
+      return;
+    }
+    hasConfirmedRef.current = true;
+    onConfirm();
+  };
+
   return (
-    <dialog className="modal" ref={ref}>
-      <div className="modal-box">
-        <h2 className="text-lg font-bold mb-4">{title}</h2>
-        <p>{message}</p>
-        <form className="modal-action" method="dialog">
-          <button className="btn" type="submit">
-            Cancelar
-          </button>
-          <button className={`btn ${confirmClassName}`} onClick={onConfirm} type="submit">
+    <AlertDialog onOpenChange={(nextOpen) => onOpenChange(nextOpen)} open={open}>
+      <AlertDialogContent initialFocus={variant === "destructive" ? cancelRef : confirmRef}>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{title}</AlertDialogTitle>
+          <AlertDialogDescription>{description}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel ref={cancelRef}>Cancelar</AlertDialogCancel>
+          {/* A Close rather than a plain button: Base UI then sees a keyboard close and shows the focus ring on return. */}
+          <AlertDialogPrimitive.Close
+            data-slot="alert-dialog-action"
+            onClick={confirmOnce}
+            ref={confirmRef}
+            render={<Button variant={variant} />}
+          >
             {confirmLabel}
-          </button>
-        </form>
-      </div>
-      <form className="modal-backdrop" method="dialog">
-        <button>Cerrar</button>
-      </form>
-    </dialog>
+          </AlertDialogPrimitive.Close>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

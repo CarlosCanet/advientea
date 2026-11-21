@@ -1,13 +1,13 @@
 "use client";
 
-import { useRef, useTransition } from "react";
+import { useState, useTransition } from "react";
 
 import { deleteEditionAction } from "@/app/actions/editionActions";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { showActionToast } from "@/lib/action-toast";
 
 export default function DeleteEditionButton({ year }: { year: number }) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   const onConfirm = () => {
@@ -21,18 +21,19 @@ export default function DeleteEditionButton({ year }: { year: number }) {
       <button
         className="btn btn-sm btn-error btn-outline"
         disabled={isPending}
-        onClick={() => dialogRef.current?.showModal()}
+        onClick={() => setIsConfirmOpen(true)}
         type="button"
       >
         Borrar
       </button>
       <ConfirmDialog
-        confirmClassName="btn-error"
         confirmLabel="Borrar"
-        message="Solo se puede borrar una edición en preparación que todavía no tenga días ni inscritos. No se puede deshacer."
+        description="Solo se puede borrar una edición en preparación que todavía no tenga días ni inscritos. No se puede deshacer."
         onConfirm={onConfirm}
-        ref={dialogRef}
+        onOpenChange={setIsConfirmOpen}
+        open={isConfirmOpen}
         title={`¿Borrar la edición ${year}?`}
+        variant="destructive"
       />
     </>
   );
