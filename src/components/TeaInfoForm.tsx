@@ -11,6 +11,7 @@ import { SiUndertale } from "react-icons/si";
 import type { Prisma } from "@/generated/prisma/client";
 
 import TeaListImageForm from "@/components/tea/TeaListImageForm";
+import { Spinner } from "@/components/ui/spinner";
 import { showActionToast } from "@/lib/action-toast";
 import { ImageStoryForm, initialTeaInfoActionResponse, TeaInfoActionResponse } from "@/lib/types";
 
@@ -339,7 +340,7 @@ function TeaInfoFormFields({
             Cancelar
           </button>
           <button className="btn btn-primary" disabled={isPending} type="submit">
-            {isPending ? <span className="loading loading-spinner"></span> : tea ? "EdiTélo" : "Añadirlo"}
+            {isPending ? <Spinner /> : tea ? "EdiTélo" : "Añadirlo"}
           </button>
         </div>
       </Form>
