@@ -25,8 +25,9 @@ Sentry.init({
   // out; the path keeps those requests out of the traces.
   integrations: [Sentry.serveTunnelIntegration({ intercept: false, path: "/monitoring" })],
 
-  // Staging sends errors only: no traces.
-  tracesSampleRate: isProduction ? 0.1 : 0,
+  // Errors only, everywhere: tracing costs Vercel CPU on every request (Hobby has 4 h a month) and nobody reads it.
+  // Raise it for a few days to investigate a slow page.
+  tracesSampleRate: 0,
 
   environment: VERCEL_ENV || process.env.NODE_ENV,
 

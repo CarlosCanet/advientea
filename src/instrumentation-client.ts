@@ -26,9 +26,10 @@ Sentry.init({
   transportOptions: { fetchOptions: { credentials: "same-origin" } },
   tunnel: "/monitoring",
 
-  // Staging sends errors only: no replays and no traces.
+  // Errors only, everywhere: no traces, so the tunnel (one Vercel function call per envelope) runs only for errors.
+  // Staging also skips replays.
   integrations: isProduction ? [Sentry.replayIntegration()] : [],
-  tracesSampleRate: isProduction ? 0.1 : 0,
+  tracesSampleRate: 0,
 
   environment: VERCEL_ENV || process.env.NODE_ENV,
 
