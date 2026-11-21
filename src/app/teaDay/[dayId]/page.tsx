@@ -4,12 +4,12 @@ import { BsCupHotFill } from "react-icons/bs";
 import { FaStore } from "react-icons/fa";
 import { MdComputer } from "react-icons/md";
 
+import WaitForDayToCome from "@/components/states/WaitForDayToCome";
 import StoryTeaComponent from "@/components/StoryTeaComponent";
+import AuthorName from "@/components/tea/AuthorName";
+import TeaInfusionInfo from "@/components/tea/TeaInfusionInfo";
 import TeaGuessCard from "@/components/TeaGuessCard";
 import Timer from "@/components/Timer";
-import AuthorName from "@/components/ui/AuthorName";
-import TeaInfusionInfo from "@/components/ui/TeaInfusionInfo";
-import WaitForDayToCome from "@/components/ui/WaitForDayToCome";
 import { getAdvienteaDayState } from "@/lib/advientea-rules";
 import { getDayById, getEditionInfo, getSession, getUsernameAssignedToTea } from "@/lib/dal";
 

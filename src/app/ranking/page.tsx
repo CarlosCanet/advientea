@@ -3,7 +3,7 @@ import { BsCupFill } from "react-icons/bs";
 import { FaAward, FaTrophy } from "react-icons/fa6";
 
 import RankingList from "@/components/RankingList";
-import NoActiveEdition from "@/components/ui/NoActiveEdition";
+import NoActiveEdition from "@/components/states/NoActiveEdition";
 import { getAdvienteaDayState } from "@/lib/advientea-rules";
 import { getActiveEdition, getEditionInfo, getSession } from "@/lib/dal";
 import { getOverallRanking } from "@/lib/services/ranking-service";

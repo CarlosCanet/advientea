@@ -10,10 +10,9 @@ import { SiUndertale } from "react-icons/si";
 
 import type { Prisma } from "@/generated/prisma/client";
 
+import TeaListImageForm from "@/components/tea/TeaListImageForm";
 import { showActionToast } from "@/lib/action-toast";
 import { ImageStoryForm, initialTeaInfoActionResponse, TeaInfoActionResponse } from "@/lib/types";
-
-import TeaListImageForm from "./ui/TeaListImageForm";
 
 type TeaWithStoryImages = Prisma.TeaGetPayload<{ include: { story: { include: { images: true } } } }>;
 

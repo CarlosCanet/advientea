@@ -3,11 +3,10 @@ import Link from "next/link";
 import { RxHamburgerMenu } from "react-icons/rx";
 
 import { signout } from "@/app/actions/authActions";
+import ProfileImage from "@/components/profile/ProfileImage";
 import { Role } from "@/generated/prisma/enums";
 import { getActiveEdition, getSession } from "@/lib/dal";
 import { DEFAULT_IMAGE_PROFILE } from "@/lib/types";
-
-import ProfileImage from "./ui/ProfileImage";
 
 async function Navbar() {
   const session = await getSession();

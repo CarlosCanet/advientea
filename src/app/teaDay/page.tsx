@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { BsCupHot, BsCupHotFill } from "react-icons/bs";
 
-import NoActiveEdition from "@/components/ui/NoActiveEdition";
-import TeaInfusionInfo from "@/components/ui/TeaInfusionInfo";
+import NoActiveEdition from "@/components/states/NoActiveEdition";
+import TeaInfusionInfo from "@/components/tea/TeaInfusionInfo";
 import { Role } from "@/generated/prisma/enums";
 import { getAdvienteaDayState, getDaySchedule } from "@/lib/advientea-rules";
 import { getNow } from "@/lib/advientea-time";

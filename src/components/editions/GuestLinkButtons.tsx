@@ -4,9 +4,8 @@ import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { regenerateGuestLinkAction } from "@/app/actions/editionActions";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import { showActionToast } from "@/lib/action-toast";
-
-import ConfirmDialog from "./ConfirmDialog";
 
 interface GuestLinkButtonsProps {
   name: string;

@@ -1,4 +1,4 @@
-import TimerWithConfig from "@/components/ui/TimerWithConfig";
+import TimerWithConfig from "@/components/TimerWithConfig";
 
 export default function TimerPage() {
   return (

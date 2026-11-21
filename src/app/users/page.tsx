@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-import CheckboxUsersExecuteave from "@/components/ui/CheckboxUsersExecuteave";
+import CheckboxUsersExecuteave from "@/components/users/CheckboxUsersExecuteave";
 import { Role } from "@/generated/prisma/enums";
 import { getAllUsers, getSession } from "@/lib/dal";
 

@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
-import DeleteDayButton from "@/components/ui/DeleteDayButton";
-import EnrolGuestForm from "@/components/ui/EnrolGuestForm";
-import EnrolUserForm from "@/components/ui/EnrolUserForm";
-import GuestLinkButtons from "@/components/ui/GuestLinkButtons";
-import ParticipantDaySelect, { CalendarDayOption } from "@/components/ui/ParticipantDaySelect";
-import UnenrolParticipantButton from "@/components/ui/UnenrolParticipantButton";
+import DeleteDayButton from "@/components/editions/DeleteDayButton";
+import EnrolGuestForm from "@/components/editions/EnrolGuestForm";
+import EnrolUserForm from "@/components/editions/EnrolUserForm";
+import GuestLinkButtons from "@/components/editions/GuestLinkButtons";
+import ParticipantDaySelect, { CalendarDayOption } from "@/components/editions/ParticipantDaySelect";
+import UnenrolParticipantButton from "@/components/editions/UnenrolParticipantButton";
 import { EditionStatus, Role } from "@/generated/prisma/enums";
 import { canEditTea, getDaySchedule } from "@/lib/advientea-rules";
 import { getNow } from "@/lib/advientea-time";
