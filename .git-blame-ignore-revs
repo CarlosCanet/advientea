@@ -7,3 +7,5 @@ f043cd024fa585713a81b806d7e3a8a1226eb762
 9efa28ce84cf091d58002746520a0ac7212e8449
 # refactor: DayAssignment renamed to Participation, table unchanged
 a93808b8b70c686ae51eee24e259f6b78cbfbb5f
+# refactor: font-display replaces font-[Griffy]
+47c9f00c57c06a2a7fcc49b53b95fe426aa43e9c
