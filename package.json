@@ -34,6 +34,7 @@
     "cloudinary": "^2.11.0",
     "cn": "0.5.2",
     "daisyui": "^5.7.50",
+    "embla-carousel-react": "^8.6.0",
     "fastest-levenshtein": "^1.0.16",
     "import-in-the-middle": "^2.0.6",
     "lucide-react": "^1.77.0",
