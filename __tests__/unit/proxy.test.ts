@@ -35,6 +35,8 @@ describe("isPublicPath", () => {
     "/timer",
     "/invitado",
     "/invitado/some-token",
+    "/api/health",
+    "/api/health/db",
   ])("lets anyone see %s", (pathname) => {
     expect(isPublicPath(pathname)).toBe(true);
   });
@@ -49,6 +51,7 @@ describe("isPublicPath", () => {
     "/add-tea-info",
     "/invitadoX",
     "/teaDayfoo",
+    "/api/healthx",
   ])("asks for a session on %s", (pathname) => {
     expect(isPublicPath(pathname)).toBe(false);
   });

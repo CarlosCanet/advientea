@@ -7,6 +7,7 @@ import { NextResponse } from "next/server";
 const PUBLIC_EXACT_PATHS: Array<string> = ["/"];
 // Each prefix covers the path itself and everything below it, never a longer name: /timer, not /timers.
 const PUBLIC_PATH_PREFIXES: Array<string> = [
+  "/api/health",
   "/invitado",
   "/reset-password",
   "/sign-in",
