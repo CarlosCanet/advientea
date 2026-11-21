@@ -1,4 +1,5 @@
 "use server";
+import * as Sentry from "@sentry/nextjs";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { z } from "zod";
@@ -179,6 +180,7 @@ export async function saveGuestTeaAction(
     if (!participation) {
       return { message: "Este enlace no es válido o ha caducado. Pide uno nuevo al GerenTé.", success: false };
     }
+    Sentry.setUser({ id: `guest:${participation.id}` });
     const parsed = parseTeaForm(formData);
     if ("response" in parsed) {
       return parsed.response;

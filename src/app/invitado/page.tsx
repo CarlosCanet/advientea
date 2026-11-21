@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import * as Sentry from "@sentry/nextjs";
 import { cookies } from "next/headers";
 
 import { saveGuestTeaAction } from "@/app/actions/teaInfoActions";
@@ -34,6 +35,8 @@ export default async function GuestPage() {
       </GuestNotice>
     );
   }
+  // A guest has no account: the participation is what tells their errors apart.
+  Sentry.setUser({ id: `guest:${participation.id}` });
 
   // A played day only protects a tea that exists: one still missing can be uploaded late.
   if (participation.tea !== null && (await isParticipationDayPlayed(participation.id))) {

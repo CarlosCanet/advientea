@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs";
 import { headers } from "next/headers";
 import { cache } from "react";
 
@@ -13,6 +14,8 @@ export const verifySession = cache(async function verifySession() {
   if (!session?.user) {
     return { isAuth: false as const, role: null, user: null, userId: null };
   }
+  // Sentry keeps one isolation scope per request, so this user tags only this request's errors. Never the email.
+  Sentry.setUser({ id: session.user.id, username: session.user.username });
   return { isAuth: true as const, role: session.user.role, user: session.user, userId: session.user.id };
 });
 
