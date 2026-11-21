@@ -25,6 +25,12 @@ const PUBLIC_ACTIONS: Record<string, string> = {
   signup: "creates the account itself",
 };
 
+// Ask for a session and no role: any signed-in person may call them, and what they reach is decided from the
+// session itself. Every action not listed above is held to this anyway; these are named so the decision is reviewable.
+const SESSION_ACTIONS: Record<string, string> = {
+  saveMyTeaAction: "a participant saves their own tea; the participation comes from the session, never from the form",
+};
+
 type AllowedRoles = "ADMIN" | "ADMIN or EXECUTEAVE";
 
 // Require ADMIN or EXECUTEAVE. A USER must never get past the guard, and neither must an EXECUTEAVE
@@ -49,7 +55,8 @@ const ROLES_OF: Record<AllowedRoles, Role[]> = {
 
 const { DAL_FUNCTIONS, GUARDS, prismaTouched } = vi.hoisted(() => ({
   GUARDS: ["requireSession", "requireRole", "verifySession"] as const,
-  // Every DAL export the action modules import. Keep in sync with their `@/lib/dal` imports.
+  // Every DAL export the action modules import, directly or through the services they call (left real here, so
+  // that what a service reaches is seen too). Keep in sync with their `@/lib/dal` imports.
   DAL_FUNCTIONS: [
     "addDay",
     "assignDay",
@@ -62,19 +69,22 @@ const { DAL_FUNCTIONS, GUARDS, prismaTouched } = vi.hoisted(() => ({
     "createTeaGuess",
     "deleteDay",
     "deleteEdition",
-    "editStoryTea",
     "editUser",
     "enrolGuest",
     "enrolUser",
     "getActiveEdition",
+    "getEdition",
+    "getOpenParticipationByUserId",
+    "getParticipationById",
     "getParticipationByUserId",
     "getTeaById",
+    "isParticipationDayPlayed",
     "placeParticipant",
     "replaceStoryImages",
+    "saveParticipationTea",
     "swapParticipants",
     "unenrolParticipant",
     "unplaceParticipant",
-    "updateTeaContent",
   ] as const,
   prismaTouched: vi.fn(),
 }));
@@ -243,8 +253,21 @@ describe("authorization sweep", () => {
       .sort();
     expect(Object.keys(MODULES).sort()).toEqual(onDisk);
     const allNames = ALL_ACTIONS.map((a) => a.actionName);
-    for (const name of [...Object.keys(PUBLIC_ACTIONS), ...Object.keys(PRIVILEGED_ACTIONS)]) {
+    for (const name of [
+      ...Object.keys(PUBLIC_ACTIONS),
+      ...Object.keys(PRIVILEGED_ACTIONS),
+      ...Object.keys(SESSION_ACTIONS),
+    ]) {
       expect(allNames, `${name} is listed but no action module exports it`).toContain(name);
+    }
+  });
+
+  it("lists the session-only actions in no other list", () => {
+    const sessionOnly = SESSION_ONLY.map(({ actionName }) => actionName);
+    for (const name of Object.keys(SESSION_ACTIONS)) {
+      expect(name in PUBLIC_ACTIONS, `${name} is listed both as public and as session-only`).toBe(false);
+      expect(name in PRIVILEGED_ACTIONS, `${name} is listed both as privileged and as session-only`).toBe(false);
+      expect(sessionOnly).toContain(name);
     }
   });
 

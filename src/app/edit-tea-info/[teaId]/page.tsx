@@ -1,45 +1,38 @@
 import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 
-import EditTeaInfoForm from "@/components/EditTeaInfoForm";
-import WaitForDayAssignment from "@/components/ui/WaitForDayAssignment";
+import { editTeaInfoAction } from "@/app/actions/teaInfoActions";
+import TeaInfoForm from "@/components/TeaInfoForm";
 import { Role } from "@/generated/prisma/enums";
 import { auth } from "@/lib/auth";
-import { getParticipationByUserId, getTeaById, getUsernameAssignedToTea } from "@/lib/dal";
+import { getTeaById, getUsernameAssignedToTea } from "@/lib/dal";
 import { userCanEditTea } from "@/lib/services/tea-edit-service";
 
+/** The managers' editor for any tea. A participant edits their own on /my-tea. */
 async function EditTeaInfoDayPage({ params }: { params: Promise<{ teaId: string }> }) {
   const { teaId } = await params;
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) {
     redirect("/");
   }
-  const teaCompleteInfo = await getTeaById(teaId);
-  if (!teaCompleteInfo) {
-    notFound();
-  }
   if (session.user.role === Role.USER) {
-    const assignment = await getParticipationByUserId(session.user.id, teaCompleteInfo.participation.year);
-    if (!assignment) {
-      return <WaitForDayAssignment />;
-    } else if (!assignment.tea) {
-      redirect("/add-tea-info");
-    } else if (assignment.tea.id !== teaId) {
-      redirect(`/edit-tea-info/${assignment.tea.id}`);
-    }
+    redirect("/my-tea");
   }
-  if (!(await userCanEditTea(session.user, teaCompleteInfo))) {
+  const tea = await getTeaById(teaId);
+  if (!tea || !(await userCanEditTea(session.user, tea))) {
     notFound();
   }
-  const username = await getUsernameAssignedToTea(teaId);
+  const name = (await getUsernameAssignedToTea(teaId)) ?? "Cuenta borrada";
+  const dayNumber = tea.participation.day?.dayNumber;
 
   return (
     <div className="flex justify-center">
-      <EditTeaInfoForm
-        dayNumber={teaCompleteInfo.participation.day?.dayNumber}
-        teaCompleteInfo={teaCompleteInfo}
+      <TeaInfoForm
+        action={editTeaInfoAction}
+        heading={`Té de ${name}`}
+        subheading={dayNumber === undefined ? "Sin día" : `Día ${dayNumber}`}
+        tea={tea}
         teaId={teaId}
-        username={username || ""}
       />
     </div>
   );

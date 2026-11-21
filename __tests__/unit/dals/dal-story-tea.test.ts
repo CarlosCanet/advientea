@@ -5,7 +5,6 @@ import { prismaMock } from "@/lib/__mocks__/prisma";
 import {
   addStoryTea,
   deleteStoryTea,
-  editStoryTea,
   getAllStoriesTea,
   getStoryTeaById,
   StoryTeaWithImagesAndTea,
@@ -111,33 +110,6 @@ describe("DAL StoryTea", () => {
         },
         include: { tea: true },
       });
-    });
-  });
-
-  describe("editStoryTea", () => {
-    it("should update story", async () => {
-      const mockUpdated: StoryTeaWithTea = {
-        createdAt: new Date(),
-        id: "s1",
-        onlyMusic: false,
-        storyPart1: "Updated",
-        storyPart2: null,
-        storyPart3: null,
-        tea: { id: "t1" } as Tea,
-        teaId: "t1",
-        updatedAt: new Date(),
-        youtubeURL: null,
-      };
-      prismaMock.storyTea.update.mockResolvedValue(mockUpdated);
-
-      const result = await editStoryTea({ storyPart1: "Updated" }, "s1");
-      expect(result.storyPart1).toBe("Updated");
-      expect(prismaMock.storyTea.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: { storyPart1: "Updated" },
-          where: { id: "s1" },
-        }),
-      );
     });
   });
 

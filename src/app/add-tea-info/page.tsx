@@ -3,42 +3,24 @@ import { redirect } from "next/navigation";
 
 import AddTeaInfoForm from "@/components/AddTeaInfoForm";
 import NoActiveEdition from "@/components/ui/NoActiveEdition";
-import { Role } from "@/generated/prisma/client";
 import { auth } from "@/lib/auth";
-import { getActiveEdition, getAllParticipations, getParticipationByUserId, getUsersBasic } from "@/lib/dal";
+import { getActiveEdition } from "@/lib/dal";
 
+/** The public form, for visitors without an account. A signed-in participant saves their tea on /my-tea. */
 async function AddTeaInfo() {
   const session = await auth.api.getSession({ headers: await headers() });
+  if (session) {
+    redirect("/my-tea");
+  }
   const edition = await getActiveEdition();
   if (!edition) {
     return <NoActiveEdition />;
-  }
-  let assignment;
-  const isUserPrivileged = session?.user.role === Role.ADMIN || session?.user.role === Role.EXECUTEAVE;
-  let users: Array<string> = [];
-  if (session && session.user) {
-    assignment = await getParticipationByUserId(session.user.id, edition.year);
-    if (isUserPrivileged) {
-      const allAssignments = await getAllParticipations(edition.year);
-      const allUsers = await getUsersBasic();
-      const usersWithAssignments = allAssignments.map((assignment) => assignment.user?.username);
-      users = allUsers.map((user) => user.username).filter((user) => !usersWithAssignments.includes(user));
-    }
-    if (assignment?.tea) {
-      redirect("/edit-tea-info");
-    }
   }
 
   return (
     <>
       <div className="flex justify-center">
-        <AddTeaInfoForm
-          canAssign={isUserPrivileged}
-          dayNumber={assignment?.day?.dayNumber ?? 0}
-          isLoggedIn={!!session?.user}
-          username={session?.user.name ?? ""}
-          users={users}
-        />
+        <AddTeaInfoForm canAssign={false} dayNumber={0} isLoggedIn={false} username="" users={[]} />
       </div>
     </>
   );
