@@ -35,7 +35,7 @@ export default async function RootLayout({
   const { user } = await verifySession();
   return (
     <html className={`${figtree.variable} ${griffy.variable}`} lang="es">
-      <body className="bg-leaves min-h-screen antialiased">
+      <body className="leaf-background min-h-screen antialiased">
         <Navbar />
         <main className="pt-16">{children}</main>
         <Toaster position="top-center" richColors />
