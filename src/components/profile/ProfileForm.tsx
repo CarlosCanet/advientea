@@ -9,6 +9,7 @@ import { IoKeySharp } from "react-icons/io5";
 import { MdOutlinePassword } from "react-icons/md";
 
 import { updateUserProfile } from "@/app/actions/authActions";
+import { Spinner } from "@/components/ui/spinner";
 import { ALLOWED_IMAGE_TYPES, initialUpdateProfileActionResponse } from "@/lib/types";
 
 interface ProfileFormProps {
@@ -182,7 +183,7 @@ export default function ProfileForm({ email, imageId, username }: ProfileFormPro
           Atrás
         </button>
         <button className="btn btn-primary" disabled={isPending || !!passwordError} type="submit">
-          {isPending ? <span className="loading loading-spinner"></span> : "Editar"}
+          {isPending ? <Spinner /> : "Editar"}
         </button>
       </div>
     </Form>

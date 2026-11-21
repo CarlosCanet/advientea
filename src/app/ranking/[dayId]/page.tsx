@@ -1,6 +1,7 @@
+import { Award } from "lucide-react";
 import { notFound } from "next/navigation";
-import { FaAward } from "react-icons/fa6";
 
+import PageHeader from "@/components/PageHeader";
 import RankingList from "@/components/RankingList";
 import { getAdvienteaDayState } from "@/lib/advientea-rules";
 import { getDayById, getEditionInfo, getSession } from "@/lib/dal";
@@ -29,16 +30,7 @@ export default async function RankingPage({ params }: RankingPageProps) {
   }
   return (
     <div className="flex flex-col justify-center items-center mx-5 mt-5 gap-3">
-      <div className="card w-full max-w-xl bg-neutral text-neutral-content card-xl shadow-sm">
-        <div className="card-body items-center">
-          <h2 className="card-title text-4xl">
-            <FaAward />
-            Día {day.dayNumber}
-            <FaAward />
-          </h2>
-          <h2 className="card-title text-lg">Ranking diario</h2>
-        </div>
-      </div>
+      <PageHeader icon={<Award />} subtitle="Ranking diario" title={`Día ${day.dayNumber}`} />
       {advienteaDayState.isTeaReleased ? (
         <RankingList currentUserId={session.user.id} ranking={ranking} />
       ) : (

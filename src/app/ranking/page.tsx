@@ -1,7 +1,7 @@
+import { Trophy } from "lucide-react";
 import { notFound } from "next/navigation";
-import { BsCupFill } from "react-icons/bs";
-import { FaAward, FaTrophy } from "react-icons/fa6";
 
+import PageHeader from "@/components/PageHeader";
 import RankingList from "@/components/RankingList";
 import NoActiveEdition from "@/components/states/NoActiveEdition";
 import { getAdvienteaDayState } from "@/lib/advientea-rules";
@@ -25,17 +25,7 @@ export default async function OverallRankingPage() {
   }
   return (
     <div className="flex flex-col justify-center items-center mx-5 mt-5 gap-3">
-      <div className="card w-full max-w-xl bg-neutral text-neutral-content card-xl shadow-sm">
-        <div className="card-body items-center">
-          <h2 className="card-title text-4xl">
-            <FaTrophy />
-            Salón de la Taza <BsCupFill />
-          </h2>
-          <h2 className="card-title text-lg">
-            <FaAward /> Ranking {edition.year} <FaAward />
-          </h2>
-        </div>
-      </div>
+      <PageHeader icon={<Trophy />} subtitle={`Ranking ${edition.year}`} title="Salón de la Taza" />
       {advienteaDayState.isPersonNameReleased ? (
         <RankingList currentUserId={session.user.id} ranking={ranking} />
       ) : (

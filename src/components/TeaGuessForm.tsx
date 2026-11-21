@@ -3,6 +3,7 @@ import Form from "next/form";
 import { useActionState, useState } from "react";
 
 import { submitTeaGuess } from "@/app/actions/teaGuessActions";
+import { Spinner } from "@/components/ui/spinner";
 import { initialTeaGuessActionResponse, SelectOption } from "@/lib/types";
 
 interface TeaGuessFormProps {
@@ -117,7 +118,7 @@ export default function TeaGuessForm({
       )}
       <div className="card-actions justify-center mt-4 gap-2">
         <button className="btn btn-primary" disabled={isPending} type="submit">
-          {isPending ? <span className="loading loading-spinner"></span> : "AdivinaTé"}
+          {isPending ? <Spinner /> : "AdivinaTé"}
         </button>
       </div>
     </Form>
