@@ -1,4 +1,4 @@
-import { FaUser } from "react-icons/fa";
+import { User } from "lucide-react";
 
 interface AuthorNameProps {
   name: null | string | undefined;
@@ -10,8 +10,8 @@ export default function AuthorName({ name }: AuthorNameProps) {
   }
 
   return (
-    <div className="flex gap-2 items-center">
-      <FaUser />
+    <div className="flex items-center gap-2">
+      <User aria-hidden="true" className="size-4" />
       {name}
     </div>
   );
