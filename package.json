@@ -30,7 +30,7 @@
     "@sentry/nextjs": "^11.16.0",
     "better-auth": "^1.7.27",
     "cloudinary": "^2.11.0",
-    "daisyui": "^5.7.50",
+    "daisyui": "^5.8.2",
     "fastest-levenshtein": "^1.0.16",
     "next": "^16.4.6",
     "next-cloudinary": "^6.19.3",

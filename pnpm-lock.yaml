@@ -27,8 +27,8 @@ importers:
         specifier: ^2.11.0
         version: 2.11.0
       daisyui:
-        specifier: ^5.7.50
-        version: 5.7.50
+        specifier: ^5.8.2
+        version: 5.8.2
       fastest-levenshtein:
         specifier: ^1.0.16
         version: 1.0.16
@@ -2374,8 +2374,8 @@ packages:
     resolution: {integrity: sha512-VqKjzBLejbSMT4IgbmVgDjpkYrNWUYJnbCGo874u7MMKIWsILRX+OpX/gTk8MqjpT1A/c6HY2dCA77ZN0lkQ2Q==}
     engines: {node: '>=12'}
 
-  daisyui@5.7.50:
-    resolution: {integrity: sha512-+/LRqnTCoc7s/bJEKKwtJSwzeXCVdAmRdNmZeZzgHCaQ9PJyl7j+2V2U32GQDMyD+VDkP9e/+JGoC72Y1hLk7w==}
+  daisyui@5.8.2:
+    resolution: {integrity: sha512-InScsDXX0pbfgvWyPQ8iTHV4rNMZdfbMo85KqlQUn62/PCIjwczViw5lbotzoXy/nPrn4qjDMmx/fspuUnjBtA==}
 
   damerau-levenshtein@1.0.8:
     resolution: {integrity: sha512-sdQSFB7+llfUcQHUQO3+B8ERRj0Oa4w9POWMI/puGtuf7gFywGmkaLCElnudfTiKZV+NvHqL0ifzdrI8Ro7ESA==}
@@ -6322,7 +6322,7 @@ snapshots:
     dependencies:
       d3-array: 3.2.4
 
-  daisyui@5.7.50: {}
+  daisyui@5.8.2: {}
 
   damerau-levenshtein@1.0.8: {}
 
