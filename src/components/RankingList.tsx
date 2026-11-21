@@ -11,7 +11,7 @@ export default function RankingList({ currentUserId, ranking }: RankingListProps
   if (ranking.length === 0) {
     return (
       <div className="card w-full max-w-xl bg-base-200 card-xl shadow-md border border-primary/20 mb-5">
-        <div className="text-center p-8 font-[Griffy] text-lg">No hay resultados para hoy...</div>
+        <div className="text-center p-8 font-display text-lg">No hay resultados para hoy...</div>
       </div>
     );
   }

@@ -27,7 +27,7 @@ export default function StoryTeaComponent({
       <div className="card-body items-center">
         <h2 className="card-title self-start font-semibold text-4xl">Ambientación</h2>
         {!isPart1Released && (
-          <div className="skeleton skeleton-text font-[Griffy] text-2xl">No es la hora todavía...</div>
+          <div className="skeleton skeleton-text font-display text-2xl">No es la hora todavía...</div>
         )}
         {isPart1Released && <CarouselComponent images={story.images} />}
         <ul className="timeline timeline-snap-icon max-md:timeline-compact timeline-vertical">
@@ -38,7 +38,7 @@ export default function StoryTeaComponent({
               </div>
               <div className="timeline-start mb-10 md:text-end">
                 <time className="font-mono italic">08:00 h</time>
-                {<div className="font-[Griffy] text-justify whitespace-pre-wrap mt-1">{story.storyPart1}</div>}
+                {<div className="font-display text-justify whitespace-pre-wrap mt-1">{story.storyPart1}</div>}
               </div>
               <hr />
             </li>
@@ -51,7 +51,7 @@ export default function StoryTeaComponent({
               </div>
               <div className="timeline-end md:mb-10">
                 <time className="font-mono italic">13:00 h</time>
-                {<div className="font-[Griffy] text-justify whitespace-pre-wrap mt-1">{story.storyPart2}</div>}
+                {<div className="font-display text-justify whitespace-pre-wrap mt-1">{story.storyPart2}</div>}
               </div>
               <hr />
             </li>
@@ -64,7 +64,7 @@ export default function StoryTeaComponent({
               </div>
               <div className="timeline-start mb-10 md:text-end">
                 <time className="font-mono italic">18:00 h</time>
-                {<div className="font-[Griffy] text-justify whitespace-pre-wrap mt-1">{story.storyPart3}</div>}
+                {<div className="font-display text-justify whitespace-pre-wrap mt-1">{story.storyPart3}</div>}
               </div>
               <hr />
             </li>

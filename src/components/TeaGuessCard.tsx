@@ -74,7 +74,7 @@ export default async function TeaGuessCard({ dayId }: TeaGuessCardProps) {
           </div>
         ) : (
           <>
-            <div className="font-[Griffy] text-lg">¡ Vamos a jugar !</div>
+            <div className="font-display text-lg">¡ Vamos a jugar !</div>
             <TeaGuessForm
               canUserGuessPerson={canGuessPerson}
               canUserGuessTea={canGuessTea}

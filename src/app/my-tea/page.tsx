@@ -25,7 +25,7 @@ export default async function MyTeaPage() {
   if (!participation) {
     return (
       <MyTeaNotice>
-        <p className="font-[Griffy] text-2xl">
+        <p className="font-display text-2xl">
           Todavía no estás inscrito en ninguna edición. Cuando el Geren<span className="italic">Té</span> te inscriba,
           podrás subir aquí tu té.
         </p>
@@ -42,7 +42,7 @@ export default async function MyTeaPage() {
   if (!mayEdit) {
     return (
       <MyTeaNotice>
-        <p className="font-[Griffy] text-2xl">
+        <p className="font-display text-2xl">
           Tu día ya ha abierto y tu té ya no se puede cambiar. Si hay un error, avisa al Geren
           <span className="italic">Té</span>.
         </p>

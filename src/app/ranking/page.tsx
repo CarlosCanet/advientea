@@ -39,7 +39,7 @@ export default async function OverallRankingPage() {
       {advienteaDayState.isPersonNameReleased ? (
         <RankingList currentUserId={session.user.id} ranking={ranking} />
       ) : (
-        <div className="bg-base-100 w-full max-w-xl p-5 rounded-2xl justify-center items-center text-center text-xl font-[Griffy]">
+        <div className="bg-base-100 w-full max-w-xl p-5 rounded-2xl justify-center items-center text-center text-xl font-display">
           <div className="skeleton skeleton-text text-base-200">El ranking aún no está disponible.</div>
           <div className="skeleton skeleton-text text-base-200">Ten paciencia y vuelve pronto.</div>
         </div>

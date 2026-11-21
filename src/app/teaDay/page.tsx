@@ -54,9 +54,9 @@ export default async function DaysList() {
                   </div>
                   <div className="list-col-grow">
                     {advienteaDayState.isTeaReleased ? (
-                      <div className="font-[Griffy] text-md">{advienteaDayTitle}</div>
+                      <div className="font-display text-md">{advienteaDayTitle}</div>
                     ) : (
-                      <div className="skeleton skeleton-text font-[Griffy] text-lg">Té desconocido</div>
+                      <div className="skeleton skeleton-text font-display text-lg">Té desconocido</div>
                     )}
                     {tea && advienteaDayState.isPart1Released && (
                       <TeaInfusionInfo hasMoreIndication={false} tea={tea} xs={true} />

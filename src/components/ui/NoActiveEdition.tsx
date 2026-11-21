@@ -11,8 +11,8 @@ export default function NoActiveEdition() {
               Advien<span className="italic">té</span> está en preparación
             </span>
           </h2>
-          <p className="font-[Griffy] text-2xl">Estamos infusionando la próxima edición.</p>
-          <p className="font-[Griffy] text-xl">El calendario vuelve a abrirse el 1 de diciembre.</p>
+          <p className="font-display text-2xl">Estamos infusionando la próxima edición.</p>
+          <p className="font-display text-xl">El calendario vuelve a abrirse el 1 de diciembre.</p>
           <Link className="btn btn-ghost text-neutral-content mt-2" href="/">
             Volver al inicio
           </Link>
