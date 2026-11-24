@@ -4,6 +4,7 @@ export * from "./dal-edition";
 export * from "./dal-health";
 export * from "./dal-participation";
 export * from "./dal-participation-tea";
+export * from "./dal-rate-limit";
 export * from "./dal-story-image";
 export * from "./dal-story-tea";
 export * from "./dal-tea";

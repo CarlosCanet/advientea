@@ -1,0 +1,166 @@
+import { describe, expect, it } from "vitest";
+
+import { consumeRateLimit } from "@/lib/dal";
+import { prisma } from "@/lib/prisma";
+
+const KEY = "signin:ip:test-key";
+const WINDOW = 900;
+
+/** The database clock: the window is measured against it, never against the test process. */
+async function databaseNow(): Promise<Date> {
+  const [{ now }] = await prisma.$queryRaw<{ now: Date }[]>`SELECT now() AS now`;
+  return now;
+}
+
+async function rowOf(key: string) {
+  return prisma.rateLimit.findUniqueOrThrow({ where: { key } });
+}
+
+/** Moves the window of `key` back by `seconds`, counted from the start the row holds, as if that time had passed. */
+async function ageWindow(key: string, seconds: number) {
+  const { windowStart } = await rowOf(key);
+  await prisma.rateLimit.update({
+    data: { windowStart: new Date(windowStart.getTime() - seconds * 1000) },
+    where: { key },
+  });
+}
+
+async function attempts(key: string, times: number, max: number, windowSeconds = WINDOW): Promise<boolean[]> {
+  const results: boolean[] = [];
+  for (let i = 0; i < times; i++) {
+    results.push(await consumeRateLimit(key, max, windowSeconds));
+  }
+  return results;
+}
+
+function expectCloseTo(actual: Date, expected: Date, toleranceMs = 5000) {
+  expect(Math.abs(actual.getTime() - expected.getTime())).toBeLessThanOrEqual(toleranceMs);
+}
+
+describe("dal RateLimit", () => {
+  describe("consumeRateLimit", () => {
+    it("lets the first attempt through and opens a window that starts now with one attempt", async () => {
+      const allowed = await consumeRateLimit(KEY, 5, WINDOW);
+
+      const row = await rowOf(KEY);
+      expect(allowed).toBe(true);
+      expect(row.count).toBe(1);
+      expectCloseTo(row.windowStart, await databaseNow());
+    });
+
+    it("lets through up to max attempts in the window, counting the current one, and refuses the next", async () => {
+      expect(await attempts(KEY, 4, 3)).toEqual([true, true, true, false]);
+    });
+
+    it("keeps counting the attempts over the limit", async () => {
+      const results = await attempts(KEY, 7, 5);
+
+      expect(results).toEqual([true, true, true, true, true, false, false]);
+      expect((await rowOf(KEY)).count).toBe(7);
+    });
+
+    it("keeps the start of the window while attempts land inside it", async () => {
+      await consumeRateLimit(KEY, 5, WINDOW);
+      const { windowStart } = await rowOf(KEY);
+
+      await attempts(KEY, 3, 5);
+
+      const row = await rowOf(KEY);
+      expect(row.count).toBe(4);
+      expect(row.windowStart).toEqual(windowStart);
+    });
+
+    it("still refuses an exhausted key shortly before its window ends", async () => {
+      await attempts(KEY, 5, 5);
+      await ageWindow(KEY, WINDOW - 60);
+
+      expect(await consumeRateLimit(KEY, 5, WINDOW)).toBe(false);
+      expect((await rowOf(KEY)).count).toBe(6);
+    });
+
+    it("starts a new window once the old one is over, with this attempt as its first", async () => {
+      await attempts(KEY, 8, 5);
+      await ageWindow(KEY, WINDOW + 1);
+
+      const allowed = await consumeRateLimit(KEY, 5, WINDOW);
+
+      const row = await rowOf(KEY);
+      expect(allowed).toBe(true);
+      expect(row.count).toBe(1);
+      expectCloseTo(row.windowStart, await databaseNow());
+    });
+
+    it("starts a new window when the old one started exactly windowSeconds ago", async () => {
+      await attempts(KEY, 5, 5);
+      await ageWindow(KEY, WINDOW);
+
+      expect(await consumeRateLimit(KEY, 5, WINDOW)).toBe(true);
+      expect((await rowOf(KEY)).count).toBe(1);
+    });
+
+    it("counts normally again in the new window, up to max", async () => {
+      await attempts(KEY, 6, 3, 3600);
+      await ageWindow(KEY, 3600 + 1);
+
+      expect(await attempts(KEY, 4, 3, 3600)).toEqual([true, true, true, false]);
+      expect((await rowOf(KEY)).count).toBe(4);
+    });
+
+    it("measures the window with the windowSeconds of the call", async () => {
+      await attempts(KEY, 3, 3, 3600);
+      await ageWindow(KEY, 1000);
+
+      // 1000 seconds is past a 900-second window but inside a 3600-second one.
+      expect(await consumeRateLimit(KEY, 3, 3600)).toBe(false);
+      expect(await consumeRateLimit(KEY, 3, 900)).toBe(true);
+      expect((await rowOf(KEY)).count).toBe(1);
+    });
+
+    it("keeps every key on its own", async () => {
+      await attempts("signin:ip:a", 6, 5);
+
+      expect(await consumeRateLimit("signin:ip:b", 5, WINDOW)).toBe(true);
+      expect(await consumeRateLimit("signin:email:a", 5, WINDOW)).toBe(true);
+      expect((await rowOf("signin:ip:a")).count).toBe(6);
+      expect((await rowOf("signin:ip:b")).count).toBe(1);
+      expect((await rowOf("signin:email:a")).count).toBe(1);
+    });
+
+    it("stores the key exactly as given, in one row", async () => {
+      const key = "passwordReset:email:AbC 123/ü";
+
+      await attempts(key, 2, 5);
+
+      const rows = await prisma.rateLimit.findMany();
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({ count: 2, key });
+    });
+
+    it("lets exactly max of many concurrent first attempts through and counts them all", async () => {
+      const results = await Promise.all(Array.from({ length: 12 }, () => consumeRateLimit(KEY, 5, WINDOW)));
+
+      expect(results.filter(Boolean)).toHaveLength(5);
+      expect((await rowOf(KEY)).count).toBe(12);
+      expect(await prisma.rateLimit.count()).toBe(1);
+    });
+
+    it("lets exactly max of many concurrent attempts through on a key already counting", async () => {
+      await attempts(KEY, 2, 5);
+
+      const results = await Promise.all(Array.from({ length: 10 }, () => consumeRateLimit(KEY, 5, WINDOW)));
+
+      expect(results.filter(Boolean)).toHaveLength(3);
+      expect((await rowOf(KEY)).count).toBe(12);
+    });
+
+    it("lets exactly max of many concurrent attempts through when they open a new window together", async () => {
+      await attempts(KEY, 9, 5);
+      await ageWindow(KEY, WINDOW + 1);
+
+      const results = await Promise.all(Array.from({ length: 10 }, () => consumeRateLimit(KEY, 5, WINDOW)));
+
+      expect(results.filter(Boolean)).toHaveLength(5);
+      expect((await rowOf(KEY)).count).toBe(10);
+    });
+  });
+});

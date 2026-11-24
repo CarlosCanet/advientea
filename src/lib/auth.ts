@@ -8,6 +8,9 @@ import { prisma } from "@/lib/prisma";
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, { provider: "postgresql" }),
+  // The app signs in and up through Server Actions, which call auth.api; the HTTP routes would be a second
+  // door without the app's rate limit and validation.
+  disabledPaths: ["/sign-in/email", "/sign-up/email", "/request-password-reset", "/reset-password"],
   emailAndPassword: {
     enabled: true,
   },

@@ -17,3 +17,10 @@ export class ConflictError extends Error {
     this.name = "ConflictError";
   }
 }
+
+export class RateLimitError extends Error {
+  constructor(message: string = "Demasiados intentos. Espera unos minutos y vuelve a intentarlo.") {
+    super(message);
+    this.name = "RateLimitError";
+  }
+}

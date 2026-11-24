@@ -64,6 +64,7 @@ const { DAL_FUNCTIONS, GUARDS, prismaTouched } = vi.hoisted(() => ({
     "addTea",
     "changeEditionStatus",
     "changeUserRole",
+    "consumeRateLimit",
     "createEdition",
     "createTeaGuess",
     "deleteDay",
