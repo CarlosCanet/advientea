@@ -258,5 +258,7 @@ model Edition {
 model RateLimit {
   key         String   @id
   count       Int
-  windowStart DateTime
+  windowStart DateTime @db.Timestamptz(3)
+
+  @@index([windowStart])
 }

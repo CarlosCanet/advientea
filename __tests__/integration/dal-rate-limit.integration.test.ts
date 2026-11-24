@@ -60,6 +60,34 @@ function expectCloseTo(actual: Date, expected: Date, toleranceMs = 5000) {
 }
 
 describe("dal RateLimit", () => {
+  describe("table", () => {
+    it("stores windowStart as timestamp with time zone, so the window does not depend on the session TimeZone", async () => {
+      const columns = await prisma.$queryRaw<{ data_type: string }[]>`
+        SELECT data_type
+        FROM information_schema.columns
+        WHERE table_schema = current_schema() AND table_name = 'RateLimit' AND column_name = 'windowStart'
+      `;
+
+      expect(columns).toEqual([{ data_type: "timestamp with time zone" }]);
+    });
+
+    it("has an index led by windowStart, for the pruning of old rows", async () => {
+      const indexes = await prisma.$queryRaw<{ name: string }[]>`
+        SELECT index_class.relname AS name
+        FROM pg_index
+        JOIN pg_class table_class ON table_class.oid = pg_index.indrelid
+        JOIN pg_namespace ON pg_namespace.oid = table_class.relnamespace
+        JOIN pg_class index_class ON index_class.oid = pg_index.indexrelid
+        JOIN pg_attribute ON pg_attribute.attrelid = table_class.oid AND pg_attribute.attnum = pg_index.indkey[0]
+        WHERE pg_namespace.nspname = current_schema()
+          AND table_class.relname = 'RateLimit'
+          AND pg_attribute.attname = 'windowStart'
+      `;
+
+      expect(indexes.length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
   describe("consumeRateLimit", () => {
     it("lets the first attempt through and opens a window that starts now with one attempt", async () => {
       const allowed = await consumeRateLimit(KEY, 5, WINDOW);

@@ -3,10 +3,11 @@ import { redirect } from "next/navigation";
 import { inspect } from "node:util";
 import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from "vitest";
 
-import { signin, signup } from "@/app/actions/authActions";
+import { signin, signup, updateUserProfile } from "@/app/actions/authActions";
 import { auth } from "@/lib/auth";
-import { uploadImage } from "@/lib/cloudinary";
-import { RateLimitError } from "@/lib/errors";
+import { deleteAsset, uploadImage } from "@/lib/cloudinary";
+import { editUser, requireSession } from "@/lib/dal";
+import { RateLimitError, UnauthenticatedError } from "@/lib/errors";
 import { assertWithinRateLimit, getClientIP } from "@/lib/services/rate-limit-service";
 import { createUser } from "@/lib/services/user-service";
 
@@ -335,5 +336,167 @@ describe("signup", () => {
       expect.objectContaining({ email: EMAIL, password: "Secreto123!", username: "Ana" }),
     );
     expect(redirect).toHaveBeenCalledWith("/");
+  });
+});
+
+describe("updateUserProfile", () => {
+  const USER_ID = "user-1";
+  const OLD_AVATAR = "advientea-local/avatars/old";
+  const NEW_AVATAR = "advientea-local/avatars/new";
+  const PROFILE_FAILED = "No se pudo actualizar el perfil. Inténtalo de nuevo.";
+  const INITIAL_STATE = { message: "", success: false };
+  const session = {
+    isAuth: true as const,
+    role: "USER" as const,
+    user: { email: EMAIL, id: USER_ID, image: OLD_AVATAR, name: "Ana", username: "Ana" },
+    userId: USER_ID,
+  };
+  type Session = Awaited<ReturnType<typeof requireSession>>;
+  type ProfileField = "currentPassword" | "newPassword" | "newPasswordConfirmation" | "username";
+
+  function avatarFile() {
+    return new File([new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])], "avatar.png", {
+      type: "image/png",
+    });
+  }
+
+  /** A profile form as the page sends it: the password fields always present, empty when unchanged. */
+  function profileForm(fields: Partial<Record<ProfileField, string>> = {}, image: File = avatarFile()) {
+    const formData = new FormData();
+    const values = { currentPassword: "", newPassword: "", newPasswordConfirmation: "", username: "Ana", ...fields };
+    for (const [key, value] of Object.entries(values)) {
+      formData.append(key, value);
+    }
+    formData.append("image", image);
+    return formData;
+  }
+
+  function passwordChangeForm(image?: File) {
+    return profileForm(
+      { currentPassword: "Actual123!", newPassword: "Nueva123!", newPasswordConfirmation: "Nueva123!" },
+      image,
+    );
+  }
+
+  function expectNothingChanged() {
+    expect(uploadImage).not.toHaveBeenCalled();
+    expect(auth.api.changePassword).not.toHaveBeenCalled();
+    expect(editUser).not.toHaveBeenCalled();
+    expect(deleteAsset).not.toHaveBeenCalled();
+  }
+
+  beforeEach(() => {
+    vi.mocked(requireSession).mockResolvedValue(session as unknown as Session);
+    vi.mocked(uploadImage).mockResolvedValue(NEW_AVATAR);
+    vi.mocked(auth.api.changePassword).mockResolvedValue({ token: null, user: {} } as never);
+    vi.mocked(editUser).mockResolvedValue({ id: USER_ID, image: NEW_AVATAR, username: "Ana" } as never);
+  });
+
+  it("checks the changePassword rate limit with the session's user id only, when the password changes", async () => {
+    await updateUserProfile(INITIAL_STATE, passwordChangeForm()).catch(() => undefined);
+
+    expect(vi.mocked(assertWithinRateLimit).mock.calls).toStrictEqual([["changePassword", { userId: USER_ID }]]);
+  });
+
+  it("checks the rate limit before uploading the avatar and before changing the password", async () => {
+    await updateUserProfile(INITIAL_STATE, passwordChangeForm()).catch(() => undefined);
+
+    const limiterCall = vi.mocked(assertWithinRateLimit).mock.invocationCallOrder[0];
+    expect(uploadImage).toHaveBeenCalled();
+    expect(auth.api.changePassword).toHaveBeenCalled();
+    expect(limiterCall).toBeLessThan(vi.mocked(uploadImage).mock.invocationCallOrder[0]);
+    expect(limiterCall).toBeLessThan(vi.mocked(auth.api.changePassword).mock.invocationCallOrder[0]);
+  });
+
+  it("never checks the rate limit for a profile update that keeps the password", async () => {
+    await updateUserProfile(INITIAL_STATE, profileForm({ username: "Ana María" })).catch(() => undefined);
+
+    expect(uploadImage).toHaveBeenCalled();
+    expect(assertWithinRateLimit).not.toHaveBeenCalled();
+  });
+
+  it("never checks the rate limit when only the current password is filled in", async () => {
+    await updateUserProfile(INITIAL_STATE, profileForm({ currentPassword: "Actual123!" })).catch(() => undefined);
+
+    expect(assertWithinRateLimit).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [
+      "the new password is too weak",
+      { currentPassword: "Actual123!", newPassword: "corta", newPasswordConfirmation: "corta" },
+    ],
+    [
+      "the confirmation does not match",
+      { currentPassword: "Actual123!", newPassword: "Nueva123!", newPasswordConfirmation: "Otra123!" },
+    ],
+    ["the current password is missing", { newPassword: "Nueva123!", newPasswordConfirmation: "Nueva123!" }],
+  ])("never checks the rate limit for an invalid form: %s", async (_reason, fields) => {
+    const result = await updateUserProfile(INITIAL_STATE, profileForm(fields));
+
+    expect(result.success).toBe(false);
+    expect(assertWithinRateLimit).not.toHaveBeenCalled();
+    expectNothingChanged();
+  });
+
+  it("never checks the rate limit without a session", async () => {
+    vi.mocked(requireSession).mockRejectedValue(new UnauthenticatedError());
+
+    await updateUserProfile(INITIAL_STATE, passwordChangeForm()).catch(() => undefined);
+
+    expect(assertWithinRateLimit).not.toHaveBeenCalled();
+    expectNothingChanged();
+  });
+
+  describe("when the attempt is rate-limited", () => {
+    beforeEach(() => {
+      vi.mocked(assertWithinRateLimit).mockRejectedValue(new RateLimitError(TOO_MANY));
+    });
+
+    it("answers with the limiter's message and changes nothing: no upload, no password, no user, no delete", async () => {
+      const result = await updateUserProfile(INITIAL_STATE, passwordChangeForm());
+
+      expect(result).toEqual({ message: TOO_MANY, success: false });
+      expectNothingChanged();
+    });
+
+    it("answers with whatever message the rate limiter threw", async () => {
+      const thrown = "Mensaje de prueba del limitador";
+      vi.mocked(assertWithinRateLimit).mockRejectedValue(new RateLimitError(thrown));
+
+      const result = await updateUserProfile(INITIAL_STATE, passwordChangeForm());
+
+      expect(result).toEqual({ message: thrown, success: false });
+    });
+
+    it("logs it as an expected rejection with console.warn, not console.error", async () => {
+      await updateUserProfile(INITIAL_STATE, passwordChangeForm());
+
+      expect(warn).toHaveBeenCalled();
+      const warned = loggedText(warn);
+      expect(warned).toContain("[updateUserProfile] rejected");
+      expect(warned).toContain("RateLimitError");
+      expect(warned).toContain(TOO_MANY);
+      expect(error).not.toHaveBeenCalled();
+    });
+  });
+
+  describe.each(LIMITER_FAILURES)("when the rate limiter fails because %s", (_reason, failure) => {
+    beforeEach(() => {
+      vi.mocked(assertWithinRateLimit).mockRejectedValue(failure);
+    });
+
+    it("answers the generic message and changes nothing", async () => {
+      const result = await updateUserProfile(INITIAL_STATE, passwordChangeForm());
+
+      expect(result).toMatchObject({ message: PROFILE_FAILED, success: false });
+      expectNothingChanged();
+    });
+
+    it("logs the failure with console.error", async () => {
+      await updateUserProfile(INITIAL_STATE, passwordChangeForm());
+
+      expect(error).toHaveBeenCalled();
+    });
   });
 });

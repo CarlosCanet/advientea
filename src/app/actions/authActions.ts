@@ -211,6 +211,11 @@ export async function updateUserProfile(
       };
     }
 
+    if (validatedFields.data.currentPassword && validatedFields.data.newPassword) {
+      // Before the avatar upload, so a refused attempt leaves no orphan asset behind.
+      await assertWithinRateLimit("changePassword", { userId: session.userId });
+    }
+
     // The avatar goes up first: a failed upload changes nothing, while a password change cannot be undone.
     if (validatedFields.data.image) {
       newImageId = (await uploadImage(validatedFields.data.image, { kind: "avatars" })) ?? null;
@@ -248,7 +253,8 @@ export async function updateUserProfile(
       typeof error.body?.code === "string" &&
       error.body.code.startsWith("INVALID_PASSWORD");
     const isDuplicateUsername = error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
-    if (isGuardError || isWrongPassword || isDuplicateUsername) {
+    const isRateLimited = error instanceof RateLimitError;
+    if (isGuardError || isWrongPassword || isDuplicateUsername || isRateLimited) {
       console.warn(`[updateUserProfile] rejected: ${error.name} — ${error.message}`);
     } else {
       console.error("[updateUserProfile] unexpected error", error);
@@ -257,7 +263,7 @@ export async function updateUserProfile(
       await deleteAsset(newImageId);
     }
     let message = "No se pudo actualizar el perfil. Inténtalo de nuevo.";
-    if (isGuardError) message = error.message;
+    if (isGuardError || isRateLimited) message = error.message;
     else if (isWrongPassword) message = "La contraseña actual no es correcta.";
     else if (isDuplicateUsername) message = "Ese nombre de usuario ya está en uso.";
     if (passwordChanged) message = `Contraseña actualizada, pero el resto del perfil no se pudo guardar: ${message}`;
