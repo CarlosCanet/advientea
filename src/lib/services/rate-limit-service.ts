@@ -10,10 +10,16 @@ interface RateLimitRule {
   windowSeconds: number;
 }
 
-const RATE_LIMITS: Record<RateLimitAction, { email?: RateLimitRule; ip: RateLimitRule }> = {
-  passwordReset: { email: { max: 3, windowSeconds: 3600 }, ip: { max: 3, windowSeconds: 3600 } },
+const HOUR_WINDOW_MESSAGE = "Demasiados intentos. Vuelve a intentarlo dentro de una hora.";
+
+const RATE_LIMITS: Record<RateLimitAction, { email?: RateLimitRule; ip: RateLimitRule; message?: string }> = {
+  passwordReset: {
+    email: { max: 3, windowSeconds: 3600 },
+    ip: { max: 3, windowSeconds: 3600 },
+    message: HOUR_WINDOW_MESSAGE,
+  },
   signin: { email: { max: 5, windowSeconds: 900 }, ip: { max: 10, windowSeconds: 900 } },
-  signup: { ip: { max: 5, windowSeconds: 3600 } },
+  signup: { ip: { max: 5, windowSeconds: 3600 }, message: HOUR_WINDOW_MESSAGE },
 };
 
 export async function getClientIP(): Promise<null | string> {
@@ -42,14 +48,11 @@ export async function assertWithinRateLimit(
     checks.push({ key: toKey("email", email), rule: rules.email });
   }
 
-  // Every rule is consumed, even after one is exhausted: each attempt has to count against all of them.
-  let allowed = true;
+  // Stop at the first refusal: a refused attempt never reaches better-auth, so counting it against the other
+  // rules protects nothing and would let one IP spend every account's email budget.
   for (const { key, rule } of checks) {
     if (!(await consumeRateLimit(key, rule.max, rule.windowSeconds))) {
-      allowed = false;
+      throw new RateLimitError(rules.message);
     }
-  }
-  if (!allowed) {
-    throw new RateLimitError();
   }
 }

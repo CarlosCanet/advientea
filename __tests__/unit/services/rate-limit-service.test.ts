@@ -16,6 +16,7 @@ vi.mock("next/headers", () => ({ headers: vi.fn() }));
 const SECRET = "unit-test-secret";
 const IP = "203.0.113.7";
 const TOO_MANY = "Demasiados intentos. Espera unos minutos y vuelve a intentarlo.";
+const TOO_MANY_HOUR = "Demasiados intentos. Vuelve a intentarlo dentro de una hora.";
 
 function hmac(value: string, secret = SECRET) {
   return createHmac("sha256", secret).update(value).digest("hex");
@@ -39,6 +40,14 @@ describe("RateLimitError", () => {
     expect(error).toBeInstanceOf(Error);
     expect(error.name).toBe("RateLimitError");
     expect(error.message).toBe(TOO_MANY);
+  });
+
+  it("keeps a custom message", () => {
+    const error = new RateLimitError(TOO_MANY_HOUR);
+
+    expect(error).toBeInstanceOf(RateLimitError);
+    expect(error.name).toBe("RateLimitError");
+    expect(error.message).toBe(TOO_MANY_HOUR);
   });
 });
 
@@ -75,6 +84,8 @@ describe("getClientIP", () => {
 describe("assertWithinRateLimit", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // clearAllMocks keeps queued Once answers; a test that stops at the first refusal leaves some unconsumed.
+    consumeRateLimit.mockReset();
     vi.stubEnv("BETTER_AUTH_SECRET", SECRET);
     consumeRateLimit.mockResolvedValue(true);
   });
@@ -120,8 +131,19 @@ describe("assertWithinRateLimit", () => {
       }
     });
 
-    it("throws RateLimitError when the ip rule is exceeded, and still consumes the email rule", async () => {
+    it("throws RateLimitError when the ip rule is exceeded, and stops there without consuming the email rule", async () => {
       rulesAnswer(false, true);
+
+      const attempt = assertWithinRateLimit("signin", { email: "ana@example.com", ip: IP });
+
+      await expect(attempt).rejects.toBeInstanceOf(RateLimitError);
+      await expect(attempt).rejects.toThrow(TOO_MANY);
+      expect(consumeRateLimit).toHaveBeenCalledOnce();
+      expect(consumeRateLimit).toHaveBeenCalledWith(`signin:ip:${hmac(IP)}`, 10, 900);
+    });
+
+    it("throws RateLimitError with the signin message when only the email rule is exceeded", async () => {
+      rulesAnswer(true, false);
 
       const attempt = assertWithinRateLimit("signin", { email: "ana@example.com", ip: IP });
 
@@ -130,21 +152,20 @@ describe("assertWithinRateLimit", () => {
       expect(consumeRateLimit).toHaveBeenCalledTimes(2);
     });
 
-    it("throws RateLimitError when only the email rule is exceeded", async () => {
-      rulesAnswer(true, false);
-
-      await expect(assertWithinRateLimit("signin", { email: "ana@example.com", ip: IP })).rejects.toBeInstanceOf(
-        RateLimitError,
-      );
-      expect(consumeRateLimit).toHaveBeenCalledTimes(2);
-    });
-
-    it("throws RateLimitError when both rules are exceeded", async () => {
+    it("throws RateLimitError when both rules would refuse, consuming only the ip rule", async () => {
       rulesAnswer(false, false);
 
       await expect(assertWithinRateLimit("signin", { email: "ana@example.com", ip: IP })).rejects.toBeInstanceOf(
         RateLimitError,
       );
+      expect(consumeRateLimit).toHaveBeenCalledOnce();
+    });
+
+    it("refuses on the email rule alone when there is no ip", async () => {
+      rulesAnswer(false);
+
+      await expect(assertWithinRateLimit("signin", { email: "ana@example.com", ip: null })).rejects.toThrow(TOO_MANY);
+      expect(consumeRateLimit).toHaveBeenCalledOnce();
     });
 
     it("skips the ip rule when there is no ip", async () => {
@@ -180,10 +201,13 @@ describe("assertWithinRateLimit", () => {
       expect(consumeRateLimit).toHaveBeenCalledWith(`signup:ip:${hmac(IP)}`, 5, 3600);
     });
 
-    it("throws RateLimitError when the ip rule is exceeded", async () => {
+    it("throws RateLimitError with the one-hour message when the ip rule is exceeded", async () => {
       rulesAnswer(false);
 
-      await expect(assertWithinRateLimit("signup", { ip: IP })).rejects.toBeInstanceOf(RateLimitError);
+      const attempt = assertWithinRateLimit("signup", { ip: IP });
+
+      await expect(attempt).rejects.toBeInstanceOf(RateLimitError);
+      await expect(attempt).rejects.toThrow(TOO_MANY_HOUR);
     });
 
     it("consumes nothing and resolves when there is no ip", async () => {
@@ -202,12 +226,25 @@ describe("assertWithinRateLimit", () => {
       expect(consumeRateLimit).toHaveBeenNthCalledWith(2, `passwordReset:email:${hmac("ana@example.com")}`, 3, 3600);
     });
 
-    it("throws RateLimitError when the email rule is exceeded", async () => {
+    it("throws RateLimitError with the one-hour message when the email rule is exceeded", async () => {
       rulesAnswer(true, false);
 
-      await expect(assertWithinRateLimit("passwordReset", { email: "ana@example.com", ip: IP })).rejects.toBeInstanceOf(
-        RateLimitError,
-      );
+      const attempt = assertWithinRateLimit("passwordReset", { email: "ana@example.com", ip: IP });
+
+      await expect(attempt).rejects.toBeInstanceOf(RateLimitError);
+      await expect(attempt).rejects.toThrow(TOO_MANY_HOUR);
+      expect(consumeRateLimit).toHaveBeenCalledTimes(2);
+    });
+
+    it("throws RateLimitError with the one-hour message when the ip rule is exceeded, without consuming the email rule", async () => {
+      rulesAnswer(false, true);
+
+      const attempt = assertWithinRateLimit("passwordReset", { email: "ana@example.com", ip: IP });
+
+      await expect(attempt).rejects.toBeInstanceOf(RateLimitError);
+      await expect(attempt).rejects.toThrow(TOO_MANY_HOUR);
+      expect(consumeRateLimit).toHaveBeenCalledOnce();
+      expect(consumeRateLimit).toHaveBeenCalledWith(`passwordReset:ip:${hmac(IP)}`, 3, 3600);
     });
   });
 

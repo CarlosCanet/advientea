@@ -48,6 +48,7 @@ vi.mock("next/headers", () => ({
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
 const TOO_MANY = "Demasiados intentos. Espera unos minutos y vuelve a intentarlo.";
+const TOO_MANY_HOUR = "Demasiados intentos. Vuelve a intentarlo dentro de una hora.";
 const WRONG_CREDENTIALS = "Usuario o contraseña incorrectos";
 const SIGNIN_FAILED = "No se pudo iniciar sesión. Inténtalo de nuevo.";
 const SIGNUP_FAILED = "No se pudo crear la cuenta. Inténtalo de nuevo.";
@@ -137,7 +138,7 @@ describe("signin", () => {
   });
 
   it("refuses a rate-limited attempt without signing in or redirecting", async () => {
-    vi.mocked(assertWithinRateLimit).mockRejectedValue(new RateLimitError());
+    vi.mocked(assertWithinRateLimit).mockRejectedValue(new RateLimitError(TOO_MANY));
 
     const result = await signin(null, signinForm());
 
@@ -146,8 +147,17 @@ describe("signin", () => {
     expect(redirect).not.toHaveBeenCalled();
   });
 
+  it("answers with the message the rate limiter threw", async () => {
+    const thrown = "Mensaje de prueba del limitador";
+    vi.mocked(assertWithinRateLimit).mockRejectedValue(new RateLimitError(thrown));
+
+    const result = await signin(null, signinForm());
+
+    expect(result).toEqual({ errors: { password: [thrown] }, message: thrown, success: false });
+  });
+
   it("keeps the email and the ip out of the logs when an attempt is rate-limited", async () => {
-    vi.mocked(assertWithinRateLimit).mockRejectedValue(new RateLimitError());
+    vi.mocked(assertWithinRateLimit).mockRejectedValue(new RateLimitError(TOO_MANY));
 
     await signin(null, signinForm());
 
@@ -249,18 +259,27 @@ describe("signup", () => {
   });
 
   it("refuses a rate-limited attempt without creating the account or uploading anything", async () => {
-    vi.mocked(assertWithinRateLimit).mockRejectedValue(new RateLimitError());
+    vi.mocked(assertWithinRateLimit).mockRejectedValue(new RateLimitError(TOO_MANY_HOUR));
 
     const result = await signup(null, signupForm());
 
-    expect(result).toEqual({ errors: { errors: [TOO_MANY] }, message: TOO_MANY, success: false });
+    expect(result).toEqual({ errors: { errors: [TOO_MANY_HOUR] }, message: TOO_MANY_HOUR, success: false });
     expect(createUser).not.toHaveBeenCalled();
     expect(uploadImage).not.toHaveBeenCalled();
     expect(redirect).not.toHaveBeenCalled();
   });
 
+  it("answers with the message the rate limiter threw", async () => {
+    const thrown = "Mensaje de prueba del limitador";
+    vi.mocked(assertWithinRateLimit).mockRejectedValue(new RateLimitError(thrown));
+
+    const result = await signup(null, signupForm());
+
+    expect(result).toEqual({ errors: { errors: [thrown] }, message: thrown, success: false });
+  });
+
   it("keeps the email and the ip out of the logs when an attempt is rate-limited", async () => {
-    vi.mocked(assertWithinRateLimit).mockRejectedValue(new RateLimitError());
+    vi.mocked(assertWithinRateLimit).mockRejectedValue(new RateLimitError(TOO_MANY_HOUR));
 
     await signup(null, signupForm());
 

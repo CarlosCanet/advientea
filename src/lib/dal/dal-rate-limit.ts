@@ -15,5 +15,15 @@ export async function consumeRateLimit(key: string, max: number, windowSeconds: 
       END
     RETURNING "count"
   `;
-  return rows[0].count <= max;
+  const count = rows[0].count;
+  // Pruning only when a window opens keeps the table bounded without a cron and spares the hot increments.
+  if (count === 1) {
+    try {
+      await prisma.$executeRaw`DELETE FROM "RateLimit" WHERE "windowStart" < now() - interval '24 hours'`;
+    } catch (error) {
+      // A failed cleanup only leaves stale rows behind; the attempt has already been counted.
+      console.error("[consumeRateLimit] stale row cleanup failed", error);
+    }
+  }
+  return count <= max;
 }

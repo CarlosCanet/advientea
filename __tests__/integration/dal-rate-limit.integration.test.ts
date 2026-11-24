@@ -1,10 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { consumeRateLimit } from "@/lib/dal";
 import { prisma } from "@/lib/prisma";
 
 const KEY = "signin:ip:test-key";
 const WINDOW = 900;
+const HOUR = 3600;
 
 /** The database clock: the window is measured against it, never against the test process. */
 async function databaseNow(): Promise<Date> {
@@ -23,6 +24,27 @@ async function ageWindow(key: string, seconds: number) {
     data: { windowStart: new Date(windowStart.getTime() - seconds * 1000) },
     where: { key },
   });
+}
+
+/** Sets the start of the window of `key` to `seconds` before the database's now, whatever it held. */
+async function setWindowAge(key: string, seconds: number) {
+  const now = await databaseNow();
+  await prisma.rateLimit.update({
+    data: { windowStart: new Date(now.getTime() - seconds * 1000) },
+    where: { key },
+  });
+}
+
+/** Writes a row straight into the table, its window started `seconds` before the database's now. */
+async function seedRow(key: string, seconds: number, count = 1) {
+  const now = await databaseNow();
+  await prisma.rateLimit.create({ data: { count, key, windowStart: new Date(now.getTime() - seconds * 1000) } });
+}
+
+/** Every stored key, sorted in JavaScript so the database collation does not decide the order. */
+async function storedKeys(): Promise<string[]> {
+  const rows = await prisma.rateLimit.findMany({ select: { key: true } });
+  return rows.map(({ key }) => key).sort();
 }
 
 async function attempts(key: string, times: number, max: number, windowSeconds = WINDOW): Promise<boolean[]> {
@@ -90,12 +112,25 @@ describe("dal RateLimit", () => {
       expectCloseTo(row.windowStart, await databaseNow());
     });
 
-    it("starts a new window when the old one started exactly windowSeconds ago", async () => {
+    it("keeps the window one second before windowSeconds have passed", async () => {
       await attempts(KEY, 5, 5);
-      await ageWindow(KEY, WINDOW);
+      await setWindowAge(KEY, WINDOW - 1);
+      const { windowStart } = await rowOf(KEY);
+
+      expect(await consumeRateLimit(KEY, 5, WINDOW)).toBe(false);
+      const row = await rowOf(KEY);
+      expect(row.count).toBe(6);
+      expect(row.windowStart).toEqual(windowStart);
+    });
+
+    it("starts a new window one second after windowSeconds have passed", async () => {
+      await attempts(KEY, 5, 5);
+      await setWindowAge(KEY, WINDOW + 1);
 
       expect(await consumeRateLimit(KEY, 5, WINDOW)).toBe(true);
-      expect((await rowOf(KEY)).count).toBe(1);
+      const row = await rowOf(KEY);
+      expect(row.count).toBe(1);
+      expectCloseTo(row.windowStart, await databaseNow());
     });
 
     it("counts normally again in the new window, up to max", async () => {
@@ -161,6 +196,96 @@ describe("dal RateLimit", () => {
 
       expect(results.filter(Boolean)).toHaveLength(5);
       expect((await rowOf(KEY)).count).toBe(10);
+    });
+  });
+
+  describe("pruning of old rows", () => {
+    const STALE = ["signin:ip:stale-25h", "signup:ip:stale-24h1m"];
+    const RECENT = ["passwordReset:email:recent-23h", "signin:email:recent-23h59m"];
+
+    /** Two rows whose window started more than 24 hours ago and two that started less than 24 hours ago. */
+    async function seedOldAndRecentRows() {
+      await seedRow(STALE[0], 25 * HOUR, 7);
+      await seedRow(STALE[1], 24 * HOUR + 60, 2);
+      await seedRow(RECENT[0], 23 * HOUR, 3);
+      await seedRow(RECENT[1], 24 * HOUR - 60, 4);
+    }
+
+    /** Makes every DELETE on the table fail, until the afterEach below drops the trigger again. */
+    async function refuseEveryDelete() {
+      await prisma.$executeRawUnsafe(`
+        CREATE FUNCTION rate_limit_test_refuse_delete() RETURNS trigger LANGUAGE plpgsql AS $$
+        BEGIN
+          RAISE EXCEPTION 'delete refused by the test';
+        END;
+        $$
+      `);
+      await prisma.$executeRawUnsafe(`
+        CREATE TRIGGER rate_limit_test_refuse_delete BEFORE DELETE ON "RateLimit"
+        FOR EACH STATEMENT EXECUTE FUNCTION rate_limit_test_refuse_delete()
+      `);
+    }
+
+    afterEach(async () => {
+      await prisma.$executeRawUnsafe(`DROP TRIGGER IF EXISTS rate_limit_test_refuse_delete ON "RateLimit"`);
+      await prisma.$executeRawUnsafe(`DROP FUNCTION IF EXISTS rate_limit_test_refuse_delete()`);
+      vi.restoreAllMocks();
+    });
+
+    it("deletes the rows older than 24 hours when a new key opens its window, and keeps the recent ones", async () => {
+      await seedOldAndRecentRows();
+
+      expect(await consumeRateLimit(KEY, 5, WINDOW)).toBe(true);
+
+      expect(await storedKeys()).toEqual([KEY, ...RECENT].sort());
+      expect((await rowOf(RECENT[0])).count).toBe(3);
+      expect((await rowOf(RECENT[1])).count).toBe(4);
+      expect((await rowOf(KEY)).count).toBe(1);
+    });
+
+    it("deletes the rows older than 24 hours when an expired window restarts", async () => {
+      await attempts(KEY, 6, 5);
+      await setWindowAge(KEY, WINDOW + 1);
+      await seedOldAndRecentRows();
+
+      expect(await consumeRateLimit(KEY, 5, WINDOW)).toBe(true);
+
+      expect(await storedKeys()).toEqual([KEY, ...RECENT].sort());
+      expect((await rowOf(KEY)).count).toBe(1);
+    });
+
+    it("deletes nothing while an attempt lands inside an open window", async () => {
+      await consumeRateLimit(KEY, 5, WINDOW);
+      await seedOldAndRecentRows();
+
+      expect(await consumeRateLimit(KEY, 5, WINDOW)).toBe(true);
+      expect(await consumeRateLimit(KEY, 5, WINDOW)).toBe(true);
+
+      expect(await storedKeys()).toEqual([KEY, ...STALE, ...RECENT].sort());
+      expect((await rowOf(KEY)).count).toBe(3);
+    });
+
+    it("deletes nothing on an over-limit attempt inside an open window", async () => {
+      await attempts(KEY, 5, 5);
+      await seedOldAndRecentRows();
+
+      expect(await consumeRateLimit(KEY, 5, WINDOW)).toBe(false);
+
+      expect(await storedKeys()).toEqual([KEY, ...STALE, ...RECENT].sort());
+    });
+
+    it("still records the attempt and answers when the delete fails, and logs the failure", async () => {
+      const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+      await seedOldAndRecentRows();
+      await refuseEveryDelete();
+
+      await expect(consumeRateLimit(KEY, 5, WINDOW)).resolves.toBe(true);
+
+      const row = await rowOf(KEY);
+      expect(row.count).toBe(1);
+      expectCloseTo(row.windowStart, await databaseNow());
+      expect(await storedKeys()).toEqual([KEY, ...STALE, ...RECENT].sort());
+      expect(consoleError).toHaveBeenCalled();
     });
   });
 });
