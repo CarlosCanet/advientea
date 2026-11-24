@@ -10,8 +10,9 @@ import { Role } from "@/generated/prisma/enums";
 import { auth } from "@/lib/auth";
 import { deleteAsset, uploadImage } from "@/lib/cloudinary";
 import { changeUserRole, editUser, requireRole, requireSession } from "@/lib/dal";
-import { ForbiddenError, UnauthenticatedError } from "@/lib/errors";
+import { ForbiddenError, RateLimitError, UnauthenticatedError } from "@/lib/errors";
 import { signupFormSchema, updateProfileFormSchema } from "@/lib/schemas/auth";
+import { assertWithinRateLimit, getClientIP } from "@/lib/services/rate-limit-service";
 import { createUser } from "@/lib/services/user-service";
 import {
   ActionResponse,
@@ -47,6 +48,8 @@ export async function signup(
         success: false,
       };
     }
+    // After validation, so a form with errors costs no attempt.
+    await assertWithinRateLimit("signup", { ip: await getClientIP() });
     // Create the account first: uploading before it exists lets anonymous retries pile up orphan assets.
     const user = await createUser({
       email: validatedFields.data.email,
@@ -65,19 +68,25 @@ export async function signup(
       }
     }
   } catch (error) {
+    const isRateLimited = error instanceof RateLimitError;
     // Match the stable error code, not the message; startsWith covers both USER_ALREADY_EXISTS variants.
     const isDuplicateUser =
       error instanceof APIError &&
       typeof error.body?.code === "string" &&
       error.body.code.startsWith("USER_ALREADY_EXISTS");
-    if (isDuplicateUser) {
+    if (isRateLimited) {
+      console.warn("[signup] rejected: rate limit");
+    } else if (isDuplicateUser) {
       console.warn("[signup] rejected: email already registered");
     } else {
       console.error("[signup] unexpected error", error);
     }
-    const message = isDuplicateUser
-      ? "Ya existe una cuenta con ese email"
-      : "No se pudo crear la cuenta. Inténtalo de nuevo.";
+    let message = "No se pudo crear la cuenta. Inténtalo de nuevo.";
+    if (isRateLimited) {
+      message = error.message;
+    } else if (isDuplicateUser) {
+      message = "Ya existe una cuenta con ese email";
+    }
     return {
       errors: { errors: [message] },
       message,
@@ -92,11 +101,26 @@ export async function signin(
   prevState: null | SignInActionResponse,
   formData: FormData,
 ): Promise<SignInActionResponse> {
+  const rawData: SignInFormData = {
+    email: getFormString(formData, "email"),
+    password: getFormString(formData, "password"),
+  };
+  // Checked on its own: the catch below turns every error into wrong credentials, and a broken limiter must
+  // neither let the attempt through nor pass for a wrong password.
   try {
-    const rawData: SignInFormData = {
-      email: getFormString(formData, "email"),
-      password: getFormString(formData, "password"),
-    };
+    await assertWithinRateLimit("signin", { email: rawData.email, ip: await getClientIP() });
+  } catch (error) {
+    const isRateLimited = error instanceof RateLimitError;
+    if (isRateLimited) {
+      console.warn("[signin] rejected: rate limit");
+    } else {
+      console.error("[signin] rate limit check failed", error);
+    }
+    const message = isRateLimited ? error.message : "No se pudo iniciar sesión. Inténtalo de nuevo.";
+    return { errors: { password: [message] }, message, success: false };
+  }
+
+  try {
     await auth.api.signInEmail({
       body: {
         callbackURL: "/profile",
@@ -187,6 +211,11 @@ export async function updateUserProfile(
       };
     }
 
+    if (validatedFields.data.currentPassword && validatedFields.data.newPassword) {
+      // Before the avatar upload, so a refused attempt leaves no orphan asset behind.
+      await assertWithinRateLimit("changePassword", { userId: session.userId });
+    }
+
     // The avatar goes up first: a failed upload changes nothing, while a password change cannot be undone.
     if (validatedFields.data.image) {
       newImageId = (await uploadImage(validatedFields.data.image, { kind: "avatars" })) ?? null;
@@ -224,7 +253,8 @@ export async function updateUserProfile(
       typeof error.body?.code === "string" &&
       error.body.code.startsWith("INVALID_PASSWORD");
     const isDuplicateUsername = error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
-    if (isGuardError || isWrongPassword || isDuplicateUsername) {
+    const isRateLimited = error instanceof RateLimitError;
+    if (isGuardError || isWrongPassword || isDuplicateUsername || isRateLimited) {
       console.warn(`[updateUserProfile] rejected: ${error.name} — ${error.message}`);
     } else {
       console.error("[updateUserProfile] unexpected error", error);
@@ -233,7 +263,7 @@ export async function updateUserProfile(
       await deleteAsset(newImageId);
     }
     let message = "No se pudo actualizar el perfil. Inténtalo de nuevo.";
-    if (isGuardError) message = error.message;
+    if (isGuardError || isRateLimited) message = error.message;
     else if (isWrongPassword) message = "La contraseña actual no es correcta.";
     else if (isDuplicateUsername) message = "Ese nombre de usuario ya está en uso.";
     if (passwordChanged) message = `Contraseña actualizada, pero el resto del perfil no se pudo guardar: ${message}`;
