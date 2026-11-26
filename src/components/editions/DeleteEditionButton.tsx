@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 import { deleteEditionAction } from "@/app/actions/editionActions";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { Button } from "@/components/ui/button";
+import { toActionResponse } from "@/lib/action-response";
 import { showActionToast } from "@/lib/action-toast";
 
 interface UseDeleteEditionOptions {
@@ -20,7 +21,9 @@ export function useDeleteEdition({ finalFocus, year }: UseDeleteEditionOptions) 
 
   const onConfirm = () => {
     startTransition(async () => {
-      showActionToast(await deleteEditionAction(year));
+      showActionToast(
+        await toActionResponse(deleteEditionAction(year), "No se pudo borrar la edición. Inténtalo de nuevo."),
+      );
     });
   };
 

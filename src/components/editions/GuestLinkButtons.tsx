@@ -8,6 +8,7 @@ import { regenerateGuestLinkAction } from "@/app/actions/editionActions";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { toActionResponse } from "@/lib/action-response";
 import { showActionToast } from "@/lib/action-toast";
 
 interface GuestLinkButtonsProps {
@@ -49,7 +50,12 @@ export function useGuestLink({ finalFocus, name, participationId, token }: UseGu
   const regenerate = () => {
     startTransition(async () => {
       setManualLink(null);
-      showActionToast(await regenerateGuestLinkAction(participationId));
+      showActionToast(
+        await toActionResponse(
+          regenerateGuestLinkAction(participationId),
+          "No se pudo crear un enlace nuevo. Inténtalo de nuevo.",
+        ),
+      );
     });
   };
 

@@ -46,7 +46,7 @@ export default async function EditionsPage() {
                     <ItemContent className="min-w-0">
                       <ItemTitle className="text-lg tabular-nums">
                         <Link
-                          className="rounded-sm font-semibold underline underline-offset-4 focus-visible:focus-ring"
+                          className="rounded-sm font-semibold underline underline-offset-4 focus-visible:focus-ring pointer-coarse:inline-flex pointer-coarse:min-h-11 pointer-coarse:items-center"
                           href={`/editions/${edition.year}`}
                         >
                           {edition.year}

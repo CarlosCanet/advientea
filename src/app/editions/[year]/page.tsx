@@ -34,7 +34,8 @@ import { toParticipantName } from "@/lib/utils";
 const DELETED_ACCOUNT = "Cuenta borrada";
 
 const SECTION_TITLE = "mb-3 text-lg font-semibold";
-const TEXT_LINK = "rounded-sm underline underline-offset-4 focus-visible:focus-ring";
+const TEXT_LINK =
+  "rounded-sm underline underline-offset-4 focus-visible:focus-ring pointer-coarse:inline-flex pointer-coarse:min-h-11 pointer-coarse:items-center";
 
 const ISSUE_ORDER: Array<EditionIssue["kind"]> = [
   "dayOutsideCalendar",
@@ -208,7 +209,8 @@ export default async function EditionPage({ params }: { params: Promise<{ year: 
               participations.length === 0 ? (
                 <p className="text-base">La edición todavía no tiene participantes.</p>
               ) : (
-                <Alert>
+                // Rendered with the page, so not a live region: the registry's role="alert" would announce it.
+                <Alert role={undefined}>
                   <CircleCheck aria-hidden="true" />
                   <AlertTitle>No falta nada.</AlertTitle>
                 </Alert>
@@ -217,7 +219,7 @@ export default async function EditionPage({ params }: { params: Promise<{ year: 
               <ul className="flex flex-col gap-2">
                 {issueGroups.map((group) => (
                   <li key={group.kind}>
-                    <Alert variant="warning">
+                    <Alert role={undefined} variant="warning">
                       <TriangleAlert aria-hidden="true" />
                       <AlertTitle>{ISSUE_TITLES[group.kind](group.items.length)}</AlertTitle>
                       <AlertDescription className="break-words">{group.items.join(", ")}</AlertDescription>
@@ -232,7 +234,12 @@ export default async function EditionPage({ params }: { params: Promise<{ year: 
             aria-labelledby="edition-participants"
             className="min-w-0 xl:col-start-1 xl:row-span-3 xl:row-start-1"
           >
-            <h2 className={SECTION_TITLE} id="edition-participants">
+            {/* Removing a participant with no row left to focus sends focus here. */}
+            <h2
+              className={`${SECTION_TITLE} rounded-sm focus-visible:focus-ring`}
+              id="edition-participants"
+              tabIndex={-1}
+            >
               Participantes ({rows.length})
             </h2>
             {rows.length === 0 ? (
@@ -241,7 +248,13 @@ export default async function EditionPage({ params }: { params: Promise<{ year: 
               <>
                 <ItemGroup className="gap-2 md:hidden">
                   {rows.map((row) => (
-                    <Item className="bg-popover ring-1 ring-foreground/10" key={row.id} role="listitem" size="sm">
+                    <Item
+                      className="bg-popover ring-1 ring-foreground/10"
+                      data-participant-row={row.id}
+                      key={row.id}
+                      role="listitem"
+                      size="sm"
+                    >
                       <ItemContent className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2 text-base leading-snug font-medium">
                           {row.name}
@@ -292,7 +305,7 @@ export default async function EditionPage({ params }: { params: Promise<{ year: 
                     </TableHeader>
                     <TableBody>
                       {rows.map((row) => (
-                        <TableRow key={row.id}>
+                        <TableRow data-participant-row={row.id} key={row.id}>
                           <TableCell className="px-1">
                             <ParticipantDaySelect
                               dayNumber={row.dayNumber}

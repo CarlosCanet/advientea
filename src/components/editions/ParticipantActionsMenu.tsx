@@ -42,7 +42,7 @@ export default function ParticipantActionsMenu({
 }: ParticipantActionsMenuProps) {
   // Menu items are gone by the time a confirmation closes, so focus goes back to the "⋯" button.
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const unenrol = useUnenrolParticipant({ finalFocus: triggerRef, name, participationId, teaName });
+  const unenrol = useUnenrolParticipant({ finalFocus: triggerRef, name, origin: triggerRef, participationId, teaName });
   const link = useGuestLink({ finalFocus: triggerRef, name, participationId, token: guestLink?.token ?? null });
 
   const hasNavigation = dayId !== null || editableTeaId !== null;
@@ -55,7 +55,9 @@ export default function ParticipantActionsMenu({
       <DropdownMenu>
         <DropdownMenuTrigger
           ref={triggerRef}
-          render={<Button aria-label={`Acciones de ${name}`} size="icon-sm" type="button" variant="ghost" />}
+          render={
+            <Button aria-label={`Acciones de ${name}`} data-row-action size="icon-sm" type="button" variant="ghost" />
+          }
         >
           <Ellipsis aria-hidden="true" />
         </DropdownMenuTrigger>

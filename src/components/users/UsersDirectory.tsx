@@ -79,14 +79,13 @@ export default function UsersDirectory({ canChangeRoles, users }: UsersDirectory
                   <ItemTitle className="w-full text-base">
                     <span className="truncate">{user.username}</span>
                   </ItemTitle>
-                  <ItemDescription className="truncate">{user.email}</ItemDescription>
+                  <ItemDescription className="truncate" title={user.email}>
+                    {user.email}
+                  </ItemDescription>
                 </ItemContent>
                 {canChangeRoles && user.role !== Role.ADMIN && (
                   <ItemActions>
-                    <span aria-hidden="true" className="text-sm">
-                      Gerente
-                    </span>
-                    <ManagerRoleSwitch role={user.role} userId={user.id} username={user.username} />
+                    <ManagerRoleSwitch label="Gerente" role={user.role} userId={user.id} username={user.username} />
                   </ItemActions>
                 )}
               </Item>
@@ -97,18 +96,18 @@ export default function UsersDirectory({ canChangeRoles, users }: UsersDirectory
             <Table className="w-full">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-1">Nº</TableHead>
                   <TableHead>Usuario</TableHead>
                   <TableHead>Email</TableHead>
                   {canChangeRoles && <TableHead className="w-1 text-center">Gerente</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {shown.map((user, index) => (
+                {shown.map((user) => (
                   <TableRow key={user.id}>
-                    <TableCell className="text-muted-foreground tabular-nums">{index + 1}</TableCell>
                     <TableCell className="font-medium">{user.username}</TableCell>
-                    <TableCell className="max-w-80 truncate text-muted-foreground">{user.email}</TableCell>
+                    <TableCell className="max-w-80 truncate text-muted-foreground" title={user.email}>
+                      {user.email}
+                    </TableCell>
                     {canChangeRoles && (
                       <TableCell className="text-center">
                         <ManagerRoleSwitch role={user.role} userId={user.id} username={user.username} />
