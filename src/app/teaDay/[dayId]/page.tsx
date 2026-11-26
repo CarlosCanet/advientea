@@ -74,7 +74,7 @@ export default async function TeaDayPage({ params, searchParams }: TeaDayPagePro
         <div className={cn("flex min-w-0 flex-col gap-3", hasStory && "lg:col-start-2 lg:row-start-1")}>
           <RevealStrip steps={getRevealSteps(advienteaDayState)} />
 
-          <TeaGuessCard dayId={day.id} />
+          {tea && <TeaGuessCard dayId={day.id} />}
 
           {!tea ? (
             <Card className="w-full px-5 text-center text-base">
