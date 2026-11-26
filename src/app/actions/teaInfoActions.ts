@@ -9,17 +9,16 @@ import { ConflictError, ForbiddenError, UnauthenticatedError } from "@/lib/error
 import { GUEST_COOKIE } from "@/lib/guest-cookie";
 import { teaFormSchema } from "@/lib/schemas/tea";
 import { saveTeaForParticipation, TeaSubmission } from "@/lib/services/participation-tea-service";
-import { TeaFormData, TeaInfoActionResponse } from "@/lib/types";
+import { TeaFormData, TeaFormInputs, TeaInfoActionResponse } from "@/lib/types";
 
 import { getFormBoolean, getFormFilesByPrefix, getFormNumber, getFormString } from "./commonActions";
 
 // Shared by the forms that save a tea through its participation: no person name and no day here.
-function toTeaFormData(formData: FormData): TeaFormData {
+function toTeaFormInputs(formData: FormData): TeaFormInputs {
   return {
     addMilk: getFormBoolean(formData, "addMilk"),
     canReinfuse: getFormBoolean(formData, "canReinfuse"),
     hasTheine: getFormBoolean(formData, "hasTheine"),
-    images: getFormFilesByPrefix(formData, "image"),
     imagesOrder: formData.getAll("images_order") as Array<string>,
     infusionTime: getFormNumber(formData, "infusionTime"),
     keptImages: formData.getAll("kept_images") as Array<string>,
@@ -36,6 +35,10 @@ function toTeaFormData(formData: FormData): TeaFormData {
     urlStore: getFormString(formData, "urlStore") || undefined,
     youtubeURL: getFormString(formData, "youtubeURL") || undefined,
   };
+}
+
+function toTeaFormData(formData: FormData, inputs: TeaFormInputs): TeaFormData {
+  return { ...inputs, images: getFormFilesByPrefix(formData, "image") };
 }
 
 function toTeaSubmission(data: z.infer<typeof teaFormSchema>): TeaSubmission {
@@ -66,11 +69,10 @@ function toTeaSubmission(data: z.infer<typeof teaFormSchema>): TeaSubmission {
   };
 }
 
-type ParsedTeaForm = { inputs: TeaFormData; submission: TeaSubmission } | { response: TeaInfoActionResponse };
+type ParsedTeaForm = { response: TeaInfoActionResponse } | { submission: TeaSubmission };
 
-function parseTeaForm(formData: FormData): ParsedTeaForm {
-  const inputs = toTeaFormData(formData);
-  const validatedFields = teaFormSchema.safeParse(inputs);
+function parseTeaForm(formData: FormData, inputs: TeaFormInputs): ParsedTeaForm {
+  const validatedFields = teaFormSchema.safeParse(toTeaFormData(formData, inputs));
   if (!validatedFields.success) {
     return {
       response: {
@@ -81,16 +83,11 @@ function parseTeaForm(formData: FormData): ParsedTeaForm {
       },
     };
   }
-  return { inputs, submission: toTeaSubmission(validatedFields.data) };
+  return { submission: toTeaSubmission(validatedFields.data) };
 }
 
 // Guard and conflict errors carry a message meant for the user; anything else gets the fallback.
-function toTeaFailure(
-  action: string,
-  error: unknown,
-  fallback: string,
-  inputs: TeaFormData | undefined,
-): TeaInfoActionResponse {
+function toTeaFailure(action: string, error: unknown, fallback: string, inputs: TeaFormInputs): TeaInfoActionResponse {
   const isExpected =
     error instanceof UnauthenticatedError || error instanceof ForbiddenError || error instanceof ConflictError;
   if (isExpected) {
@@ -98,9 +95,8 @@ function toTeaFailure(
   } else {
     console.error(`[${action}] unexpected error`, error);
   }
-  const response: TeaInfoActionResponse = { message: isExpected ? error.message : fallback, success: false };
   // The form is reset after the action: the inputs let it show what was typed instead of the saved tea.
-  return inputs ? { ...response, inputs } : response;
+  return { inputs, message: isExpected ? error.message : fallback, success: false };
 }
 
 /** Saves the tea of the signed-in user's open participation, whatever the form says about which tea it is. */
@@ -108,18 +104,17 @@ export async function saveMyTeaAction(
   prevState: null | TeaInfoActionResponse,
   formData: FormData,
 ): Promise<TeaInfoActionResponse> {
-  let inputs: TeaFormData | undefined;
+  const inputs = toTeaFormInputs(formData);
   try {
     const { role, userId } = await requireSession();
-    const parsed = parseTeaForm(formData);
+    const parsed = parseTeaForm(formData, inputs);
     if ("response" in parsed) {
       return parsed.response;
     }
-    inputs = parsed.inputs;
 
     const participation = await getOpenParticipationByUserId(userId);
     if (!participation) {
-      return { message: "No estás inscrito en ninguna edición abierta.", success: false };
+      return { inputs, message: "No estás inscrito en ninguna edición abierta.", success: false };
     }
     const { created } = await saveTeaForParticipation(
       { id: userId, kind: "user", role },
@@ -138,19 +133,18 @@ export async function editTeaInfoAction(
   prevState: null | TeaInfoActionResponse,
   formData: FormData,
 ): Promise<TeaInfoActionResponse> {
-  let inputs: TeaFormData | undefined;
+  const inputs = toTeaFormInputs(formData);
   try {
     const { role, userId } = await requireSession();
-    const parsed = parseTeaForm(formData);
+    const parsed = parseTeaForm(formData, inputs);
     if ("response" in parsed) {
       return parsed.response;
     }
-    inputs = parsed.inputs;
 
     const teaId = getFormString(formData, "tea_id");
     const tea = teaId ? await getTeaById(teaId) : null;
     if (!tea) {
-      return { message: "Ese té ya no existe.", success: false };
+      return { inputs, message: "Ese té ya no existe.", success: false };
     }
     const { created } = await saveTeaForParticipation(
       { id: userId, kind: "user", role },
@@ -173,19 +167,22 @@ export async function saveGuestTeaAction(
   prevState: null | TeaInfoActionResponse,
   formData: FormData,
 ): Promise<TeaInfoActionResponse> {
-  let inputs: TeaFormData | undefined;
+  const inputs = toTeaFormInputs(formData);
   try {
     const token = (await cookies()).get(GUEST_COOKIE)?.value;
     const participation = token ? await getGuestParticipationByToken(token) : null;
     if (!participation) {
-      return { message: "Este enlace no es válido o ha caducado. Pide uno nuevo al GerenTé.", success: false };
+      return {
+        inputs,
+        message: "Este enlace no es válido o ha caducado. Pide uno nuevo al GerenTé.",
+        success: false,
+      };
     }
     Sentry.setUser({ id: `guest:${participation.id}` });
-    const parsed = parseTeaForm(formData);
+    const parsed = parseTeaForm(formData, inputs);
     if ("response" in parsed) {
       return parsed.response;
     }
-    inputs = parsed.inputs;
 
     const { created } = await saveTeaForParticipation(
       { kind: "guest", participationId: participation.id },

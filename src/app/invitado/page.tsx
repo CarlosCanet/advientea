@@ -55,7 +55,7 @@ export default async function GuestPage() {
   }
 
   return (
-    <div className="flex justify-center">
+    <div className="flex justify-center px-4 py-6 sm:py-10">
       <TeaInfoForm
         action={saveGuestTeaAction}
         greeting={`Hola, ${participation.guestName}.`}
