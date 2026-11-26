@@ -3,9 +3,11 @@ import Link from "next/link";
 
 import { buttonVariants } from "@/components/ui/button";
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import { getSession } from "@/lib/dal";
 
 /** Empty state for every page that needs an active edition: says what is going on and when to come back. */
-export default function NoActiveEdition() {
+export default async function NoActiveEdition() {
+  const session = await getSession();
   return (
     <div className="flex flex-col justify-center items-center mx-5 mt-5 gap-3">
       <Empty className="max-w-xl rounded-2xl bg-card p-6 text-card-foreground shadow-sm sm:p-10">
@@ -23,8 +25,13 @@ export default function NoActiveEdition() {
             <p>El calendario vuelve a abrirse el 1 de diciembre.</p>
           </EmptyDescription>
         </EmptyHeader>
-        <EmptyContent>
-          <Link className={buttonVariants()} href="/">
+        <EmptyContent className="flex-row flex-wrap justify-center gap-3">
+          {session && (
+            <Link className={buttonVariants()} href="/my-tea">
+              Mientras tanto, prepara tu té
+            </Link>
+          )}
+          <Link className={buttonVariants({ variant: session ? "outline" : "default" })} href="/">
             Volver al inicio
           </Link>
         </EmptyContent>
