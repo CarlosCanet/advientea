@@ -1,9 +1,14 @@
-import { Award } from "lucide-react";
+import { cn } from "cn";
+import { ArrowLeft, Award } from "lucide-react";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import PageHeader from "@/components/PageHeader";
 import RankingList from "@/components/RankingList";
-import { getAdvienteaDayState } from "@/lib/advientea-rules";
+import RevealLock from "@/components/tea/RevealLock";
+import { buttonVariants } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { getAdvienteaDayState, HOURS, toHourLabel } from "@/lib/advientea-rules";
 import { getDayById, getEditionInfo, getSession } from "@/lib/dal";
 import { getDailyRanking } from "@/lib/services/ranking-service";
 
@@ -29,15 +34,25 @@ export default async function RankingPage({ params }: RankingPageProps) {
     notFound();
   }
   return (
-    <div className="flex flex-col justify-center items-center mx-5 mt-5 gap-3">
-      <PageHeader icon={<Award />} subtitle="Ranking diario" title={`Día ${day.dayNumber}`} />
+    <div className="mx-auto mt-5 flex w-full max-w-xl flex-col gap-4 px-4 pb-6 lg:max-w-2xl">
+      <PageHeader className="max-w-none" icon={<Award />} subtitle="Ranking diario" title={`Día ${day.dayNumber}`} />
+      <Link className={cn(buttonVariants({ variant: "outline" }), "self-start bg-card")} href={`/teaDay/${day.id}`}>
+        <ArrowLeft data-icon="inline-start" />
+        Volver al día {day.dayNumber}
+      </Link>
       {advienteaDayState.isTeaReleased ? (
         <RankingList currentUserId={session.user.id} ranking={ranking} />
       ) : (
-        <div className="bg-base-100 w-full max-w-xl p-5 rounded-2xl justify-center items-center text-center text-xl font-display">
-          <div className="skeleton skeleton-text text-base-200">El ranking aún no está disponible.</div>
-          <div className="skeleton skeleton-text text-base-200">Ten paciencia y vuelve pronto.</div>
-        </div>
+        <Card className="px-5 text-base">
+          {/* An opened day whose tea is still hidden can only be today; any other is still to come. */}
+          <RevealLock
+            label={
+              advienteaDayState.isReleased
+                ? `El ranking de hoy se desvela a las ${toHourLabel(HOURS.TEA)}`
+                : `El ranking de este día se desvela a las ${toHourLabel(HOURS.TEA)} de ese día`
+            }
+          />
+        </Card>
       )}
     </div>
   );

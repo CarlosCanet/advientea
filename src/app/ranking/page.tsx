@@ -4,7 +4,9 @@ import { notFound } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
 import RankingList from "@/components/RankingList";
 import NoActiveEdition from "@/components/states/NoActiveEdition";
-import { getAdvienteaDayState } from "@/lib/advientea-rules";
+import RevealLock from "@/components/tea/RevealLock";
+import { Card } from "@/components/ui/card";
+import { getAdvienteaDayState, HOURS, toHourLabel } from "@/lib/advientea-rules";
 import { getActiveEdition, getEditionInfo, getSession } from "@/lib/dal";
 import { getOverallRanking } from "@/lib/services/ranking-service";
 
@@ -24,15 +26,19 @@ export default async function OverallRankingPage() {
     notFound();
   }
   return (
-    <div className="flex flex-col justify-center items-center mx-5 mt-5 gap-3">
-      <PageHeader icon={<Trophy />} subtitle={`Ranking ${edition.year}`} title="Salón de la Taza" />
+    <div className="mx-auto mt-5 flex w-full max-w-xl flex-col gap-4 px-4 pb-6 lg:max-w-2xl">
+      <PageHeader
+        className="max-w-none"
+        icon={<Trophy />}
+        subtitle={`Ranking ${edition.year}`}
+        title="Salón de la Taza"
+      />
       {advienteaDayState.isPersonNameReleased ? (
         <RankingList currentUserId={session.user.id} ranking={ranking} />
       ) : (
-        <div className="bg-base-100 w-full max-w-xl p-5 rounded-2xl justify-center items-center text-center text-xl font-display">
-          <div className="skeleton skeleton-text text-base-200">El ranking aún no está disponible.</div>
-          <div className="skeleton skeleton-text text-base-200">Ten paciencia y vuelve pronto.</div>
-        </div>
+        <Card className="px-5 text-base">
+          <RevealLock label={`El ranking general se desvela el último día a las ${toHourLabel(HOURS.NAME)}`} />
+        </Card>
       )}
     </div>
   );

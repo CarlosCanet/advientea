@@ -18,7 +18,15 @@ function toInitials(name: string) {
     .toLocaleUpperCase("es");
 }
 
-function ProfileImage({ className, image, name }: { className?: string; image: string; name: string }) {
+interface ProfileImageProps {
+  className?: string;
+  image: string;
+  /** True where the name is already shown next to the avatar, so screen readers do not hear it twice. */
+  isDecorative?: boolean;
+  name: string;
+}
+
+function ProfileImage({ className, image, isDecorative = false, name }: ProfileImageProps) {
   const src = getCldImageUrl({
     crop: "fill",
     gravity: "auto",
@@ -29,8 +37,10 @@ function ProfileImage({ className, image, name }: { className?: string; image: s
 
   return (
     <Avatar className={cn("size-12", className)}>
-      <AvatarImage alt={`Imagen de perfil de ${name}`} src={src} />
-      <AvatarFallback className="font-medium">{toInitials(name)}</AvatarFallback>
+      <AvatarImage alt={isDecorative ? "" : `Imagen de perfil de ${name}`} src={src} />
+      <AvatarFallback aria-hidden={isDecorative || undefined} className="font-medium">
+        {toInitials(name)}
+      </AvatarFallback>
     </Avatar>
   );
 }
