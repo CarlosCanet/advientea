@@ -43,7 +43,6 @@ export async function signup(
     if (!validatedFields.success) {
       return {
         errors: z.treeifyError(validatedFields.error),
-        inputs: rawData,
         message: "Hay errores en el formulario",
         success: false,
       };
@@ -205,7 +204,6 @@ export async function updateUserProfile(
     if (!validatedFields.success) {
       return {
         errors: z.treeifyError(validatedFields.error),
-        inputs: rawData,
         message: "Hay errores en el formulario",
         success: false,
       };
@@ -220,7 +218,7 @@ export async function updateUserProfile(
     if (validatedFields.data.image) {
       newImageId = (await uploadImage(validatedFields.data.image, { kind: "avatars" })) ?? null;
       if (!newImageId) {
-        return { inputs: rawData, message: "No se pudo subir la imagen. Inténtalo de nuevo.", success: false };
+        return { message: "No se pudo subir la imagen. Inténtalo de nuevo.", success: false };
       }
     }
 
@@ -263,10 +261,28 @@ export async function updateUserProfile(
       await deleteAsset(newImageId);
     }
     let message = "No se pudo actualizar el perfil. Inténtalo de nuevo.";
-    if (isGuardError || isRateLimited) message = error.message;
-    else if (isWrongPassword) message = "La contraseña actual no es correcta.";
-    else if (isDuplicateUsername) message = "Ese nombre de usuario ya está en uso.";
-    if (passwordChanged) message = `Contraseña actualizada, pero el resto del perfil no se pudo guardar: ${message}`;
-    return { message, success: false };
+    let field: "currentPassword" | "username" | undefined;
+    if (isGuardError || isRateLimited) {
+      message = error.message;
+    } else if (isWrongPassword) {
+      message = "La contraseña actual no es correcta.";
+      field = "currentPassword";
+    } else if (isDuplicateUsername) {
+      message = "Ese nombre de usuario ya está en uso.";
+      field = "username";
+    }
+    const errors: UpdateProfileActionResponse["errors"] = field
+      ? { errors: [], properties: { [field]: { errors: [message] } } }
+      : undefined;
+    if (passwordChanged) {
+      message = `Contraseña actualizada, pero el resto del perfil no se pudo guardar: ${message}`;
+    }
+    return {
+      ...(errors ? { errors } : {}),
+      message,
+      // The old password is no longer valid, so the form must not send it again.
+      ...(passwordChanged ? { passwordChanged } : {}),
+      success: false,
+    };
   }
 }

@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { MAX_AVATAR_BYTES, toMegabytesLabel } from "@/lib/image-budget";
 import { ALLOWED_IMAGE_TYPES } from "@/lib/types";
 
 const passwordSchema = z
@@ -19,8 +20,8 @@ const passwordSchema = z
 const commonSchema = z.object({
   image: z
     .file()
-    .max(2 * 1024 * 1024, {
-      error: "Tamaño de imagen demasiado grande (max 2 MB).",
+    .max(MAX_AVATAR_BYTES, {
+      error: `Tamaño de imagen demasiado grande (max ${toMegabytesLabel(MAX_AVATAR_BYTES)}\u00a0MB).`,
     })
     .mime(ALLOWED_IMAGE_TYPES, { error: "Formato de archivo no permitido." })
     .optional(),

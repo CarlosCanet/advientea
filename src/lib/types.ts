@@ -136,8 +136,9 @@ export interface UpdateProfileActionResponse {
       };
     };
   };
-  inputs?: UpdateProfileFormData;
   message: string;
+  /** The password was changed although the rest of the profile was not saved. */
+  passwordChanged?: boolean;
   success: boolean;
 }
 

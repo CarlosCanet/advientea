@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import PageHeader from "@/components/PageHeader";
 import ProfileForm from "@/components/profile/ProfileForm";
+import { Card, CardContent } from "@/components/ui/card";
 import { getSession } from "@/lib/dal";
 import { DEFAULT_IMAGE_PROFILE } from "@/lib/types";
 
@@ -13,7 +14,7 @@ export default async function ProfilePage() {
   const user = session.user;
 
   return (
-    <div className="flex flex-col justify-center items-center mx-5 mt-5 pb-5 gap-3">
+    <div className="flex flex-col items-center gap-3 px-4 pt-5 pb-8 sm:px-5">
       <PageHeader
         title={
           <>
@@ -21,11 +22,11 @@ export default async function ProfilePage() {
           </>
         }
       />
-      <div className="card w-full max-w-xl bg-base-100 text-neutral-content card-xl shadow-sm">
-        <div className="card-body items-center">
+      <Card className="w-full max-w-xl shadow-sm [--card-spacing:--spacing(4)] sm:[--card-spacing:--spacing(8)]">
+        <CardContent>
           <ProfileForm email={user.email} imageId={user.image || DEFAULT_IMAGE_PROFILE} username={user.username} />
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

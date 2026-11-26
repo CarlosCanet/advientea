@@ -1,6 +1,9 @@
 /** What one story image may weigh: the same limit as the images in `src/lib/schemas/tea.ts`. */
 export const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 
+/** What an avatar may weigh, on sign-up and on the profile: the limit of `src/lib/schemas/auth.ts`. */
+export const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
+
 /** What the images added in one save may weigh together; the ones already saved do not count. */
 export const MAX_NEW_IMAGES_BYTES = 2.5 * 1024 * 1024;
 
