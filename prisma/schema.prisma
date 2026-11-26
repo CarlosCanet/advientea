@@ -254,3 +254,11 @@ model Edition {
   days           Day[]
   participations Participation[]
 }
+
+model RateLimit {
+  key         String   @id
+  count       Int
+  windowStart DateTime @db.Timestamptz(3)
+
+  @@index([windowStart])
+}
