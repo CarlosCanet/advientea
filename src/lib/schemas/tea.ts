@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { MAX_IMAGE_BYTES } from "@/lib/image-budget";
 import { ALLOWED_IMAGE_TYPES } from "@/lib/types";
 
 const teaFields = {
@@ -10,7 +11,7 @@ const teaFields = {
     .array(
       z
         .file()
-        .max(2 * 1024 * 1024, {
+        .max(MAX_IMAGE_BYTES, {
           error: "Tamaño de imagen demasiado grande (max 2 MB).",
         })
         .mime(ALLOWED_IMAGE_TYPES, {
@@ -24,7 +25,7 @@ const teaFields = {
   keptImagesOrder: z.array(z.coerce.number()).optional(),
   moreIndications: z.string().optional(),
   onlyMusic: z.boolean(),
-  reinfuseNumber: z.number().min(0, "Mínimo 0 veces").optional(),
+  reinfuseNumber: z.number().min(1, "Mínimo 1 vez").optional(),
   storeName: z.string().optional(),
   storyPart1: z.string().optional(),
   storyPart2: z.string().optional(),

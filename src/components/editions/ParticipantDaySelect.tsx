@@ -1,10 +1,11 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 
 import { placeParticipantAction, swapParticipantsAction } from "@/app/actions/editionActions";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toActionResponse } from "@/lib/action-response";
 import { showActionToast } from "@/lib/action-toast";
 import { ActionResponse } from "@/lib/types";
 
@@ -29,6 +30,7 @@ interface ParticipantDaySelectProps {
 type SwapTarget = { dayNumber: number; holder: { name: string; participationId: string } };
 
 const NO_DAY_LABEL = "Sin día";
+const PLACE_FAILURE = "No se pudo cambiar el día. Inténtalo de nuevo.";
 
 export default function ParticipantDaySelect({
   dayNumber,
@@ -42,12 +44,34 @@ export default function ParticipantDaySelect({
   const [isPending, startTransition] = useTransition();
   // The picked option is gone once the dialog opens, so focus is sent back to the trigger by hand.
   const triggerRef = useRef<HTMLButtonElement>(null);
+  // The day a change started from. The rows re-sort once the new day arrives, and moving this row's node drops
+  // its focus; the new day, not the action's answer, marks that commit, since the two can land in either order.
+  const refocusFrom = useRef<null | { dayNumber: null | number }>(null);
+
+  useEffect(() => {
+    if (isPending || refocusFrom.current === null || refocusFrom.current.dayNumber === dayNumber) {
+      return;
+    }
+    refocusFrom.current = null;
+    // The trigger is still disabled when this effect runs, so the focus waits for the next frame.
+    requestAnimationFrame(() => {
+      const active = document.activeElement;
+      if (active === null || active === document.body || active === triggerRef.current) {
+        triggerRef.current?.focus();
+      }
+    });
+  }, [dayNumber, isPending]);
 
   const isOutsideCalendar = dayNumber !== null && !days.some((day) => day.dayNumber === dayNumber);
 
-  const run = (action: () => Promise<ActionResponse>) => {
+  const run = (action: () => Promise<ActionResponse>, failureMessage: string) => {
+    refocusFrom.current = { dayNumber };
     startTransition(async () => {
-      showActionToast(await action());
+      const result = await toActionResponse(action(), failureMessage);
+      if (!result.success) {
+        refocusFrom.current = null;
+      }
+      showActionToast(result);
     });
   };
 
@@ -57,7 +81,7 @@ export default function ParticipantDaySelect({
       return;
     }
     if (chosen === null) {
-      run(() => placeParticipantAction(participationId, null));
+      run(() => placeParticipantAction(participationId, null), PLACE_FAILURE);
       return;
     }
     const holder = days.find((day) => day.dayNumber === chosen)?.holder;
@@ -66,7 +90,7 @@ export default function ParticipantDaySelect({
       setIsConfirmOpen(true);
       return;
     }
-    run(() => placeParticipantAction(participationId, chosen));
+    run(() => placeParticipantAction(participationId, chosen), PLACE_FAILURE);
   };
 
   const onConfirmSwap = () => {
@@ -74,7 +98,10 @@ export default function ParticipantDaySelect({
       return;
     }
     const holderParticipationId = swapTarget.holder.participationId;
-    run(() => swapParticipantsAction(participationId, holderParticipationId));
+    run(
+      () => swapParticipantsAction(participationId, holderParticipationId),
+      "No se pudo intercambiar. Inténtalo de nuevo.",
+    );
   };
 
   const holderName = swapTarget?.holder.name ?? "";

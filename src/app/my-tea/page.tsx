@@ -74,7 +74,7 @@ export default async function MyTeaPage() {
   }
 
   return (
-    <div className="flex justify-center">
+    <div className="flex justify-center px-4 py-6 sm:py-10">
       <TeaInfoForm
         action={saveMyTeaAction}
         heading={`Tu té · ${participation.edition.name}`}

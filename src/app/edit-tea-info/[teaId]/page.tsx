@@ -24,11 +24,12 @@ async function EditTeaInfoDayPage({ params }: { params: Promise<{ teaId: string 
   const dayNumber = tea.participation.day?.dayNumber;
 
   return (
-    <div className="flex justify-center">
+    <div className="flex justify-center px-4 py-6 sm:py-10">
       <TeaInfoForm
         action={editTeaInfoAction}
         heading={`Té de ${name}`}
         subheading={dayNumber === undefined ? "Sin día" : `Día ${dayNumber}`}
+        submitLabel="Guardar cambios"
         tea={tea}
         teaId={teaId}
       />
