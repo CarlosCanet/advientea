@@ -6,6 +6,7 @@ const passwordSchema = z
   .string()
   .trim()
   .min(8, { error: "La contraseña debe ser de al menos 8 caracteres." })
+  .max(128, { error: "La contraseña no puede tener más de 128 caracteres." })
   .regex(/[a-zA-Z]/, {
     error: "La contraseña debe contener al menos una letra.",
   })
@@ -27,12 +28,25 @@ const commonSchema = z.object({
   username: z.string().trim().min(2, { error: "Introduce un nombre de al menos 2 caracteres." }),
 });
 
+const emailSchema = z
+  .string()
+  .trim()
+  .pipe(z.email({ error: "Introduce un email correcto." }));
+// The profile form always sends both fields: "" means "keep current password" and must become undefined before
+// validation.
+const profileNewPasswordSchema = z
+  .string()
+  .trim()
+  .transform((value) => (value === "" ? undefined : value))
+  .pipe(passwordSchema.optional());
+const profileNewPasswordConfirmationSchema = z
+  .string()
+  .transform((value) => (value === "" ? undefined : value))
+  .optional();
+
 export const signupFormSchema = commonSchema
   .extend({
-    email: z
-      .string()
-      .trim()
-      .pipe(z.email({ error: "Introduce un email correcto." })),
+    email: emailSchema,
     password: passwordSchema,
     passwordConfirmation: z.string().trim(),
   })
@@ -44,16 +58,8 @@ export const signupFormSchema = commonSchema
 export const updateProfileFormSchema = commonSchema
   .extend({
     currentPassword: z.string().optional(),
-    // The form always sends this field: "" means "keep current password" and must become undefined before validation.
-    newPassword: z
-      .string()
-      .trim()
-      .transform((value) => (value === "" ? undefined : value))
-      .pipe(passwordSchema.optional()),
-    newPasswordConfirmation: z
-      .string()
-      .transform((value) => (value === "" ? undefined : value))
-      .optional(),
+    newPassword: profileNewPasswordSchema,
+    newPasswordConfirmation: profileNewPasswordConfirmationSchema,
   })
   .refine((data) => data.newPassword === data.newPasswordConfirmation, {
     error: "Las contraseñas no coinciden.",
@@ -62,4 +68,19 @@ export const updateProfileFormSchema = commonSchema
   .refine((data) => !data.newPassword || !!data.currentPassword, {
     error: "Introduce tu contraseña actual para cambiarla.",
     path: ["currentPassword"],
+  });
+
+export const requestPasswordResetFormSchema = z.object({
+  email: emailSchema,
+});
+
+export const resetPasswordFormSchema = z
+  .object({
+    newPassword: passwordSchema,
+    newPasswordConfirmation: z.string().trim(),
+    token: z.string().trim().min(1, { error: "El enlace no es válido. Pide uno nuevo." }),
+  })
+  .refine((data) => data.newPassword === data.newPasswordConfirmation, {
+    error: "Las contraseñas no coinciden.",
+    path: ["newPasswordConfirmation"],
   });

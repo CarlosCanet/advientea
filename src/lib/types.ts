@@ -203,3 +203,41 @@ export const initialEditionActionResponse: EditionActionResponse = {
   message: "",
   success: false,
 };
+
+export interface RequestPasswordResetFormData {
+  email: string;
+}
+
+export interface RequestPasswordResetActionResponse {
+  errors?: { email?: Array<string> };
+  inputs?: RequestPasswordResetFormData;
+  message: string;
+  success: boolean;
+}
+
+export const initialRequestPasswordResetActionResponse: RequestPasswordResetActionResponse = {
+  message: "",
+  success: false,
+};
+
+export interface ResetPasswordFormData {
+  newPassword: string;
+  newPasswordConfirmation: string;
+  token: string;
+}
+
+/** No `inputs`: neither the passwords nor the token are ever sent back to the client. */
+export interface ResetPasswordActionResponse {
+  errors?: {
+    newPassword?: Array<string>;
+    newPasswordConfirmation?: Array<string>;
+    token?: Array<string>;
+  };
+  message: string;
+  success: boolean;
+}
+
+export const initialResetPasswordActionResponse: ResetPasswordActionResponse = {
+  message: "",
+  success: false,
+};

@@ -1,9 +1,11 @@
 import { APIError } from "better-auth/api";
+import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { inspect } from "node:util";
 import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from "vitest";
 
-import { signin, signup, updateUserProfile } from "@/app/actions/authActions";
+import { requestPasswordResetAction, signin, signup, updateUserProfile } from "@/app/actions/authActions";
 import { auth } from "@/lib/auth";
 import { deleteAsset, uploadImage } from "@/lib/cloudinary";
 import { editUser, requireSession } from "@/lib/dal";
@@ -20,6 +22,7 @@ vi.mock("@/lib/auth", () => ({
     api: {
       changePassword: vi.fn(),
       getSession: vi.fn().mockResolvedValue(null),
+      requestPasswordReset: vi.fn(),
       signInEmail: vi.fn(),
       signOut: vi.fn(),
       signUpEmail: vi.fn(),
@@ -336,6 +339,262 @@ describe("signup", () => {
       expect.objectContaining({ email: EMAIL, password: "Secreto123!", username: "Ana" }),
     );
     expect(redirect).toHaveBeenCalledWith("/");
+  });
+});
+
+describe("requestPasswordResetAction", () => {
+  const INVALID_EMAIL = "Introduce un email correcto.";
+  const FORM_ERRORS = "Hay errores en el formulario";
+  const RESET_FAILED = "No se pudo enviar el enlace. Inténtalo de nuevo.";
+  const RESET_SENT =
+    "Si existe una cuenta con ese email, te hemos enviado un enlace para elegir una contraseña nueva. Revisa también la carpeta de spam.";
+  const SUCCESS = { message: RESET_SENT, success: true };
+  const UNKNOWN_EMAIL = "nadie@example.com";
+  const MALFORMED_EMAIL = "ana.sin.arroba.example.com";
+  const PADDED_EMAIL = `  ${EMAIL}  `;
+  // better-auth resolves for an unknown email too; whatever it answers, the action must not tell them apart.
+  const AUTH_ANSWERS: Array<[string, unknown]> = [
+    ["an account exists", { status: true }],
+    [
+      "no account exists",
+      { message: "If this email exists in our system, check your email for the reset link", status: true },
+    ],
+  ];
+
+  let log: MockInstance<typeof console.log>;
+  let info: MockInstance<typeof console.info>;
+  let debug: MockInstance<typeof console.debug>;
+
+  function resetForm(email: string = EMAIL) {
+    const formData = new FormData();
+    formData.append("email", email);
+    return formData;
+  }
+
+  /** Neither the address as typed nor trimmed shows up in anything written to the console. */
+  function expectEmailNotLogged(email: string) {
+    const logged = loggedText(warn, error, log, info, debug);
+    expect(logged).not.toContain(email);
+    expect(logged).not.toContain(email.trim());
+  }
+
+  function expectNoNavigation() {
+    expect(redirect).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
+  }
+
+  beforeEach(() => {
+    log = vi.spyOn(console, "log").mockImplementation(() => {});
+    info = vi.spyOn(console, "info").mockImplementation(() => {});
+    debug = vi.spyOn(console, "debug").mockImplementation(() => {});
+    vi.mocked(auth.api.requestPasswordReset).mockResolvedValue({ status: true } as never);
+  });
+
+  afterEach(() => {
+    log.mockRestore();
+    info.mockRestore();
+    debug.mockRestore();
+  });
+
+  describe.each([
+    ["a malformed email", MALFORMED_EMAIL],
+    ["a blank email", ""],
+    ["an email of spaces only", "   "],
+  ])("with %s", (_reason, email) => {
+    it("answers the field errors, the form's input as typed and the form message", async () => {
+      const result = await requestPasswordResetAction(null, resetForm(email));
+
+      expect(result).toEqual({
+        errors: { email: [INVALID_EMAIL] },
+        inputs: { email },
+        message: FORM_ERRORS,
+        success: false,
+      });
+    });
+
+    it("checks no rate limit, never asks better-auth and never navigates", async () => {
+      await requestPasswordResetAction(null, resetForm(email));
+
+      expect(getClientIP).not.toHaveBeenCalled();
+      expect(assertWithinRateLimit).not.toHaveBeenCalled();
+      expect(auth.api.requestPasswordReset).not.toHaveBeenCalled();
+      expectNoNavigation();
+    });
+  });
+
+  it("answers a form without an email field as a blank email", async () => {
+    const result = await requestPasswordResetAction(null, new FormData());
+
+    expect(result).toEqual({
+      errors: { email: [INVALID_EMAIL] },
+      inputs: { email: "" },
+      message: FORM_ERRORS,
+      success: false,
+    });
+    expect(assertWithinRateLimit).not.toHaveBeenCalled();
+    expect(auth.api.requestPasswordReset).not.toHaveBeenCalled();
+  });
+
+  it("keeps a malformed email out of every log", async () => {
+    await requestPasswordResetAction(null, resetForm(MALFORMED_EMAIL));
+
+    expectEmailNotLogged(MALFORMED_EMAIL);
+  });
+
+  it("checks the passwordReset rate limit once, with the trimmed email and the client ip", async () => {
+    await requestPasswordResetAction(null, resetForm(PADDED_EMAIL));
+
+    expect(getClientIP).toHaveBeenCalled();
+    expect(vi.mocked(assertWithinRateLimit).mock.calls).toStrictEqual([["passwordReset", { email: EMAIL, ip: IP }]]);
+  });
+
+  it("passes the ip as null when the request has none", async () => {
+    vi.mocked(getClientIP).mockResolvedValue(null);
+
+    await requestPasswordResetAction(null, resetForm());
+
+    expect(vi.mocked(assertWithinRateLimit).mock.calls).toStrictEqual([["passwordReset", { email: EMAIL, ip: null }]]);
+  });
+
+  it("checks the rate limit before asking better-auth for the link", async () => {
+    await requestPasswordResetAction(null, resetForm());
+
+    expect(auth.api.requestPasswordReset).toHaveBeenCalledOnce();
+    expect(vi.mocked(assertWithinRateLimit).mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(auth.api.requestPasswordReset).mock.invocationCallOrder[0],
+    );
+  });
+
+  it("asks better-auth with exactly the trimmed email, the reset page and the request's own headers", async () => {
+    const requestHeaders = new Headers({ host: "staging-adviente.vercel.app", "x-test": "request-headers" });
+    vi.mocked(headers).mockResolvedValueOnce(requestHeaders as Awaited<ReturnType<typeof headers>>);
+
+    await requestPasswordResetAction(null, resetForm(PADDED_EMAIL));
+
+    expect(vi.mocked(auth.api.requestPasswordReset).mock.calls).toStrictEqual([
+      [{ body: { email: EMAIL, redirectTo: "/reset-password" }, headers: requestHeaders }],
+    ]);
+    expect(vi.mocked(auth.api.requestPasswordReset).mock.calls[0][0]?.headers).toBe(requestHeaders);
+  });
+
+  describe("when the attempt is rate-limited", () => {
+    beforeEach(() => {
+      vi.mocked(assertWithinRateLimit).mockRejectedValue(new RateLimitError(TOO_MANY_HOUR));
+    });
+
+    it("answers the limiter's message with the form's input as typed and never asks better-auth", async () => {
+      const result = await requestPasswordResetAction(null, resetForm(PADDED_EMAIL));
+
+      expect(result).toEqual({ inputs: { email: PADDED_EMAIL }, message: TOO_MANY_HOUR, success: false });
+      expect(auth.api.requestPasswordReset).not.toHaveBeenCalled();
+      expectNoNavigation();
+    });
+
+    it("answers with whatever message the rate limiter threw", async () => {
+      const thrown = "Mensaje de prueba del limitador";
+      vi.mocked(assertWithinRateLimit).mockRejectedValue(new RateLimitError(thrown));
+
+      const result = await requestPasswordResetAction(null, resetForm());
+
+      expect(result).toEqual({ inputs: { email: EMAIL }, message: thrown, success: false });
+    });
+
+    it("logs it as an expected rejection with console.warn, not console.error", async () => {
+      await requestPasswordResetAction(null, resetForm());
+
+      expect(warn).toHaveBeenCalledWith("[requestPasswordResetAction] rejected: rate limit");
+      expect(error).not.toHaveBeenCalled();
+    });
+
+    it("keeps the email out of every log", async () => {
+      await requestPasswordResetAction(null, resetForm(PADDED_EMAIL));
+
+      expectEmailNotLogged(PADDED_EMAIL);
+    });
+  });
+
+  describe.each(LIMITER_FAILURES)("when the rate limiter fails because %s", (_reason, failure) => {
+    beforeEach(() => {
+      vi.mocked(assertWithinRateLimit).mockRejectedValue(failure);
+    });
+
+    it("fails closed: never asks better-auth, answers the generic message with the form's input", async () => {
+      const result = await requestPasswordResetAction(null, resetForm(PADDED_EMAIL));
+
+      expect(result).toEqual({ inputs: { email: PADDED_EMAIL }, message: RESET_FAILED, success: false });
+      expect(auth.api.requestPasswordReset).not.toHaveBeenCalled();
+      expectNoNavigation();
+    });
+
+    it("logs the failure with console.error", async () => {
+      await requestPasswordResetAction(null, resetForm());
+
+      expect(error).toHaveBeenCalledWith("[requestPasswordResetAction] unexpected error", failure);
+    });
+
+    it("keeps the email out of every log", async () => {
+      await requestPasswordResetAction(null, resetForm(PADDED_EMAIL));
+
+      expectEmailNotLogged(PADDED_EMAIL);
+    });
+  });
+
+  describe("when better-auth fails", () => {
+    const failure = new Error("Resend is down");
+
+    beforeEach(() => {
+      vi.mocked(auth.api.requestPasswordReset).mockRejectedValue(failure);
+    });
+
+    it("answers the generic message with the form's input as typed", async () => {
+      const result = await requestPasswordResetAction(null, resetForm(PADDED_EMAIL));
+
+      expect(result).toEqual({ inputs: { email: PADDED_EMAIL }, message: RESET_FAILED, success: false });
+      expectNoNavigation();
+    });
+
+    it("logs the failure with console.error", async () => {
+      await requestPasswordResetAction(null, resetForm());
+
+      expect(error).toHaveBeenCalledWith("[requestPasswordResetAction] unexpected error", failure);
+    });
+
+    it("keeps the email out of every log", async () => {
+      await requestPasswordResetAction(null, resetForm(PADDED_EMAIL));
+
+      expectEmailNotLogged(PADDED_EMAIL);
+    });
+  });
+
+  it("answers exactly the success message, without inputs or errors, and never navigates", async () => {
+    const result = await requestPasswordResetAction(null, resetForm());
+
+    expect(result).toStrictEqual(SUCCESS);
+    expectNoNavigation();
+  });
+
+  it.each(AUTH_ANSWERS)("answers the success message when %s", async (_reason, answer) => {
+    vi.mocked(auth.api.requestPasswordReset).mockResolvedValue(answer as never);
+
+    const result = await requestPasswordResetAction(null, resetForm(UNKNOWN_EMAIL));
+
+    expect(result).toStrictEqual(SUCCESS);
+  });
+
+  it("gives a known and an unknown email the very same answer", async () => {
+    vi.mocked(auth.api.requestPasswordReset).mockResolvedValueOnce(AUTH_ANSWERS[0][1] as never);
+    const known = await requestPasswordResetAction(null, resetForm(EMAIL));
+    vi.mocked(auth.api.requestPasswordReset).mockResolvedValueOnce(AUTH_ANSWERS[1][1] as never);
+    const unknown = await requestPasswordResetAction(null, resetForm(UNKNOWN_EMAIL));
+
+    expect(unknown).toStrictEqual(known);
+    expect(known).toStrictEqual(SUCCESS);
+  });
+
+  it("keeps the email out of every log on success", async () => {
+    await requestPasswordResetAction(null, resetForm(PADDED_EMAIL));
+
+    expectEmailNotLogged(PADDED_EMAIL);
   });
 });
 

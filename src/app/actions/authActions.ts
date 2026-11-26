@@ -11,11 +11,13 @@ import { auth } from "@/lib/auth";
 import { deleteAsset, uploadImage } from "@/lib/cloudinary";
 import { changeUserRole, editUser, requireRole, requireSession } from "@/lib/dal";
 import { ForbiddenError, RateLimitError, UnauthenticatedError } from "@/lib/errors";
-import { signupFormSchema, updateProfileFormSchema } from "@/lib/schemas/auth";
+import { requestPasswordResetFormSchema, signupFormSchema, updateProfileFormSchema } from "@/lib/schemas/auth";
 import { assertWithinRateLimit, getClientIP } from "@/lib/services/rate-limit-service";
 import { createUser } from "@/lib/services/user-service";
 import {
   ActionResponse,
+  RequestPasswordResetActionResponse,
+  RequestPasswordResetFormData,
   SignInActionResponse,
   SignInFormData,
   SignUpActionResponse,
@@ -140,6 +142,46 @@ export async function signin(
   }
 
   redirect("/");
+}
+
+export async function requestPasswordResetAction(
+  prevState: null | RequestPasswordResetActionResponse,
+  formData: FormData,
+): Promise<RequestPasswordResetActionResponse> {
+  const rawData: RequestPasswordResetFormData = { email: getFormString(formData, "email") };
+  const validatedFields = requestPasswordResetFormSchema.safeParse(rawData);
+  if (!validatedFields.success) {
+    return {
+      errors: z.flattenError(validatedFields.error).fieldErrors,
+      inputs: rawData,
+      message: "Hay errores en el formulario",
+      success: false,
+    };
+  }
+  const { email } = validatedFields.data;
+
+  try {
+    await assertWithinRateLimit("passwordReset", { email, ip: await getClientIP() });
+    // The request headers let better-auth build the link for the host the user is on (staging, a preview).
+    await auth.api.requestPasswordReset({
+      body: { email, redirectTo: "/reset-password" },
+      headers: await headers(),
+    });
+  } catch (error) {
+    if (error instanceof RateLimitError) {
+      console.warn("[requestPasswordResetAction] rejected: rate limit");
+      return { inputs: rawData, message: error.message, success: false };
+    }
+    console.error("[requestPasswordResetAction] unexpected error", error);
+    return { inputs: rawData, message: "No se pudo enviar el enlace. Inténtalo de nuevo.", success: false };
+  }
+
+  // Same answer whether or not the account exists, so the form cannot be used to find out who is registered.
+  return {
+    message:
+      "Si existe una cuenta con ese email, te hemos enviado un enlace para elegir una contraseña nueva. Revisa también la carpeta de spam.",
+    success: true,
+  };
 }
 
 export async function signout() {
