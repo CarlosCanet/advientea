@@ -11,10 +11,12 @@ interface TeaImageFormProps {
   image: ImageStoryForm;
   onChangeOrder: (id: string, newOrder: number) => void;
   onDelete: (id: string) => void;
+  /** Lets the list move the focus to this row after another one is removed. */
+  removeButtonRef?: React.Ref<HTMLButtonElement>;
   totalImages: number;
 }
 
-function TeaImageForm({ image, onChangeOrder, onDelete, totalImages }: TeaImageFormProps) {
+function TeaImageForm({ image, onChangeOrder, onDelete, removeButtonRef, totalImages }: TeaImageFormProps) {
   const position = image.order + 1;
   const alt = `Imagen ${position} de la historia`;
 
@@ -49,7 +51,7 @@ function TeaImageForm({ image, onChangeOrder, onDelete, totalImages }: TeaImageF
           {/* Focusable while disabled: moving an image to an end must not drop the keyboard focus. */}
           <Button
             aria-label={`Mover imagen ${position} arriba`}
-            className="data-disabled:opacity-50"
+            className="data-disabled:opacity-50 data-disabled:hover:bg-transparent data-disabled:active:not-aria-[haspopup]:translate-y-0"
             disabled={image.order === 0}
             focusableWhenDisabled
             onClick={handleDecreasePosition}
@@ -61,7 +63,7 @@ function TeaImageForm({ image, onChangeOrder, onDelete, totalImages }: TeaImageF
           </Button>
           <Button
             aria-label={`Mover imagen ${position} abajo`}
-            className="data-disabled:opacity-50"
+            className="data-disabled:opacity-50 data-disabled:hover:bg-transparent data-disabled:active:not-aria-[haspopup]:translate-y-0"
             disabled={image.order === totalImages - 1}
             focusableWhenDisabled
             onClick={handleIncreasePosition}
@@ -75,6 +77,7 @@ function TeaImageForm({ image, onChangeOrder, onDelete, totalImages }: TeaImageF
             aria-label={`Quitar imagen ${position}`}
             className="ml-auto border-destructive/50 text-destructive hover:bg-destructive/10 hover:text-destructive"
             onClick={() => onDelete(image.id)}
+            ref={removeButtonRef}
             size="sm"
             type="button"
             variant="outline"

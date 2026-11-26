@@ -72,16 +72,21 @@ export interface TeaFormData {
   keptImagesOrder?: Array<string>;
 }
 
+export type TeaFormInputs = Omit<TeaFormData, "images">;
+
 export interface TeaInfoActionResponse {
   errors?: {
     errors: Array<string>;
     properties?: {
       [K in keyof TeaFormData]?: {
         errors: Array<string>;
+        /** One entry per element of an array field, such as each image; empty for an element without errors. */
+        items?: Array<undefined | { errors: Array<string> }>;
       };
     };
   };
-  inputs?: TeaFormData;
+  /** What was typed, for the form to show after React resets it; the image files stay in the form's own state. */
+  inputs?: TeaFormInputs;
   message: string;
   success: boolean;
 }

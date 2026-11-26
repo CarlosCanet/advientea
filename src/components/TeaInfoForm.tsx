@@ -3,11 +3,11 @@ import { cn } from "cn";
 import { ChevronDown, Sun, Sunrise, Sunset } from "lucide-react";
 import Form from "next/form";
 import { useRouter } from "next/navigation";
-import { useActionState, useEffect, useId, useState } from "react";
+import { useActionState, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 
 import type { Prisma } from "@/generated/prisma/client";
 
-import TeaListImageForm, { getNewImagesBytes, MAX_NEW_IMAGES_BYTES } from "@/components/tea/TeaListImageForm";
+import TeaListImageForm, { TeaListImageFormHandle, toImagesBudgetError } from "@/components/tea/TeaListImageForm";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -29,6 +29,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { showActionToast } from "@/lib/action-toast";
 import { HOURS, toHourLabel } from "@/lib/advientea-rules";
+import { MAX_NEW_IMAGES_BYTES, toMegabytesLabel } from "@/lib/image-budget";
 import { ImageStoryForm, initialTeaInfoActionResponse, TeaInfoActionResponse } from "@/lib/types";
 
 type TeaWithStoryImages = Prisma.TeaGetPayload<{ include: { story: { include: { images: true } } } }>;
@@ -71,6 +72,8 @@ function RequiredMark() {
 interface SwitchFieldProps {
   checked: boolean;
   description?: string;
+  /** The id of the element that shows this switch's error, when it has one. */
+  errorId?: string;
   id: string;
   label: string;
   name: string;
@@ -82,15 +85,30 @@ interface SwitchFieldProps {
  * controlled by Base UI, and React's reset after a form action would turn it back to its first value while the
  * switch still shows the last one.
  */
-function SwitchField({ checked, description, id, label, name, onCheckedChange }: SwitchFieldProps) {
+function SwitchField({ checked, description, errorId, id, label, name, onCheckedChange }: SwitchFieldProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  // The reset after a form action also unchecks the built-in input behind the switch's back, and the next
+  // click would then only bring it back to the state already shown. Runs after every commit, the reset's too.
+  useLayoutEffect(() => {
+    if (inputRef.current && inputRef.current.checked !== checked) {
+      inputRef.current.checked = checked;
+    }
+  });
   return (
     <FieldLabel htmlFor={id}>
-      <Field orientation="horizontal">
+      <Field data-invalid={!!errorId || undefined} orientation="horizontal">
         <FieldContent>
           <FieldTitle>{label}</FieldTitle>
           {description && <FieldDescription>{description}</FieldDescription>}
         </FieldContent>
-        <Switch checked={checked} id={id} onCheckedChange={onCheckedChange} />
+        <Switch
+          aria-describedby={errorId}
+          aria-invalid={errorId ? true : undefined}
+          checked={checked}
+          id={id}
+          inputRef={inputRef}
+          onCheckedChange={onCheckedChange}
+        />
         <input name={name} type="hidden" value={checked ? "true" : "false"} />
       </Field>
     </FieldLabel>
@@ -110,13 +128,22 @@ interface OptionalSectionProps {
 /** A section the participant may skip: collapsible on phones, always open from `sm` up. */
 function OptionalSection({ children, description, hasContent, hasErrors, title }: OptionalSectionProps) {
   const [open, setOpen] = useState(hasContent || hasErrors);
+  // Opened for good rather than only while the errors last: fixing the last one must not fold the section
+  // away under the user, along with the focus.
+  if (hasErrors && !open) {
+    setOpen(true);
+  }
   const titleContent = (
     <>
       {title} <span className="text-sm font-normal text-muted-foreground">(opcional)</span>
     </>
   );
   return (
-    <Collapsible onOpenChange={setOpen} open={open || hasErrors} render={<FieldSet className="gap-5" />}>
+    <Collapsible
+      onOpenChange={(nextOpen) => setOpen(nextOpen || hasErrors)}
+      open={open}
+      render={<FieldSet className="gap-5" />}
+    >
       {/* A legend is not a flex item, so the gap after it comes from its own margin. */}
       <FieldLegend className={cn("w-full", description ? "mb-1" : "mb-3")}>
         <h2 className="text-lg font-semibold">
@@ -189,27 +216,38 @@ function TeaInfoFormFields({
   tea,
   teaId,
 }: TeaInfoFormFieldsProps) {
+  const { inputs } = state;
   const [images, setImages] = useState<Array<ImageStoryForm>>(() => initImages(tea));
-  const [imageSizeError, setImageSizeError] = useState<string>("");
-  const [hasTheine, setHasTheine] = useState(state.inputs?.hasTheine ?? tea?.hasTheine ?? false);
-  const [addMilk, setAddMilk] = useState(state.inputs?.addMilk ?? tea?.addMilk ?? false);
-  const [canReinfuse, setCanReinfuse] = useState(state.inputs?.canReinfuse ?? tea?.canReinfuse ?? false);
-  const [onlyMusic, setOnlyMusic] = useState(state.inputs?.onlyMusic ?? tea?.story?.onlyMusic ?? false);
+  const [hasTheine, setHasTheine] = useState(inputs?.hasTheine ?? tea?.hasTheine ?? false);
+  const [addMilk, setAddMilk] = useState(inputs?.addMilk ?? tea?.addMilk ?? false);
+  const [canReinfuse, setCanReinfuse] = useState(inputs?.canReinfuse ?? tea?.canReinfuse ?? false);
+  // Kept while "Reinfusiona" is off, so turning it back on brings the count back; only submitted while on.
+  const [reinfuseNumber, setReinfuseNumber] = useState(() =>
+    String((inputs ? inputs.reinfuseNumber : tea?.reinfuseNumber) ?? ""),
+  );
+  const [onlyMusic, setOnlyMusic] = useState(inputs?.onlyMusic ?? tea?.story?.onlyMusic ?? false);
+  /** The response whose image errors no longer apply, because the images have changed since it came. */
+  const [imagesEditedAfter, setImagesEditedAfter] = useState<null | TeaInfoActionResponse>(null);
+  const imageListRef = useRef<TeaListImageFormHandle>(null);
   const router = useRouter();
   const id = useId();
 
-  useEffect(() => {
-    return () => {
-      images.forEach((img) => {
-        if (img.isNew) {
-          URL.revokeObjectURL(img.previewURL);
-        }
-      });
-    };
-  }, [images]);
   const errors = state.errors?.properties ?? undefined;
-  const imagesError = imageSizeError || state.errors?.properties?.images?.errors.join(" ");
+  const imagesErrors = errors?.images;
+  const serverImagesError =
+    imagesEditedAfter === state
+      ? ""
+      : [...(imagesErrors?.errors ?? []), ...(imagesErrors?.items ?? []).flatMap((item) => item?.errors ?? [])]
+          .filter((error, i, all) => all.indexOf(error) === i)
+          .join(" ");
+  const budgetError = toImagesBudgetError(images);
   const formError = state.errors?.errors.join(" ");
+  const submitBlockedId = `${id}-submit-blocked`;
+
+  const updateImages: typeof setImages = (update) => {
+    setImagesEditedAfter(state);
+    setImages(update);
+  };
 
   const fieldId = (name: string) => `${id}-${name}`;
   const errorOf = (name: keyof NonNullable<typeof errors>) => errors?.[name]?.errors.join(", ") || undefined;
@@ -220,22 +258,42 @@ function TeaInfoFormFields({
     return { "aria-describedby": ids || undefined, "aria-invalid": error ? true : undefined };
   };
 
-  const values = {
-    storeName: state.inputs?.storeName ?? tea?.storeName ?? "",
-    storyPart1: state.inputs?.storyPart1 ?? tea?.story?.storyPart1 ?? "",
-    storyPart2: state.inputs?.storyPart2 ?? tea?.story?.storyPart2 ?? "",
-    storyPart3: state.inputs?.storyPart3 ?? tea?.story?.storyPart3 ?? "",
-    urlStore: state.inputs?.urlStore ?? tea?.url ?? "",
-    youtubeURL: state.inputs?.youtubeURL ?? tea?.story?.youtubeURL ?? "",
+  // After a failed save the inputs are what was typed: a field left empty there stays empty, whatever was saved.
+  const values = inputs
+    ? {
+        infusionTime: inputs.infusionTime || "",
+        moreIndications: inputs.moreIndications ?? "",
+        storeName: inputs.storeName ?? "",
+        storyPart1: inputs.storyPart1 ?? "",
+        storyPart2: inputs.storyPart2 ?? "",
+        storyPart3: inputs.storyPart3 ?? "",
+        teaName: inputs.teaName ?? "",
+        temperature: inputs.temperature || "",
+        urlStore: inputs.urlStore ?? "",
+        youtubeURL: inputs.youtubeURL ?? "",
+      }
+    : {
+        infusionTime: tea?.infusionTime ?? "",
+        moreIndications: tea?.moreIndications ?? "",
+        storeName: tea?.storeName ?? "",
+        storyPart1: tea?.story?.storyPart1 ?? "",
+        storyPart2: tea?.story?.storyPart2 ?? "",
+        storyPart3: tea?.story?.storyPart3 ?? "",
+        teaName: tea?.name ?? "",
+        temperature: tea?.temperature ?? "",
+        urlStore: tea?.url ?? "",
+        youtubeURL: tea?.story?.youtubeURL ?? "",
+      };
+
+  // Stopped before the action starts: React resets the form when an action runs, which would wipe what was typed.
+  const blockSubmitIfImagesTooLarge = (event: React.FormEvent<HTMLFormElement>) => {
+    if (budgetError) {
+      event.preventDefault();
+      imageListRef.current?.focusLastNewImage();
+    }
   };
 
   const onSubmit = (formData: FormData) => {
-    const totalSize = getNewImagesBytes(images);
-    if (totalSize > MAX_NEW_IMAGES_BYTES) {
-      setImageSizeError("El tamaño total de las imágenes es superior al permitido");
-      return;
-    }
-    setImageSizeError("");
     images.forEach((img) => {
       if (img.isNew) {
         formData.append("images", img.file);
@@ -261,10 +319,10 @@ function TeaInfoFormFields({
         {subheading && <CardDescription className="text-base text-foreground">{subheading}</CardDescription>}
       </CardHeader>
       <CardContent>
-        <Form action={onSubmit} className="flex flex-col gap-6 sm:gap-8">
+        <Form action={onSubmit} className="flex flex-col gap-6 sm:gap-8" onSubmit={blockSubmitIfImagesTooLarge}>
           <FieldSet className="gap-5">
             <FieldLegend className="mb-0">
-              <h2 className="text-lg font-semibold">Tu té</h2>
+              <h2 className="text-lg font-semibold">El té</h2>
             </FieldLegend>
             <FieldDescription className="-mt-3">Los campos con * son obligatorios.</FieldDescription>
 
@@ -275,7 +333,7 @@ function TeaInfoFormFields({
               <Input
                 {...invalidProps("teaName")}
                 autoComplete="off"
-                defaultValue={state.inputs?.teaName ?? tea?.name}
+                defaultValue={values.teaName}
                 id={fieldId("teaName")}
                 name="teaName"
                 required
@@ -293,7 +351,7 @@ function TeaInfoFormFields({
                 <InputGroup>
                   <InputGroupInput
                     {...invalidProps("temperature")}
-                    defaultValue={state.inputs?.temperature ?? tea?.temperature}
+                    defaultValue={values.temperature}
                     id={fieldId("temperature")}
                     inputMode="numeric"
                     max={150}
@@ -315,7 +373,7 @@ function TeaInfoFormFields({
                 <InputGroup>
                   <InputGroupInput
                     {...invalidProps("infusionTime")}
-                    defaultValue={state.inputs?.infusionTime ?? tea?.infusionTime}
+                    defaultValue={values.infusionTime}
                     id={fieldId("infusionTime")}
                     inputMode="numeric"
                     max={30}
@@ -334,6 +392,7 @@ function TeaInfoFormFields({
               <div className="grid gap-3 sm:grid-cols-3">
                 <SwitchField
                   checked={hasTheine}
+                  errorId={errorOf("hasTheine") && `${fieldId("hasTheine")}-error`}
                   id={fieldId("hasTheine")}
                   label="Tiene teína"
                   name="hasTheine"
@@ -341,6 +400,7 @@ function TeaInfoFormFields({
                 />
                 <SwitchField
                   checked={addMilk}
+                  errorId={errorOf("addMilk") && `${fieldId("addMilk")}-error`}
                   id={fieldId("addMilk")}
                   label="Con leche"
                   name="addMilk"
@@ -348,14 +408,17 @@ function TeaInfoFormFields({
                 />
                 <SwitchField
                   checked={canReinfuse}
+                  errorId={errorOf("canReinfuse") && `${fieldId("canReinfuse")}-error`}
                   id={fieldId("canReinfuse")}
                   label="Reinfusiona"
                   name="canReinfuse"
                   onCheckedChange={setCanReinfuse}
                 />
               </div>
-              {[errorOf("hasTheine"), errorOf("addMilk"), errorOf("canReinfuse")].filter(Boolean).map((error) => (
-                <FieldError key={error}>{error}</FieldError>
+              {(["hasTheine", "addMilk", "canReinfuse"] as const).map((name) => (
+                <FieldError id={`${fieldId(name)}-error`} key={name}>
+                  {errorOf(name)}
+                </FieldError>
               ))}
             </div>
 
@@ -365,12 +428,13 @@ function TeaInfoFormFields({
                 <InputGroup>
                   <InputGroupInput
                     {...invalidProps("reinfuseNumber")}
-                    defaultValue={state.inputs?.reinfuseNumber ?? tea?.reinfuseNumber ?? undefined}
                     id={fieldId("reinfuseNumber")}
                     inputMode="numeric"
-                    min={0}
+                    min={1}
                     name="reinfuseNumber"
+                    onChange={(event) => setReinfuseNumber(event.target.value)}
                     type="number"
+                    value={reinfuseNumber}
                   />
                   <InputGroupAddon align="inline-end">veces</InputGroupAddon>
                 </InputGroup>
@@ -384,7 +448,7 @@ function TeaInfoFormFields({
               </FieldLabel>
               <Input
                 {...invalidProps("moreIndications")}
-                defaultValue={state.inputs?.moreIndications ?? tea?.moreIndications ?? ""}
+                defaultValue={values.moreIndications}
                 id={fieldId("moreIndications")}
                 name="moreIndications"
                 placeholder="Por ejemplo: sin azúcar"
@@ -443,7 +507,8 @@ function TeaInfoFormFields({
                 errorOf("storyPart3") ||
                 errorOf("youtubeURL") ||
                 errorOf("onlyMusic") ||
-                imagesError
+                serverImagesError ||
+                budgetError
               )
             }
             title="Ambientación"
@@ -506,20 +571,22 @@ function TeaInfoFormFields({
               <div className="flex flex-col gap-2 sm:pt-6">
                 <SwitchField
                   checked={onlyMusic}
+                  errorId={errorOf("onlyMusic") && `${fieldId("onlyMusic")}-error`}
                   id={fieldId("onlyMusic")}
                   label="Solo música"
                   name="onlyMusic"
                   onCheckedChange={setOnlyMusic}
                 />
-                <FieldError>{errorOf("onlyMusic")}</FieldError>
+                <FieldError id={`${fieldId("onlyMusic")}-error`}>{errorOf("onlyMusic")}</FieldError>
               </div>
             </div>
 
             <TeaListImageForm
-              error={imagesError}
+              error={serverImagesError}
               hourLabel={toHourLabel(HOURS.PART1)}
               images={images}
-              setImages={setImages}
+              ref={imageListRef}
+              setImages={updateImages}
             />
           </OptionalSection>
 
@@ -529,11 +596,23 @@ function TeaInfoFormFields({
             </p>
           )}
 
+          {budgetError && (
+            <p className="text-sm text-destructive" id={submitBlockedId}>
+              No se puede guardar hasta que las imágenes nuevas pesen {toMegabytesLabel(MAX_NEW_IMAGES_BYTES)} MB o
+              menos.
+            </p>
+          )}
+
           <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
             <Button onClick={() => router.back()} size="lg" type="button" variant="outline">
               Cancelar
             </Button>
-            <Button disabled={isPending} size="lg" type="submit">
+            <Button
+              aria-describedby={budgetError ? submitBlockedId : undefined}
+              disabled={isPending}
+              size="lg"
+              type="submit"
+            >
               {isPending && <Spinner data-icon="inline-start" />}
               {submitLabel}
             </Button>
