@@ -15,6 +15,7 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuLinkItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -56,14 +57,15 @@ function ProfileMenu({ signoutFormId, user }: { signoutFormId: string; user: Nav
             </span>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuItem
+          <DropdownMenuLinkItem
             aria-current={onProfile ? "page" : undefined}
             className="aria-[current=page]:font-semibold aria-[current=page]:not-focus:bg-secondary"
+            closeOnClick
             render={<Link href={PROFILE_HREF} />}
           >
             <UserRoundIcon aria-hidden />
             Perfil
-          </DropdownMenuItem>
+          </DropdownMenuLinkItem>
           <DropdownMenuItem nativeButton render={<button className="w-full" form={signoutFormId} type="submit" />}>
             <LogOutIcon aria-hidden />
             Cerrar sesión

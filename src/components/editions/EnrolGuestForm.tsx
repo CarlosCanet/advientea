@@ -6,6 +6,7 @@ import { enrolGuestAction } from "@/app/actions/editionActions";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { toActionResponse } from "@/lib/action-response";
 import { showActionToast } from "@/lib/action-toast";
 
 export default function EnrolGuestForm({ year }: { year: number }) {
@@ -20,7 +21,10 @@ export default function EnrolGuestForm({ year }: { year: number }) {
       return;
     }
     startTransition(async () => {
-      const result = await enrolGuestAction(year, name);
+      const result = await toActionResponse(
+        enrolGuestAction(year, name),
+        "No se pudo inscribir al invitado. Inténtalo de nuevo.",
+      );
       showActionToast(result);
       if (result.success) {
         setName("");

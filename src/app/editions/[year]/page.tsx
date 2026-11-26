@@ -7,11 +7,14 @@ import EditionStatusBadge from "@/components/editions/EditionStatusBadge";
 import EnrolGuestForm from "@/components/editions/EnrolGuestForm";
 import EnrolUserForm from "@/components/editions/EnrolUserForm";
 import GuestLinkButtons from "@/components/editions/GuestLinkButtons";
+import ParticipantActionsMenu from "@/components/editions/ParticipantActionsMenu";
 import ParticipantDaySelect, { CalendarDayOption } from "@/components/editions/ParticipantDaySelect";
 import UnenrolParticipantButton from "@/components/editions/UnenrolParticipantButton";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Item, ItemContent, ItemFooter, ItemGroup } from "@/components/ui/item";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EditionStatus, Role } from "@/generated/prisma/enums";
 import { canEditTea, getDaySchedule } from "@/lib/advientea-rules";
@@ -31,7 +34,8 @@ import { toParticipantName } from "@/lib/utils";
 const DELETED_ACCOUNT = "Cuenta borrada";
 
 const SECTION_TITLE = "mb-3 text-lg font-semibold";
-const TEXT_LINK = "rounded-sm underline underline-offset-4 focus-visible:focus-ring";
+const TEXT_LINK =
+  "rounded-sm underline underline-offset-4 focus-visible:focus-ring pointer-coarse:inline-flex pointer-coarse:min-h-11 pointer-coarse:items-center";
 
 const ISSUE_ORDER: Array<EditionIssue["kind"]> = [
   "dayOutsideCalendar",
@@ -40,11 +44,11 @@ const ISSUE_ORDER: Array<EditionIssue["kind"]> = [
   "participantWithoutTea",
 ];
 
-const ISSUE_LABELS: Record<EditionIssue["kind"], string> = {
-  dayOutsideCalendar: "Días fuera del calendario",
-  enrolledWithoutDay: "Inscritos sin día",
-  freeDay: "Días libres",
-  participantWithoutTea: "Participantes sin té",
+const ISSUE_TITLES: Record<EditionIssue["kind"], (count: number) => string> = {
+  dayOutsideCalendar: (count) => (count === 1 ? "1 día fuera del calendario" : `${count} días fuera del calendario`),
+  enrolledWithoutDay: (count) => (count === 1 ? "1 inscrito sin día" : `${count} inscritos sin día`),
+  freeDay: (count) => (count === 1 ? "1 día libre" : `${count} días libres`),
+  participantWithoutTea: (count) => (count === 1 ? "1 participante sin té" : `${count} participantes sin té`),
 };
 
 function toIssueItem(issue: EditionIssue): string {
@@ -61,15 +65,12 @@ function toIssueItem(issue: EditionIssue): string {
   }
 }
 
-/** One line per kind of issue: a calendar with twenty empty days reads as one warning, not twenty. */
-function toIssueLines(issues: Array<EditionIssue>): Array<{ items: string; kind: EditionIssue["kind"] }> {
+/** One alert per kind of issue: a calendar with twenty empty days reads as one warning, not twenty. */
+function toIssueGroups(issues: Array<EditionIssue>): Array<{ items: Array<string>; kind: EditionIssue["kind"] }> {
   return ISSUE_ORDER.map((kind) => ({
-    items: issues
-      .filter((issue) => issue.kind === kind)
-      .map(toIssueItem)
-      .join(", "),
+    items: issues.filter((issue) => issue.kind === kind).map(toIssueItem),
     kind,
-  })).filter((line) => line.items !== "");
+  })).filter((group) => group.items.length > 0);
 }
 
 export default async function EditionPage({ params }: { params: Promise<{ year: string }> }) {
@@ -102,7 +103,7 @@ export default async function EditionPage({ params }: { params: Promise<{ year: 
     getDaySchedule(dayNumber, editionInfo, now).isReleased || (guessCounts.get(dayNumber) ?? 0) > 0;
   const acceptsEnrolments = edition.status !== EditionStatus.ARCHIVED;
 
-  const issueLines = toIssueLines(
+  const issueGroups = toIssueGroups(
     findEditionIssues(
       days,
       participations.map((participation) => ({
@@ -182,7 +183,7 @@ export default async function EditionPage({ params }: { params: Promise<{ year: 
 
   return (
     <div className="px-4 py-5">
-      <Card className="w-full max-w-3xl mx-auto">
+      <Card className="mx-auto w-full max-w-3xl max-sm:[--card-spacing:--spacing(4)] xl:max-w-6xl">
         <CardHeader className="gap-3">
           <Link
             className={buttonVariants({ className: "justify-self-start", size: "sm", variant: "outline" })}
@@ -198,61 +199,83 @@ export default async function EditionPage({ params }: { params: Promise<{ year: 
           </p>
         </CardHeader>
 
-        <CardContent className="flex flex-col gap-8">
-          <section aria-labelledby="edition-issues">
+        {/* From xl up the participants take the wide column and everything else stacks beside them. */}
+        <CardContent className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_22rem] xl:grid-rows-[auto_auto_1fr] xl:gap-x-10">
+          <section aria-labelledby="edition-issues" className="xl:col-start-2">
             <h2 className={SECTION_TITLE} id="edition-issues">
               Avisos
             </h2>
-            {issueLines.length === 0 ? (
-              <p className="flex items-center gap-2 text-base">
-                {participations.length === 0 ? (
-                  "La edición todavía no tiene participantes."
-                ) : (
-                  <>
-                    <CircleCheck aria-hidden="true" className="size-4 shrink-0" />
-                    No falta nada.
-                  </>
-                )}
-              </p>
+            {issueGroups.length === 0 ? (
+              participations.length === 0 ? (
+                <p className="text-base">La edición todavía no tiene participantes.</p>
+              ) : (
+                // Rendered with the page, so not a live region: the registry's role="alert" would announce it.
+                <Alert role={undefined}>
+                  <CircleCheck aria-hidden="true" />
+                  <AlertTitle>No falta nada.</AlertTitle>
+                </Alert>
+              )
             ) : (
-              <ul className="flex flex-col gap-2 rounded-xl bg-popover p-3 ring-1 ring-foreground/10">
-                {issueLines.map((line) => (
-                  <li className="flex gap-2 text-base" key={line.kind}>
-                    <TriangleAlert aria-hidden="true" className="mt-1 size-4 shrink-0" />
-                    <span className="min-w-0 break-words">
-                      <span className="font-semibold">{ISSUE_LABELS[line.kind]}:</span> {line.items}
-                    </span>
+              <ul className="flex flex-col gap-2">
+                {issueGroups.map((group) => (
+                  <li key={group.kind}>
+                    <Alert role={undefined} variant="warning">
+                      <TriangleAlert aria-hidden="true" />
+                      <AlertTitle>{ISSUE_TITLES[group.kind](group.items.length)}</AlertTitle>
+                      <AlertDescription className="break-words">{group.items.join(", ")}</AlertDescription>
+                    </Alert>
                   </li>
                 ))}
               </ul>
             )}
           </section>
 
-          <section aria-labelledby="edition-participants">
-            <h2 className={SECTION_TITLE} id="edition-participants">
+          <section
+            aria-labelledby="edition-participants"
+            className="min-w-0 xl:col-start-1 xl:row-span-3 xl:row-start-1"
+          >
+            {/* Removing a participant with no row left to focus sends focus here. */}
+            <h2
+              className={`${SECTION_TITLE} rounded-sm focus-visible:focus-ring`}
+              id="edition-participants"
+              tabIndex={-1}
+            >
               Participantes ({rows.length})
             </h2>
             {rows.length === 0 ? (
               <p className="text-base">Todavía no hay nadie inscrito.</p>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-1 px-1">Día</TableHead>
-                    <TableHead>Participante</TableHead>
-                    <TableHead>Té</TableHead>
-                    <TableHead className="w-1 px-1">
-                      <span className="sr-only">Ver el día</span>
-                    </TableHead>
-                    <TableHead className="w-1 px-1">
-                      <span className="sr-only">Quitar</span>
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+              <>
+                <ItemGroup className="gap-2 md:hidden">
                   {rows.map((row) => (
-                    <TableRow key={row.id}>
-                      <TableCell className="px-1">
+                    <Item
+                      className="bg-popover ring-1 ring-foreground/10"
+                      data-participant-row={row.id}
+                      key={row.id}
+                      role="listitem"
+                      size="sm"
+                    >
+                      <ItemContent className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 text-base leading-snug font-medium">
+                          {row.name}
+                          {row.isGuest && <Badge variant="secondary">Invitado</Badge>}
+                        </div>
+                      </ItemContent>
+                      <ParticipantActionsMenu
+                        canUnenrol={row.canUnenrol}
+                        dayId={row.dayId}
+                        editableTeaId={row.tea !== null && row.canEditTea ? row.tea.id : null}
+                        guestLink={row.hasGuestLink ? { token: row.guestToken } : null}
+                        name={row.name}
+                        participationId={row.id}
+                        teaName={row.tea?.name ?? null}
+                      />
+                      <ItemFooter>
+                        {row.tea === null ? (
+                          <span className="font-medium text-destructive">Falta el té</span>
+                        ) : (
+                          <span className="min-w-0 truncate text-muted-foreground">{row.tea.name}</span>
+                        )}
                         <ParticipantDaySelect
                           dayNumber={row.dayNumber}
                           days={calendarDays}
@@ -260,56 +283,89 @@ export default async function EditionPage({ params }: { params: Promise<{ year: 
                           name={row.name}
                           participationId={row.id}
                         />
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap items-center gap-2">
-                          {row.name}
-                          {row.isGuest && <Badge variant="secondary">Invitado</Badge>}
-                        </div>
-                        {row.hasGuestLink && (
-                          <GuestLinkButtons name={row.name} participationId={row.id} token={row.guestToken} />
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {row.tea === null ? (
-                          "Falta"
-                        ) : row.canEditTea ? (
-                          <Link className={TEXT_LINK} href={`/edit-tea-info/${row.tea.id}`}>
-                            {row.tea.name}
-                          </Link>
-                        ) : (
-                          row.tea.name
-                        )}
-                      </TableCell>
-                      <TableCell className="px-1">
-                        {row.dayId !== null && (
-                          <Link
-                            aria-label={`Ver el día ${row.dayNumber}`}
-                            className={buttonVariants({ size: "sm", variant: "link" })}
-                            href={`/teaDay/${row.dayId}?simulated=true`}
-                          >
-                            Ver
-                          </Link>
-                        )}
-                      </TableCell>
-                      <TableCell className="px-1">
-                        {row.canUnenrol && (
-                          <UnenrolParticipantButton
-                            name={row.name}
-                            participationId={row.id}
-                            teaName={row.tea?.name ?? null}
-                          />
-                        )}
-                      </TableCell>
-                    </TableRow>
+                      </ItemFooter>
+                    </Item>
                   ))}
-                </TableBody>
-              </Table>
+                </ItemGroup>
+
+                <div className="hidden md:block">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-1 px-1">Día</TableHead>
+                        <TableHead>Participante</TableHead>
+                        <TableHead>Té</TableHead>
+                        <TableHead className="w-1 px-1">
+                          <span className="sr-only">Ver el día</span>
+                        </TableHead>
+                        <TableHead className="w-1 px-1">
+                          <span className="sr-only">Quitar</span>
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {rows.map((row) => (
+                        <TableRow data-participant-row={row.id} key={row.id}>
+                          <TableCell className="px-1">
+                            <ParticipantDaySelect
+                              dayNumber={row.dayNumber}
+                              days={calendarDays}
+                              isOwnDayLocked={row.isOwnDayLocked}
+                              name={row.name}
+                              participationId={row.id}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-wrap items-center gap-2">
+                              {row.name}
+                              {row.isGuest && <Badge variant="secondary">Invitado</Badge>}
+                            </div>
+                            {row.hasGuestLink && (
+                              <GuestLinkButtons name={row.name} participationId={row.id} token={row.guestToken} />
+                            )}
+                          </TableCell>
+                          <TableCell className="whitespace-normal">
+                            {row.tea === null ? (
+                              <span className="font-medium text-destructive">Falta</span>
+                            ) : row.canEditTea ? (
+                              <Link className={TEXT_LINK} href={`/edit-tea-info/${row.tea.id}`}>
+                                {row.tea.name}
+                              </Link>
+                            ) : (
+                              row.tea.name
+                            )}
+                          </TableCell>
+                          <TableCell className="px-1">
+                            {row.dayId !== null && (
+                              <Link
+                                aria-label={`Ver el día ${row.dayNumber}`}
+                                className={buttonVariants({ size: "sm", variant: "link" })}
+                                href={`/teaDay/${row.dayId}?simulated=true`}
+                              >
+                                Ver
+                              </Link>
+                            )}
+                          </TableCell>
+                          <TableCell className="px-1">
+                            {row.canUnenrol && (
+                              <UnenrolParticipantButton
+                                name={row.name}
+                                participationId={row.id}
+                                teaName={row.tea?.name ?? null}
+                              />
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </>
             )}
           </section>
 
           {unheldDays.length > 0 && (
-            <section aria-labelledby="edition-unheld-days">
+            <section aria-labelledby="edition-unheld-days" className="xl:col-start-2">
               <h2 className={SECTION_TITLE} id="edition-unheld-days">
                 Días sin nadie
               </h2>
@@ -347,7 +403,7 @@ export default async function EditionPage({ params }: { params: Promise<{ year: 
             </section>
           )}
 
-          <section aria-labelledby="edition-enrol">
+          <section aria-labelledby="edition-enrol" className="xl:col-start-2">
             <h2 className={SECTION_TITLE} id="edition-enrol">
               Inscribir
             </h2>

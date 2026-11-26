@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 import { deleteDayAction } from "@/app/actions/editionActions";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { Button } from "@/components/ui/button";
+import { toActionResponse } from "@/lib/action-response";
 import { showActionToast } from "@/lib/action-toast";
 
 interface DeleteDayButtonProps {
@@ -34,7 +35,7 @@ export default function DeleteDayButton({ dayId, dayNumber, guessCount, isReleas
 
   const deleteDay = () => {
     startTransition(async () => {
-      showActionToast(await deleteDayAction(dayId));
+      showActionToast(await toActionResponse(deleteDayAction(dayId), "No se pudo borrar el día. Inténtalo de nuevo."));
     });
   };
 

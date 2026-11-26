@@ -6,6 +6,7 @@ import { changeEditionStatusAction } from "@/app/actions/editionActions";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { EditionStatus } from "@/generated/prisma/enums";
+import { toActionResponse } from "@/lib/action-response";
 import { showActionToast } from "@/lib/action-toast";
 import { EDITION_STATUS_LABELS } from "@/lib/utils";
 
@@ -45,7 +46,12 @@ export default function EditionStatusSelect({ status, year }: EditionStatusSelec
 
   const onConfirm = () => {
     startTransition(async () => {
-      showActionToast(await changeEditionStatusAction(year, target));
+      showActionToast(
+        await toActionResponse(
+          changeEditionStatusAction(year, target),
+          "No se pudo cambiar el estado. Inténtalo de nuevo.",
+        ),
+      );
     });
   };
 

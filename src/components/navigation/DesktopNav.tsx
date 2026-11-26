@@ -17,7 +17,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
-  DropdownMenuItem,
+  DropdownMenuLinkItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
@@ -68,15 +68,16 @@ function DesktopNav({ canManage, signedIn }: { canManage: boolean; signedIn: boo
                 {MANAGEMENT_ITEMS.map((item) => {
                   const active = isActivePath(pathname, item.href);
                   return (
-                    <DropdownMenuItem
+                    <DropdownMenuLinkItem
                       aria-current={active ? "page" : undefined}
                       className="aria-[current=page]:font-semibold aria-[current=page]:not-focus:bg-secondary"
+                      closeOnClick
                       key={item.href}
                       render={<Link href={item.href} />}
                     >
                       <item.icon aria-hidden />
                       {item.label}
-                    </DropdownMenuItem>
+                    </DropdownMenuLinkItem>
                   );
                 })}
               </DropdownMenuGroup>

@@ -6,6 +6,7 @@ import { enrolUserAction } from "@/app/actions/editionActions";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toActionResponse } from "@/lib/action-response";
 import { showActionToast } from "@/lib/action-toast";
 import { UserBasic } from "@/lib/dal";
 
@@ -33,7 +34,10 @@ export default function EnrolUserForm({ users, year }: EnrolUserFormProps) {
       return;
     }
     startTransition(async () => {
-      const result = await enrolUserAction(year, userId);
+      const result = await toActionResponse(
+        enrolUserAction(year, userId),
+        "No se pudo inscribir a esa persona. Inténtalo de nuevo.",
+      );
       showActionToast(result);
       if (result.success) {
         setUserId(null);
