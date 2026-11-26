@@ -2,7 +2,7 @@ import { Button as ButtonPrimitive } from "@base-ui/react/button";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "cn";
 
-const buttonVariants = cva(
+const buttonVariantClasses = cva(
   "group/button inline-flex shrink-0 items-center justify-center rounded-4xl border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:focus-ring active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     defaultVariants: {
@@ -36,13 +36,18 @@ const buttonVariants = cva(
   },
 );
 
+/** cva only concatenates, so `border-transparent` would beat a variant's `border-input`; `cn` resolves the conflicts. */
+function buttonVariants(props?: Parameters<typeof buttonVariantClasses>[0]): string {
+  return cn(buttonVariantClasses(props));
+}
+
 function Button({
   className,
   size = "default",
   variant = "default",
   ...props
-}: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
-  return <ButtonPrimitive className={cn(buttonVariants({ className, size, variant }))} data-slot="button" {...props} />;
+}: ButtonPrimitive.Props & VariantProps<typeof buttonVariantClasses>) {
+  return <ButtonPrimitive className={buttonVariants({ className, size, variant })} data-slot="button" {...props} />;
 }
 
 export { Button, buttonVariants };

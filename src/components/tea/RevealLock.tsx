@@ -3,7 +3,7 @@ import { Lock } from "lucide-react";
 
 interface RevealLockProps {
   className?: string;
-  detail: string;
+  detail?: string;
   label: React.ReactNode;
 }
 
@@ -14,7 +14,7 @@ export default function RevealLock({ className, detail, label }: RevealLockProps
       <Lock aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
       <div className="flex flex-col gap-0.5">
         <span className="font-medium">{label}</span>
-        <span className="text-sm">{detail}</span>
+        {detail && <span className="text-sm">{detail}</span>}
       </div>
     </div>
   );
