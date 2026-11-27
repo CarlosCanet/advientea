@@ -13,5 +13,6 @@ export async function resetDatabase() {
     prisma.edition.deleteMany(),
     prisma.user.deleteMany(),
     prisma.rateLimit.deleteMany(),
+    prisma.verification.deleteMany(),
   ]);
 }

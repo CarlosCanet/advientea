@@ -44,6 +44,9 @@ const nextConfig: NextConfig = {
       // The guest's secret link is in this URL: no Referer may carry it anywhere. A later entry overrides the
       // same key of an earlier one, and the other security headers stay.
       { headers: [{ key: "Referrer-Policy", value: "no-referrer" }], source: "/invitado/:token" },
+      // The password reset token is in the emailed link and in the page it redirects to (?token=).
+      { headers: [{ key: "Referrer-Policy", value: "no-referrer" }], source: "/reset-password" },
+      { headers: [{ key: "Referrer-Policy", value: "no-referrer" }], source: "/api/auth/reset-password/:token" },
     ];
   },
 };

@@ -4,17 +4,17 @@
 
 import * as Sentry from "@sentry/nextjs";
 
-import { toScrubbedGuestEvent } from "./src/lib/sentry-scrub";
+import { toScrubbedEvent } from "./src/lib/sentry-scrub";
 
 const SENTRY_DSN = process.env.NEXT_PUBLIC_SENTRY_DSN;
 const VERCEL_ENV = process.env.NEXT_PUBLIC_VERCEL_ENV;
 const isProduction = VERCEL_ENV === "production";
 
 Sentry.init({
-  // No guest token reaches Sentry, whichever field carries the URL.
-  beforeBreadcrumb: (breadcrumb) => toScrubbedGuestEvent(breadcrumb),
-  beforeSend: (event) => toScrubbedGuestEvent(event),
-  beforeSendSpan: (span) => toScrubbedGuestEvent(span),
+  // No secret token (a guest link, a password reset) reaches Sentry, whichever field carries the URL.
+  beforeBreadcrumb: (breadcrumb) => toScrubbedEvent(breadcrumb),
+  beforeSend: (event) => toScrubbedEvent(event),
+  beforeSendSpan: (span) => toScrubbedEvent(span),
 
   dsn: SENTRY_DSN,
   // Staging reports its errors too, so a regression shows up before the release.

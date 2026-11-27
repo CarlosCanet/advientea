@@ -11,7 +11,12 @@ import { MdEmail } from "react-icons/md";
 import { signin } from "@/app/actions/authActions";
 import { initialSignInActionResponse } from "@/lib/types";
 
-export default function SignInForm() {
+interface SignInFormProps {
+  /** Shown above the form, such as the confirmation after a password reset. */
+  notice?: string;
+}
+
+export default function SignInForm({ notice }: SignInFormProps) {
   const [state, action, isPending] = useActionState(signin, initialSignInActionResponse);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState<boolean>(false);
@@ -20,6 +25,11 @@ export default function SignInForm() {
     <div className="card w-full max-w-xl bg-base-100 shadow-xl mt-20 mb-20">
       <Form action={action} className="card-body">
         <h2 className="card-title">Login</h2>
+        {notice && (
+          <p className="alert alert-success" role="status">
+            {notice}
+          </p>
+        )}
         <div className="items-center mt-2">
           <label className="input input-bordered flex items-center gap-2 mb-2 w-full">
             <MdEmail />

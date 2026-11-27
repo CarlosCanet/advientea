@@ -40,15 +40,3 @@ export async function requireRole(...roles: Role[]) {
   }
   return session;
 }
-
-export async function changePassword(currentPassword: string, newPassword: string, revokeOtherSessions: boolean) {
-  const data = await auth.api.changePassword({
-    body: {
-      currentPassword,
-      newPassword,
-      revokeOtherSessions,
-    },
-    headers: await headers(),
-  });
-  return !!data;
-}
