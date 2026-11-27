@@ -8,10 +8,13 @@ export async function sendResetPasswordEmail({
   user,
 }: {
   url: string;
-  user: { email: string; name: string };
+  user: { email: string; name: string; username?: unknown };
 }): Promise<void> {
   try {
-    const email = await toResetPasswordEmail({ url, username: user.name });
+    // better-auth types the user without additional fields, but the row it passes has them. `name` is written only
+    // at sign-up and goes stale when the username changes.
+    const greetingName = typeof user.username === "string" && user.username ? user.username : user.name;
+    const email = await toResetPasswordEmail({ url, username: greetingName });
     await sendEmail({ ...email, to: user.email });
   } catch (error) {
     console.error("[sendResetPasswordEmail] failed", error);

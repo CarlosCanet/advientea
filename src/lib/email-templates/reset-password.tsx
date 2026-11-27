@@ -44,7 +44,8 @@ const smallPrint = {
 };
 
 export function ResetPasswordEmail({ url, username }: ResetPasswordEmailProps) {
-  // The logo is served by the same deployment that built the link, so a preview's email points at that preview.
+  // The logo is served by the same deployment that built the link, so a preview's email points at that preview,
+  // whose Vercel protection hides it from the mail client: a missing logo there is expected.
   const logoUrl = `${new URL(url).origin}/LogoAdvientea.png`;
 
   return (
@@ -54,7 +55,9 @@ export function ResetPasswordEmail({ url, username }: ResetPasswordEmailProps) {
         <style>{GRIFFY_FONT_FACE}</style>
       </Head>
       <Preview>Elige una contraseña nueva para Advienté. El enlace caduca en una hora.</Preview>
+      {/* <Body> defaults to lang="en" on its own wrapper, which would override the <Html> one. */}
       <Body
+        lang="es"
         style={{ backgroundColor: EMAIL_THEME.background, fontFamily: EMAIL_THEME.font, margin: 0, padding: "32px 0" }}
       >
         <Container style={{ margin: "0 auto", maxWidth: "520px", padding: "0 16px" }}>
@@ -114,14 +117,18 @@ export function ResetPasswordEmail({ url, username }: ResetPasswordEmailProps) {
                 {url}
               </Link>
             </Text>
-            <Hr style={{ borderColor: EMAIL_THEME.border, margin: "24px 0" }} />
+            {/* <Hr> draws its line with its own border-top, so the colour goes there. */}
+            <Hr style={{ borderTop: `1px solid ${EMAIL_THEME.border}`, margin: "24px 0" }} />
             <Text style={{ ...smallPrint, margin: 0 }}>
               ¿No has sido tú? No te preocupes: tu contraseña no cambia y puedes borrar este correo tranquilamen
               <i>Té</i>.
             </Text>
           </Section>
 
-          <Text style={{ ...smallPrint, margin: "16px 0 0", textAlign: "center" }}>Advienté</Text>
+          <Text style={{ ...smallPrint, margin: "16px 0 0", textAlign: "center" }}>
+            No respondas a este correo. Si necesitas ayuda, habla con quien gestione el calendario este año.
+          </Text>
+          <Text style={{ ...smallPrint, margin: "8px 0 0", textAlign: "center" }}>Advienté</Text>
         </Container>
       </Body>
     </Html>

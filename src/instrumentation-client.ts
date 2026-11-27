@@ -4,17 +4,21 @@
 
 import * as Sentry from "@sentry/nextjs";
 
-import { toScrubbedGuestEvent } from "./lib/sentry-scrub";
+import { toScrubbedEvent, toScrubbedUrl } from "./lib/sentry-scrub";
 
 const SENTRY_DSN = process.env.NEXT_PUBLIC_SENTRY_DSN;
 const VERCEL_ENV = process.env.NEXT_PUBLIC_VERCEL_ENV;
 const isProduction = VERCEL_ENV === "production";
+// Replay records the page URL where no hook can rewrite it (rrweb's Meta event skips beforeAddRecordingEvent), so a
+// page loaded with a secret in its URL, such as /reset-password?token=…, is never recorded.
+const pageUrl = globalThis.location?.href ?? "";
+const isPageUrlSecret = toScrubbedUrl(pageUrl) !== pageUrl;
 
 Sentry.init({
-  // No guest token reaches Sentry, whichever field carries the URL.
-  beforeBreadcrumb: (breadcrumb) => toScrubbedGuestEvent(breadcrumb),
-  beforeSend: (event) => toScrubbedGuestEvent(event),
-  beforeSendSpan: (span) => toScrubbedGuestEvent(span),
+  // No secret token (a guest link, a password reset) reaches Sentry, whichever field carries the URL.
+  beforeBreadcrumb: (breadcrumb) => toScrubbedEvent(breadcrumb),
+  beforeSend: (event) => toScrubbedEvent(event),
+  beforeSendSpan: (span) => toScrubbedEvent(span),
 
   dsn: SENTRY_DSN,
   // Staging reports its errors too, so a regression shows up before the release.
@@ -27,8 +31,15 @@ Sentry.init({
   tunnel: "/monitoring",
 
   // Errors only, everywhere: no traces, so the tunnel (one Vercel function call per envelope) runs only for errors.
-  // Staging also skips replays.
-  integrations: isProduction ? [Sentry.replayIntegration()] : [],
+  // Staging also skips replays. A replay passes none of the before* hooks above: its custom events (breadcrumbs, spans)
+  // go through beforeAddRecordingEvent and its replay_event (with the page URLs) through the integrations' event
+  // processors.
+  integrations: [
+    { name: "ScrubSecretTokens", processEvent: (event) => toScrubbedEvent(event) },
+    ...(isProduction && !isPageUrlSecret
+      ? [Sentry.replayIntegration({ beforeAddRecordingEvent: (recordingEvent) => toScrubbedEvent(recordingEvent) })]
+      : []),
+  ],
   tracesSampleRate: 0,
 
   environment: VERCEL_ENV || process.env.NODE_ENV,

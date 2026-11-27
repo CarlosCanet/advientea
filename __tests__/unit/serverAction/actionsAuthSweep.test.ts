@@ -21,6 +21,8 @@ import { ForbiddenError, UnauthenticatedError } from "@/lib/errors";
 const PUBLIC_ACTIONS: Record<string, string> = {
   requestPasswordResetAction:
     "whoever forgot the password is signed out; it only asks better-auth to email a link, rate-limited",
+  resetPasswordAction:
+    "whoever follows the emailed link is signed out; the one-time token from that link is the proof, checked by better-auth",
   saveGuestTeaAction:
     "a guest has no account: the secret link's cookie names their participation, never the form; the only unauthenticated write path",
   signin: "authenticates; there is no session yet",
@@ -123,6 +125,7 @@ vi.mock("@/lib/auth", () => ({
       changePassword: vi.fn(),
       getSession: vi.fn().mockResolvedValue(null),
       requestPasswordReset: vi.fn(),
+      resetPassword: vi.fn(),
       signInEmail: vi.fn(),
       signOut: vi.fn(),
       signUpEmail: vi.fn(),

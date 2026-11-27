@@ -4,12 +4,20 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { inspect } from "node:util";
 import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from "vitest";
+import { z } from "zod";
 
-import { requestPasswordResetAction, signin, signup, updateUserProfile } from "@/app/actions/authActions";
+import {
+  requestPasswordResetAction,
+  resetPasswordAction,
+  signin,
+  signup,
+  updateUserProfile,
+} from "@/app/actions/authActions";
 import { auth } from "@/lib/auth";
 import { deleteAsset, uploadImage } from "@/lib/cloudinary";
 import { editUser, requireSession } from "@/lib/dal";
 import { RateLimitError, UnauthenticatedError } from "@/lib/errors";
+import { resetPasswordFormSchema } from "@/lib/schemas/auth";
 import { assertWithinRateLimit, getClientIP } from "@/lib/services/rate-limit-service";
 import { createUser } from "@/lib/services/user-service";
 
@@ -23,6 +31,7 @@ vi.mock("@/lib/auth", () => ({
       changePassword: vi.fn(),
       getSession: vi.fn().mockResolvedValue(null),
       requestPasswordReset: vi.fn(),
+      resetPassword: vi.fn(),
       signInEmail: vi.fn(),
       signOut: vi.fn(),
       signUpEmail: vi.fn(),
@@ -595,6 +604,268 @@ describe("requestPasswordResetAction", () => {
     await requestPasswordResetAction(null, resetForm(PADDED_EMAIL));
 
     expectEmailNotLogged(PADDED_EMAIL);
+  });
+});
+
+describe("resetPasswordAction", () => {
+  const FORM_ERRORS = "Hay errores en el formulario";
+  const LINK_INVALID = "El enlace no es válido. Pide uno nuevo.";
+  const LINK_REJECTED = "El enlace no es válido o ha caducado. Pide uno nuevo.";
+  const RESET_FAILED = "No se pudo cambiar la contraseña. Inténtalo de nuevo.";
+  const PASSWORDS_DIFFER = "Las contraseñas no coinciden.";
+  const PASSWORD_TOO_SHORT = "La contraseña debe ser de al menos 8 caracteres.";
+  const SIGN_IN_AFTER_RESET = "/sign-in?password-reset=ok";
+  const TOKEN = "rst7Kq2ZxV9pLm4Wn8Tb";
+  const PADDED_TOKEN = `  ${TOKEN}  `;
+  const NEW_PASSWORD = "Nuev4Clave!Ana";
+  const OTHER_PASSWORD = "Distint4Clave!Luis";
+  const WEAK_PASSWORD = "Zq9!x";
+  type ResetField = "newPassword" | "newPasswordConfirmation" | "token";
+
+  let log: MockInstance<typeof console.log>;
+  let info: MockInstance<typeof console.info>;
+  let debug: MockInstance<typeof console.debug>;
+
+  function resetValues(fields: Partial<Record<ResetField, string>> = {}): Record<ResetField, string> {
+    return { newPassword: NEW_PASSWORD, newPasswordConfirmation: NEW_PASSWORD, token: TOKEN, ...fields };
+  }
+
+  function resetForm(fields: Partial<Record<ResetField, string>> = {}) {
+    const formData = new FormData();
+    for (const [key, value] of Object.entries(resetValues(fields))) {
+      formData.append(key, value);
+    }
+    return formData;
+  }
+
+  /** The field errors the real form schema gives for those values. */
+  function fieldErrorsFor(values: Partial<Record<ResetField, string>>) {
+    const parsed = resetPasswordFormSchema.safeParse(values);
+    if (parsed.success) {
+      throw new Error("these values are valid: the test expects them to fail");
+    }
+    return z.flattenError(parsed.error).fieldErrors;
+  }
+
+  /** Neither the token nor any password, as typed or trimmed, shows up in anything written to the console. */
+  function expectSecretsNotLogged(...extra: string[]) {
+    const logged = loggedText(warn, error, log, info, debug);
+    for (const secret of [TOKEN, NEW_PASSWORD, OTHER_PASSWORD, WEAK_PASSWORD, ...extra]) {
+      expect(logged).not.toContain(secret);
+      expect(logged).not.toContain(secret.trim());
+    }
+  }
+
+  function expectNoNavigation() {
+    expect(redirect).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
+  }
+
+  beforeEach(() => {
+    log = vi.spyOn(console, "log").mockImplementation(() => {});
+    info = vi.spyOn(console, "info").mockImplementation(() => {});
+    debug = vi.spyOn(console, "debug").mockImplementation(() => {});
+    vi.mocked(auth.api.resetPassword).mockResolvedValue({ status: true } as never);
+  });
+
+  afterEach(() => {
+    log.mockRestore();
+    info.mockRestore();
+    debug.mockRestore();
+  });
+
+  describe.each<[string, Partial<Record<ResetField, string>>, ResetField, string]>([
+    ["a blank token", { token: "" }, "token", LINK_INVALID],
+    ["a token of spaces only", { token: "   " }, "token", LINK_INVALID],
+    ["a blank new password", { newPassword: "", newPasswordConfirmation: "" }, "newPassword", PASSWORD_TOO_SHORT],
+    [
+      "a new password that breaks the password rules",
+      { newPassword: WEAK_PASSWORD, newPasswordConfirmation: WEAK_PASSWORD },
+      "newPassword",
+      PASSWORD_TOO_SHORT,
+    ],
+    [
+      "a confirmation that does not match",
+      { newPasswordConfirmation: OTHER_PASSWORD },
+      "newPasswordConfirmation",
+      PASSWORDS_DIFFER,
+    ],
+  ])("with %s", (_reason, fields, field, fieldMessage) => {
+    it("answers the schema's field errors and the form message", async () => {
+      const result = await resetPasswordAction(null, resetForm(fields));
+
+      expect(result).toEqual({ errors: fieldErrorsFor(resetValues(fields)), message: FORM_ERRORS, success: false });
+      expect(result.errors?.[field]).toContain(fieldMessage);
+    });
+
+    it("never sends back the form's inputs", async () => {
+      const result = await resetPasswordAction(null, resetForm(fields));
+
+      expect(result).not.toHaveProperty("inputs");
+    });
+
+    it("never asks better-auth, checks no rate limit and never navigates", async () => {
+      await resetPasswordAction(null, resetForm(fields));
+
+      expect(auth.api.resetPassword).not.toHaveBeenCalled();
+      expect(assertWithinRateLimit).not.toHaveBeenCalled();
+      expectNoNavigation();
+    });
+
+    it("keeps the token and the passwords out of every log", async () => {
+      await resetPasswordAction(null, resetForm(fields));
+
+      expectSecretsNotLogged();
+    });
+  });
+
+  it("answers a form without any field with the token and password errors, without inputs", async () => {
+    const result = await resetPasswordAction(null, new FormData());
+
+    expect(result).toEqual({
+      errors: fieldErrorsFor({ newPassword: "", newPasswordConfirmation: "", token: "" }),
+      message: FORM_ERRORS,
+      success: false,
+    });
+    expect(result.errors?.token).toEqual([LINK_INVALID]);
+    expect(result.errors?.newPassword).toContain(PASSWORD_TOO_SHORT);
+    expect(result).not.toHaveProperty("inputs");
+    expect(auth.api.resetPassword).not.toHaveBeenCalled();
+    expectNoNavigation();
+  });
+
+  it("asks better-auth once with exactly the new password and the trimmed token", async () => {
+    await resetPasswordAction(null, resetForm({ token: PADDED_TOKEN })).catch(() => undefined);
+
+    expect(vi.mocked(auth.api.resetPassword).mock.calls).toStrictEqual([
+      [{ body: { newPassword: NEW_PASSWORD, token: TOKEN } }],
+    ]);
+  });
+
+  it("hands better-auth the new password as the form schema leaves it", async () => {
+    const padded = `  ${NEW_PASSWORD} `;
+
+    await resetPasswordAction(null, resetForm({ newPassword: padded, newPasswordConfirmation: padded })).catch(
+      () => undefined,
+    );
+
+    expect(vi.mocked(auth.api.resetPassword).mock.calls).toStrictEqual([
+      [{ body: { newPassword: NEW_PASSWORD, token: TOKEN } }],
+    ]);
+  });
+
+  describe.each([
+    ["INVALID_TOKEN", "Invalid token"],
+    ["USER_NOT_FOUND", "User not found"],
+  ])("when better-auth rejects the link with %s", (code, authMessage) => {
+    beforeEach(() => {
+      vi.mocked(auth.api.resetPassword).mockRejectedValue(new APIError("BAD_REQUEST", { code, message: authMessage }));
+    });
+
+    it("answers the rejected-link error on the token field, without inputs", async () => {
+      const result = await resetPasswordAction(null, resetForm());
+
+      expect(result).toStrictEqual({ errors: { token: [LINK_REJECTED] }, message: LINK_REJECTED, success: false });
+    });
+
+    it("logs it as an expected rejection with console.warn, not console.error", async () => {
+      await resetPasswordAction(null, resetForm());
+
+      expect(warn.mock.calls).toStrictEqual([["[resetPasswordAction] rejected: invalid token"]]);
+      expect(error).not.toHaveBeenCalled();
+    });
+
+    it("never navigates", async () => {
+      await resetPasswordAction(null, resetForm());
+
+      expectNoNavigation();
+    });
+
+    it("keeps the token and the passwords out of every log", async () => {
+      await resetPasswordAction(null, resetForm({ token: PADDED_TOKEN }));
+
+      expectSecretsNotLogged(PADDED_TOKEN);
+    });
+  });
+
+  describe.each<[string, Error]>([
+    [
+      "another better-auth error",
+      new APIError("BAD_REQUEST", { code: "PASSWORD_TOO_SHORT", message: "Password too short" }),
+    ],
+    ["an unexpected error", new Error("Can't reach database server")],
+    [
+      "an error that is not an APIError but carries the invalid-token code",
+      Object.assign(new Error("Invalid token"), { body: { code: "INVALID_TOKEN" } }),
+    ],
+  ])("when better-auth fails with %s", (_reason, failure) => {
+    beforeEach(() => {
+      vi.mocked(auth.api.resetPassword).mockRejectedValue(failure);
+    });
+
+    it("answers exactly the generic message", async () => {
+      const result = await resetPasswordAction(null, resetForm());
+
+      expect(result).toStrictEqual({ message: RESET_FAILED, success: false });
+    });
+
+    it("logs the failure with console.error, and no rejection warning", async () => {
+      await resetPasswordAction(null, resetForm());
+
+      expect(error.mock.calls).toStrictEqual([["[resetPasswordAction] unexpected error", failure]]);
+      expect(warn).not.toHaveBeenCalled();
+    });
+
+    it("never navigates", async () => {
+      await resetPasswordAction(null, resetForm());
+
+      expectNoNavigation();
+    });
+
+    it("keeps the token and the passwords out of every log", async () => {
+      await resetPasswordAction(null, resetForm({ token: PADDED_TOKEN }));
+
+      expectSecretsNotLogged(PADDED_TOKEN);
+    });
+  });
+
+  describe("when better-auth changes the password", () => {
+    it("redirects to exactly the sign-in page with the reset notice", async () => {
+      await expect(resetPasswordAction(null, resetForm())).rejects.toThrow("NEXT_REDIRECT");
+
+      expect(vi.mocked(redirect).mock.calls).toStrictEqual([[SIGN_IN_AFTER_RESET]]);
+    });
+
+    it("lets the redirect's own error reach Next.js instead of swallowing it", async () => {
+      await expect(resetPasswordAction(null, resetForm())).rejects.toMatchObject({
+        digest: expect.stringContaining(SIGN_IN_AFTER_RESET),
+      });
+    });
+
+    it("redirects only after better-auth has changed the password", async () => {
+      await resetPasswordAction(null, resetForm()).catch(() => undefined);
+
+      expect(auth.api.resetPassword).toHaveBeenCalledOnce();
+      expect(redirect).toHaveBeenCalledOnce();
+      expect(vi.mocked(auth.api.resetPassword).mock.invocationCallOrder[0]).toBeLessThan(
+        vi.mocked(redirect).mock.invocationCallOrder[0],
+      );
+    });
+
+    it("checks no rate limit and revalidates nothing", async () => {
+      await resetPasswordAction(null, resetForm()).catch(() => undefined);
+
+      expect(getClientIP).not.toHaveBeenCalled();
+      expect(assertWithinRateLimit).not.toHaveBeenCalled();
+      expect(revalidatePath).not.toHaveBeenCalled();
+    });
+
+    it("logs no error and keeps the token and the passwords out of every log", async () => {
+      await resetPasswordAction(null, resetForm({ token: PADDED_TOKEN })).catch(() => undefined);
+
+      expect(error).not.toHaveBeenCalled();
+      expectSecretsNotLogged(PADDED_TOKEN);
+    });
   });
 });
 

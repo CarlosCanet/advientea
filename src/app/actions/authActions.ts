@@ -11,13 +11,21 @@ import { auth } from "@/lib/auth";
 import { deleteAsset, uploadImage } from "@/lib/cloudinary";
 import { changeUserRole, editUser, requireRole, requireSession } from "@/lib/dal";
 import { ForbiddenError, RateLimitError, UnauthenticatedError } from "@/lib/errors";
-import { requestPasswordResetFormSchema, signupFormSchema, updateProfileFormSchema } from "@/lib/schemas/auth";
+import { toNormalizedPassword } from "@/lib/password";
+import {
+  requestPasswordResetFormSchema,
+  resetPasswordFormSchema,
+  signupFormSchema,
+  updateProfileFormSchema,
+} from "@/lib/schemas/auth";
 import { assertWithinRateLimit, getClientIP } from "@/lib/services/rate-limit-service";
 import { createUser } from "@/lib/services/user-service";
 import {
   ActionResponse,
   RequestPasswordResetActionResponse,
   RequestPasswordResetFormData,
+  ResetPasswordActionResponse,
+  ResetPasswordFormData,
   SignInActionResponse,
   SignInFormData,
   SignUpActionResponse,
@@ -105,7 +113,8 @@ export async function signin(
 ): Promise<SignInActionResponse> {
   const rawData: SignInFormData = {
     email: getFormString(formData, "email"),
-    password: getFormString(formData, "password"),
+    // Normalised as when it was set (sign-up, profile, reset), or the same keystrokes would not match the hash.
+    password: toNormalizedPassword(getFormString(formData, "password")),
   };
   // Checked on its own: the catch below turns every error into wrong credentials, and a broken limiter must
   // neither let the attempt through nor pass for a wrong password.
@@ -182,6 +191,45 @@ export async function requestPasswordResetAction(
       "Si existe una cuenta con ese email, te hemos enviado un enlace para elegir una contraseña nueva. Revisa también la carpeta de spam.",
     success: true,
   };
+}
+
+const INVALID_RESET_LINK = "El enlace no es válido o ha caducado. Pide uno nuevo.";
+
+export async function resetPasswordAction(
+  prevState: null | ResetPasswordActionResponse,
+  formData: FormData,
+): Promise<ResetPasswordActionResponse> {
+  const rawData: ResetPasswordFormData = {
+    newPassword: getFormString(formData, "newPassword"),
+    newPasswordConfirmation: getFormString(formData, "newPasswordConfirmation"),
+    token: getFormString(formData, "token"),
+  };
+  const validatedFields = resetPasswordFormSchema.safeParse(rawData);
+  if (!validatedFields.success) {
+    return {
+      errors: z.flattenError(validatedFields.error).fieldErrors,
+      message: "Hay errores en el formulario",
+      success: false,
+    };
+  }
+
+  try {
+    await auth.api.resetPassword({
+      body: { newPassword: validatedFields.data.newPassword, token: validatedFields.data.token },
+    });
+  } catch (error) {
+    // USER_NOT_FOUND means the account was deleted after the link was sent: to the user it is just a dead link.
+    const isInvalidLink =
+      error instanceof APIError && (error.body?.code === "INVALID_TOKEN" || error.body?.code === "USER_NOT_FOUND");
+    if (isInvalidLink) {
+      console.warn("[resetPasswordAction] rejected: invalid token");
+      return { errors: { token: [INVALID_RESET_LINK] }, message: INVALID_RESET_LINK, success: false };
+    }
+    console.error("[resetPasswordAction] unexpected error", error);
+    return { message: "No se pudo cambiar la contraseña. Inténtalo de nuevo.", success: false };
+  }
+
+  redirect("/sign-in?password-reset=ok");
 }
 
 export async function signout() {

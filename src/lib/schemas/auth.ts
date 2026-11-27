@@ -1,10 +1,12 @@
 import { z } from "zod";
 
+import { toNormalizedPassword } from "@/lib/password";
 import { ALLOWED_IMAGE_TYPES } from "@/lib/types";
 
-const passwordSchema = z
-  .string()
-  .trim()
+// Any password field: the value is normalised before the checks, so they judge what will be hashed.
+const passwordInputSchema = z.string().overwrite(toNormalizedPassword);
+
+const passwordSchema = passwordInputSchema
   .min(8, { error: "La contraseña debe ser de al menos 8 caracteres." })
   .max(128, { error: "La contraseña no puede tener más de 128 caracteres." })
   .regex(/[a-zA-Z]/, {
@@ -34,13 +36,10 @@ const emailSchema = z
   .pipe(z.email({ error: "Introduce un email correcto." }));
 // The profile form always sends both fields: "" means "keep current password" and must become undefined before
 // validation.
-const profileNewPasswordSchema = z
-  .string()
-  .trim()
+const profileNewPasswordSchema = passwordInputSchema
   .transform((value) => (value === "" ? undefined : value))
   .pipe(passwordSchema.optional());
-const profileNewPasswordConfirmationSchema = z
-  .string()
+const profileNewPasswordConfirmationSchema = passwordInputSchema
   .transform((value) => (value === "" ? undefined : value))
   .optional();
 
@@ -48,7 +47,7 @@ export const signupFormSchema = commonSchema
   .extend({
     email: emailSchema,
     password: passwordSchema,
-    passwordConfirmation: z.string().trim(),
+    passwordConfirmation: passwordInputSchema,
   })
   .refine((data) => data.password === data.passwordConfirmation, {
     error: "Las contraseñas no coinciden.",
@@ -57,7 +56,7 @@ export const signupFormSchema = commonSchema
 
 export const updateProfileFormSchema = commonSchema
   .extend({
-    currentPassword: z.string().optional(),
+    currentPassword: passwordInputSchema.optional(),
     newPassword: profileNewPasswordSchema,
     newPasswordConfirmation: profileNewPasswordConfirmationSchema,
   })
@@ -77,7 +76,7 @@ export const requestPasswordResetFormSchema = z.object({
 export const resetPasswordFormSchema = z
   .object({
     newPassword: passwordSchema,
-    newPasswordConfirmation: z.string().trim(),
+    newPasswordConfirmation: passwordInputSchema,
     token: z.string().trim().min(1, { error: "El enlace no es válido. Pide uno nuevo." }),
   })
   .refine((data) => data.newPassword === data.newPasswordConfirmation, {
